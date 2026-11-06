@@ -503,7 +503,7 @@ pub(crate) fn with_span<R>(ctl: &evophoto_raster::Interrupt, lo: f32, hi: f32, f
     f(&evophoto_raster::Interrupt::new(&cancelled, &progress))
 }
 
-/// Where a .evophoto save's progress stands once its thumbnail, then its 1024 px composite preview,
+/// Where an .evophoto save's progress stands once its thumbnail, then its 1024 px composite preview,
 /// are rendered (the bundle itself is written after them).
 const EVOPHOTO_THUMBNAIL_DONE: f32 = 0.15;
 const EVOPHOTO_PREVIEWS_DONE: f32 = 0.4;

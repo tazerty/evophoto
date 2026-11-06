@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Repackage a EvoPhoto Linux tarball as a single-file Flatpak bundle:
+# Repackage an EvoPhoto Linux tarball as a single-file Flatpak bundle:
 #
 #   $DIST/evophoto-<version>-linux-<arch>.flatpak
 #

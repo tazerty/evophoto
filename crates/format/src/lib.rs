@@ -62,7 +62,7 @@ pub enum FormatError {
     TooNew { found: u32, supported: u32 },
     #[error("limit exceeded: {0}")]
     LimitExceeded(String),
-    #[error("`{path}` is NaN or infinite, which a .evophoto manifest cannot hold; reset that value and save again")]
+    #[error("`{path}` is NaN or infinite, which an .evophoto manifest cannot hold; reset that value and save again")]
     NonFinite { path: String },
     #[error("I/O: {0}")]
     Io(#[from] std::io::Error),

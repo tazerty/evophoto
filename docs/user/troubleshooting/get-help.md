@@ -1,6 +1,6 @@
 ---
 title: Get help with a problem
-description: How to ask for help or file a EvoPhoto bug so it can be fixed, and what to include.
+description: How to ask for help or file an EvoPhoto bug so it can be fixed, and what to include.
 order: 30
 verified: 0.8.2
 ---

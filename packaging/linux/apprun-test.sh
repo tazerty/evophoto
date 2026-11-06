@@ -129,7 +129,7 @@ out="$(APPIMAGE="$odd" "$APPDIR/AppRun" x)" || fail "launch with an odd path exi
 [[ "$out" = "stub: x" ]] || fail "odd path: $out"
 [[ ! -e "$XDG_DATA_HOME" ]] || fail "integrated an AppImage path that needs escaping"
 
-# 12. AM / AppMan (#6392): a evophoto-AM.desktop launcher in the user's applications
+# 12. AM / AppMan (#6392): an evophoto-AM.desktop launcher in the user's applications
 #     dir owns the menu entry. AppRun removes its own entry left from an earlier run,
 #     writes no second one and still installs the icons.
 rm -rf "$XDG_DATA_HOME"

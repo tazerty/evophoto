@@ -1,5 +1,5 @@
 #![no_main]
-//! Load arbitrary bytes as a .evophoto bundle with tight limits.
+//! Load arbitrary bytes as an .evophoto bundle with tight limits.
 
 use libfuzzer_sys::fuzz_target;
 use evophoto_format::{LoadOptions, load_from_bytes_with, read_manifest};

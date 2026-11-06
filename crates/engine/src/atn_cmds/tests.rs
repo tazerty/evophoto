@@ -2594,7 +2594,7 @@ fn apply_image_numeric_source_selectors_are_refused() {
     assert!(export("S", &[&a], &[], false).is_err());
 }
 
-/// A param a EvoPhoto step leaves out exports as EvoPhoto's default wherever Photoshop plays
+/// A param an EvoPhoto step leaves out exports as EvoPhoto's default wherever Photoshop plays
 /// the missing key differently (checked against Photoshop): Canvas Size anchors top left,
 /// Apply Image blends Normal, Color Balance turns preserve luminosity off, and a Paint Bucket
 /// step without a tolerance doesn't play at all.

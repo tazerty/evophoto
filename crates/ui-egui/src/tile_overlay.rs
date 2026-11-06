@@ -216,7 +216,7 @@ mod tests {
 
     fn identical_pixels_share_a_group_in(fmt: PixelFormat) {
         let mut s = Surface::new(fmt);
-        // Two separately allocated tiles with the same red pixels, as after loading a .evophoto.
+        // Two separately allocated tiles with the same red pixels, as after loading an .evophoto.
         s.fill_rect(cell(0, 0), &[1.0, 0.0, 0.0, 1.0]);
         s.fill_rect(cell(2, 0), &[1.0, 0.0, 0.0, 1.0]);
         // One shared allocation in two cells (copy-on-write), and a lone green tile.

@@ -83,7 +83,7 @@ fn open_filters() -> Vec<(&'static str, Vec<String>)> {
 }
 
 /// File › Save As formats: (filter name, extensions). The filter matching the suggested name's
-/// extension comes first, so a .evophoto document saves as .evophoto by default and everything else
+/// extension comes first, so an .evophoto document saves as .evophoto by default and everything else
 /// keeps defaulting to PSD.
 const SAVE_FILTERS: &[(&str, &[&str])] = &[
     ("PSD Document", &["psd", "psb"]),
@@ -780,7 +780,7 @@ mod tests {
             ("/pics/art.png", opened, &png, "/pics/art.png"),
             ("/pics/art.PNG", opened, &png, "/pics/art.PNG"),
             ("/pics/big.psb", opened, &psd, "/pics/big.psb"),
-            // The dialog opened on a .evophoto: that is the extension the type replaces.
+            // The dialog opened on an .evophoto: that is the extension the type replaces.
             ("/pics/art.evophoto", Some("art.evophoto"), &png, "/pics/art.png"),
             ("/pics/art.psd", Some("art.evophoto"), &png, "/pics/art.psd"),
         ];

@@ -1,6 +1,6 @@
 //! Corpus test (feature `corpus`; run with `cargo xtask test-corpus`): every `.atn` set under
 //! `corpus/atn/` loads through `actions.load`, exports through `actions.save`, and the export
-//! loads back to the same actions. Steps without a EvoPhoto equivalent are counted against a
+//! loads back to the same actions. Steps without an EvoPhoto equivalent are counted against a
 //! ceiling, so a mapping regression (or a new unmapped event in the corpus) shows up here.
 #![cfg(feature = "corpus")]
 

@@ -145,7 +145,7 @@ const METADATA: &[&str] = &[
 pub struct LoadReport {
     /// How many settings were applied.
     pub applied: usize,
-    /// `crs:` settings without a EvoPhoto control (set to something other than their neutral
+    /// `crs:` settings without an EvoPhoto control (set to something other than their neutral
     /// value), or with an unusable value, in file order.
     pub ignored: Vec<String>,
 }
