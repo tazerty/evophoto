@@ -1,0 +1,12 @@
+[package]
+name = "evo-jpeg"
+description = "Clean-room decoder for 12-bit and arithmetic-coded JPEG (ITU-T T.81)."
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+rust-version = "1.95"
+repository = "vendor/evo-libs"
+
+[dependencies]
+thiserror = { version = "2" }
+

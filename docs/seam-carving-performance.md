@@ -82,7 +82,7 @@ under 3 s, and delete this paragraph with it.
 ## Reproduce
 
 ```sh
-cargo build --release -p photocraft-algo --example bench_seam
+cargo build --release -p evophoto-algo --example bench_seam
 ./target/release/examples/bench_seam 6000 4000 5400 4   # width height new_width channels (1..=4)
 ```
 
@@ -92,9 +92,9 @@ example builds deterministic gradient-plus-detail content, so two runs of the sa
 
 ## Correctness and repository checks
 
-`cargo test --release -p photocraft-algo seam` passes, including `carver_matches_reference`,
+`cargo test --release -p evophoto-algo seam` passes, including `carver_matches_reference`,
 `output_bits_are_pinned`, `tall_proxy_shrink_preserves_full_resolution_salient_and_protected_pixels`
 and the cancellation test. `cargo fmt --all --check` and
-`cargo clippy -p photocraft-algo --all-targets -- -D warnings` are clean. No command, UI or format
+`cargo clippy -p evophoto-algo --all-targets -- -D warnings` are clean. No command, UI or format
 contract changed; `Carver`'s `track` mode is still used by the enlargement path, which needs the
 original columns it was written for.

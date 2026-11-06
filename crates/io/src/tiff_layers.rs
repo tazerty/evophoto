@@ -1,5 +1,5 @@
 //! Layered TIFF: Photoshop layer data carried in the TIFF tags 37724 (`ImageSourceData`) and
-//! 34377 (image resources), see [`photocraft_psd::tiff`].
+//! 34377 (image resources), see [`evophoto_psd::tiff`].
 //!
 //! Import rebuilds a PSD model from the TIFF's pixels plus those two tags and hands it to the
 //! PSD importer, so everything the PSD path understands (groups, masks, effects, type, shapes,
@@ -10,12 +10,12 @@
 
 use std::sync::Arc;
 
-use photocraft_codecs::{self as codecs, ChannelLayout, Format, Image, SampleType as CSample};
-use photocraft_color::ColorMode;
-use photocraft_doc::Document;
-use photocraft_psd::resources::ids;
-use photocraft_psd::tiff::{ByteOrder, ImageSourceData, resources_from_bytes, resources_to_bytes};
-use photocraft_psd::{ColorMode as PsdMode, Compression, Header, ImageData, ImageResource, ResolutionInfo};
+use evophoto_codecs::{self as codecs, ChannelLayout, Format, Image, SampleType as CSample};
+use evophoto_color::ColorMode;
+use evophoto_doc::Document;
+use evophoto_psd::resources::ids;
+use evophoto_psd::tiff::{ByteOrder, ImageSourceData, resources_from_bytes, resources_to_bytes};
+use evophoto_psd::{ColorMode as PsdMode, Compression, Header, ImageData, ImageResource, ResolutionInfo};
 
 use crate::flat::{csample, encode_image, image_to_document, layout_for, single_layer, try_buffer};
 use crate::psd_export::PsdExportOptions;
@@ -32,7 +32,7 @@ pub fn would_write_layers(doc: &Document) -> bool {
 
 /// Documents a layered TIFF can hold: the TIFF composite must be in the document's model so
 /// that the layer channels inside the tag match it (Lab TIFFs are not decoded or encoded by
-/// `photocraft-codecs`), and there must be layers to keep (a Multichannel document has none:
+/// `evophoto-codecs`), and there must be layers to keep (a Multichannel document has none:
 /// its channels are the image).
 fn layered_mode(doc: &Document) -> bool {
     matches!(doc.pixel_format().mode, ColorMode::Grayscale | ColorMode::Rgb | ColorMode::Cmyk) && doc.mode != ColorMode::Multichannel && !doc.layers.is_empty()
@@ -190,7 +190,7 @@ const TIFF_COMPOSITE_DONE: f32 = 0.72;
 /// Saves `doc` as a layered TIFF. Documents whose colour mode a TIFF cannot hold in our
 /// codec (Lab) are saved flat, with a warning. Reports progress through `ctl` (see
 /// [`crate::export_with`]).
-pub(crate) fn export_layered(doc: &Document, opts: &ExportOptions, ctl: &photocraft_raster::Interrupt) -> Result<ExportResult, IoError> {
+pub(crate) fn export_layered(doc: &Document, opts: &ExportOptions, ctl: &evophoto_raster::Interrupt) -> Result<ExportResult, IoError> {
     if !layered_mode(doc) {
         let mut r = crate::flat::export_flat_with(doc, Format::Tiff, opts, ctl)?;
         if !doc.layers.is_empty() {
@@ -235,7 +235,7 @@ pub(crate) fn export_layered(doc: &Document, opts: &ExportOptions, ctl: &photocr
     warnings.extend(w);
     let order = if codecs::tiff_writes_little_endian() { ByteOrder::Little } else { ByteOrder::Big };
     let (layers, w) = match ImageSourceData::from_psd(&file).to_bytes(order) {
-        Err(photocraft_psd::PsdError::LimitExceeded(_)) if !force_psb => {
+        Err(evophoto_psd::PsdError::LimitExceeded(_)) if !force_psb => {
             let psb_opts = PsdExportOptions { force_psb: true, ..psd_opts };
             let (psb, w) = crate::with_span(ctl, 0.0, TIFF_MODEL_DONE, |ctl| crate::psd_export::document_to_psd_interruptible(doc, &psb_opts, ctl));
             ctl.check().map_err(|_| IoError::Cancelled)?;
@@ -288,12 +288,12 @@ pub(crate) fn export_layered(doc: &Document, opts: &ExportOptions, ctl: &photocr
 }
 
 /// Removes the blocks a document kept verbatim from a little-endian TIFF because their layout
-/// is unknown ([`photocraft_psd::TaggedBlock::is_foreign_order`]) before `file` is written as a
+/// is unknown ([`evophoto_psd::TaggedBlock::is_foreign_order`]) before `file` is written as a
 /// PSD: their bytes are in the wrong order for a PSD and cannot be converted. Returns a warning
-/// per block dropped. A save back to TIFF keeps them (see [`photocraft_psd::tiff`]).
-pub fn strip_foreign_order_blocks(file: &mut photocraft_psd::PsdFile) -> Vec<String> {
+/// per block dropped. A save back to TIFF keeps them (see [`evophoto_psd::tiff`]).
+pub fn strip_foreign_order_blocks(file: &mut evophoto_psd::PsdFile) -> Vec<String> {
     let mut warnings = Vec::new();
-    let mut strip = |blocks: &mut Vec<photocraft_psd::TaggedBlock>, owner: &str| {
+    let mut strip = |blocks: &mut Vec<evophoto_psd::TaggedBlock>, owner: &str| {
         blocks.retain(|b| {
             let keep = !b.is_foreign_order();
             if !keep {
@@ -318,8 +318,8 @@ pub fn strip_foreign_order_blocks(file: &mut photocraft_psd::PsdFile) -> Vec<Str
 
 #[cfg(test)]
 mod tests {
-    use photocraft_doc::{Color, Document, Fill, FillCache, Layer, LayerContent};
-    use photocraft_raster::Surface;
+    use evophoto_doc::{Color, Document, Fill, FillCache, Layer, LayerContent};
+    use evophoto_raster::Surface;
 
     use crate::{ExportOptions, export};
 
@@ -329,7 +329,7 @@ mod tests {
     /// document must still carry PSD-style layer data: Photoshop does not read the PSB-style
     /// header in a TIFF and opens only the composite, as one locked Background.
     fn many_cheap_fills() -> Document {
-        let mut doc = Document::new("many fills", photocraft_geom::Size::new(2048, 2048), photocraft_color::ColorMode::Rgb, photocraft_color::SampleType::U8);
+        let mut doc = Document::new("many fills", evophoto_geom::Size::new(2048, 2048), evophoto_color::ColorMode::Rgb, evophoto_color::SampleType::U8);
         for i in 0..140 {
             let fill = Fill::Solid(Color::rgb(0.5, 0.25, 0.75));
             let mut l = Layer::new(format!("Fill {i}"), LayerContent::Fill(fill.clone()));
@@ -346,9 +346,9 @@ mod tests {
         assert!(crate::psd_export::psd_size_exceeds_limit(&doc), "the fixture must pass the 2 GB estimate");
 
         let r = export(&doc, "x.tif", &ExportOptions { tiff_layers: true, ..Default::default() }).unwrap();
-        let (_, layers) = photocraft_codecs::tiff_photoshop_tags(&r.bytes);
+        let (_, layers) = evophoto_codecs::tiff_photoshop_tags(&r.bytes);
         let layers = layers.unwrap();
-        assert!(layers.starts_with(photocraft_psd::tiff::SIGNATURE), "{:?}", String::from_utf8_lossy(&layers[..36.min(layers.len())]));
+        assert!(layers.starts_with(evophoto_psd::tiff::SIGNATURE), "{:?}", String::from_utf8_lossy(&layers[..36.min(layers.len())]));
         assert!(!r.warnings.iter().any(|w| w.contains("PSB")), "{:?}", r.warnings);
         let back = crate::import("x.tif", &r.bytes).unwrap().document;
         assert_eq!(back.layers.len(), doc.layers.len());
@@ -362,7 +362,7 @@ mod tests {
     fn forcing_psb_still_writes_psb_style_layer_data() {
         let doc = many_cheap_fills();
         let r = export(&doc, "x.tif", &ExportOptions { tiff_layers: true, force_psb: true, ..Default::default() }).unwrap();
-        let (_, layers) = photocraft_codecs::tiff_photoshop_tags(&r.bytes);
-        assert!(layers.unwrap().starts_with(photocraft_psd::tiff::SIGNATURE_PSB));
+        let (_, layers) = evophoto_codecs::tiff_photoshop_tags(&r.bytes);
+        assert!(layers.unwrap().starts_with(evophoto_psd::tiff::SIGNATURE_PSB));
     }
 }

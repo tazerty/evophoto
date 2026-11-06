@@ -1,6 +1,6 @@
 //! Reproduce numeric subfamilies without redistributing proprietary fonts.
 use super::*;
-use photocraft_doc::text::CharStyle;
+use evophoto_doc::text::CharStyle;
 
 fn numeric_font(source: &[u8], style: &str, ps: &str) -> Vec<u8> {
     let mut bytes = source.to_vec();
@@ -54,7 +54,7 @@ fn numeric_subfamilies_with_identical_weights_select_distinct_faces() {
     assert_ne!(a.font_family, b.font_family);
     assert_eq!(db.faces(&a.font_family)[0].postscript_name.as_deref(), Some("UnrelatedPS20"));
     assert_eq!(db.faces(&b.font_family)[0].postscript_name.as_deref(), Some("UnrelatedPS30"));
-    assert!(!db.families().iter().any(|f| f.starts_with(".PhotoCraft-face-")));
+    assert!(!db.families().iter().any(|f| f.starts_with(".EvoPhoto-face-")));
     let alias = b.font_family.clone();
     b.font_family = "Numeric Test".into();
     db.select_named_face(&mut b);
@@ -63,7 +63,7 @@ fn numeric_subfamilies_with_identical_weights_select_distinct_faces() {
 
 #[test]
 fn numeric_styles_shape_different_outlines_and_keep_psd_identity() {
-    use photocraft_doc::{TextLayer, text::TextRun};
+    use evophoto_doc::{TextLayer, text::TextRun};
     let mut engine = crate::TextEngine::new();
     engine.fonts.register_font_data(numeric_font(&INTER_REGULAR, "20", "UnrelatedPS20"));
     engine.fonts.register_font_data(numeric_font(&INTER_SEMIBOLD, "30", "UnrelatedPS30"));
@@ -189,9 +189,9 @@ fn localized_family_names_map_english_families_to_native_names() {
     assert!(local.values().all(|v| !v.is_empty()));
 }
 
-/// A craft-fonts manifest entry for `bytes`, as `build.rs` writes one per manifest line.
-fn craft(family: &'static str, scripts: &'static [&'static str], bytes: Vec<u8>) -> crate::CraftFont {
-    crate::CraftFont { family, style: "Regular", scripts, bytes: bytes.leak() }
+/// A evo-fonts manifest entry for `bytes`, as `build.rs` writes one per manifest line.
+fn evo(family: &'static str, scripts: &'static [&'static str], bytes: Vec<u8>) -> crate::EvoFont {
+    crate::EvoFont { family, style: "Regular", scripts, bytes: bytes.leak() }
 }
 
 /// A TrueType collection of single-face fonts.
@@ -216,21 +216,21 @@ fn collection(faces: &[Vec<u8>]) -> Vec<u8> {
     bytes
 }
 
-/// Single-face craft fonts of every script register under their manifest family names, whatever
+/// Single-face evo fonts of every script register under their manifest family names, whatever
 /// family their `name` tables give, and the ones the fallback lists name are in the fallback
-/// stack. The Hans and Arab families are fallback-list names, and no craft-fonts manifest uses
-/// any of the three, so `FontDb::new` does not register them from the build's own craft fonts.
+/// stack. The Hans and Arab families are fallback-list names, and no evo-fonts manifest uses
+/// any of the three, so `FontDb::new` does not register them from the build's own evo fonts.
 #[test]
-fn craft_fonts_of_every_script_register_under_their_manifest_families() {
+fn evo_fonts_of_every_script_register_under_their_manifest_families() {
     let fonts = [
-        craft("WenQuanYi Micro Hei", &["Hans", "Latn"], localized_font(&INTER_REGULAR, "WenQuanYi Micro Hei", "WenQuanYi Micro Hei")),
+        evo("WenQuanYi Micro Hei", &["Hans", "Latn"], localized_font(&INTER_REGULAR, "WenQuanYi Micro Hei", "WenQuanYi Micro Hei")),
         // The `name` tables of these two give the family "Numeric Test".
-        craft("Geeza Pro", &["Arab"], numeric_font(&INTER_REGULAR, "20", "CraftTestArabic")),
-        craft("Craft Test Gothic", &["Jpan", "Latn"], numeric_font(&INTER_SEMIBOLD, "30", "CraftTestGothic")),
+        evo("Geeza Pro", &["Arab"], numeric_font(&INTER_REGULAR, "20", "EvoTestArabic")),
+        evo("Evo Test Gothic", &["Jpan", "Latn"], numeric_font(&INTER_SEMIBOLD, "30", "EvoTestGothic")),
     ];
     let mut db = FontDb::new();
     assert!(fonts.iter().all(|f| !db.has_family(f.family)));
-    db.register_craft_fonts(&fonts);
+    db.register_evo_fonts(&fonts);
     let families = db.families();
     for f in &fonts {
         assert!(families.iter().any(|n| n == f.family), "{} registered under its manifest family: {families:?}", f.family);
@@ -241,15 +241,15 @@ fn craft_fonts_of_every_script_register_under_their_manifest_families() {
     }
 }
 
-/// Each face of a craft font collection keeps the family its `name` table gives.
+/// Each face of a evo font collection keeps the family its `name` table gives.
 #[test]
-fn craft_font_collections_keep_their_face_families() {
-    let faces = [localized_font(&INTER_REGULAR, "Craft Test A", "クラフト A"), localized_font(&INTER_SEMIBOLD, "Craft Test B", "クラフト B")];
-    let fonts = [craft("Craft Test Collection", &["Jpan", "Latn"], collection(&faces))];
+fn evo_font_collections_keep_their_face_families() {
+    let faces = [localized_font(&INTER_REGULAR, "Evo Test A", "エヴォ A"), localized_font(&INTER_SEMIBOLD, "Evo Test B", "エヴォ B")];
+    let fonts = [evo("Evo Test Collection", &["Jpan", "Latn"], collection(&faces))];
     let mut db = FontDb::new();
-    db.register_craft_fonts(&fonts);
-    assert!(db.has_family("Craft Test A") && db.has_family("Craft Test B"), "{:?}", db.families());
-    assert!(!db.has_family("Craft Test Collection"));
+    db.register_evo_fonts(&fonts);
+    assert!(db.has_family("Evo Test A") && db.has_family("Evo Test B"), "{:?}", db.families());
+    assert!(!db.has_family("Evo Test Collection"));
 }
 
 /// A 16.16 fixed-point number as `fvar` stores it.
@@ -385,7 +385,7 @@ fn width_hvar(hhea: &[u8], hmtx: &[u8], maxp: &[u8]) -> Vec<u8> {
 
 /// The axis values `select_named_face` gives a style of the synthesized variable family that
 /// carries the PostScript name `ps`, sorted by axis.
-fn instance_axes(db: &mut FontDb, ps: &str, variations: Vec<photocraft_doc::text::FontVariation>) -> Vec<(String, f32)> {
+fn instance_axes(db: &mut FontDb, ps: &str, variations: Vec<evophoto_doc::text::FontVariation>) -> Vec<(String, f32)> {
     let mut style = CharStyle { font_family: "Instance Test".into(), postscript_name: Some(ps.into()), weight: 300, variations, ..Default::default() };
     db.select_named_face(&mut style);
     let mut axes: Vec<_> = style.variations.into_iter().map(|v| (v.axis, v.value)).collect();
@@ -399,7 +399,7 @@ fn instance_axes(db: &mut FontDb, ps: &str, variations: Vec<photocraft_doc::text
 /// leaves the style at the default instance, and axes the style sets itself are kept.
 #[test]
 fn postscript_name_of_a_named_instance_selects_its_axis_values() {
-    use photocraft_doc::text::FontVariation;
+    use evophoto_doc::text::FontVariation;
     let mut db = FontDb::new();
     db.register_font_data(instance_font(&INTER_REGULAR));
     assert_eq!(db.faces("Instance Test").len(), 1, "a variable family is one face");
@@ -450,8 +450,8 @@ fn named_instance_wins_over_a_matching_font_style() {
 /// variable face itself, so the default instance would be chosen if the instance were skipped.
 #[test]
 fn postscript_name_of_a_named_instance_lays_out_at_that_instance() {
-    use photocraft_doc::TextLayer;
-    use photocraft_doc::text::{FontVariation, TextRun};
+    use evophoto_doc::TextLayer;
+    use evophoto_doc::text::{FontVariation, TextRun};
     let mut engine = crate::TextEngine::new();
     engine.fonts.register_font_data(instance_font(&INTER_REGULAR));
     let text = "Hamburgefonstiv 0123";

@@ -1,8 +1,8 @@
 use super::*;
-use photocraft_color::{Color, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::adjust::{CurvePoint, LevelsChannel, ToneSpace};
-use photocraft_doc::{Adjustment, Document, Fill, Layer, LayerContent, LayerMask};
-use photocraft_geom::Size;
+use evophoto_color::{Color, ColorMode, PixelFormat, SampleType};
+use evophoto_doc::adjust::{CurvePoint, LevelsChannel, ToneSpace};
+use evophoto_doc::{Adjustment, Document, Fill, Layer, LayerContent, LayerMask};
+use evophoto_geom::Size;
 
 const E: f32 = 2.0 / 255.0;
 
@@ -16,7 +16,7 @@ fn doc_white(w: u32, h: u32) -> Document {
 
 #[test]
 fn prepared_tones_match_fresh_tables_and_stay_bounded() {
-    use photocraft_doc::adjust::ToneSpace;
+    use evophoto_doc::adjust::ToneSpace;
     for depth in [SampleType::U8, SampleType::U16, SampleType::F32] {
         for space in [ToneSpace::Rgb, ToneSpace::Cmyk, ToneSpace::Lab] {
             for (mut adj, edited) in [
@@ -232,7 +232,7 @@ fn pixel_layer_rows_match_tile_copy() {
             for x in 0..30 {
                 let t = (x * 7 + y * 13) as f32 / 400.0;
                 let a = [0.0, 0.03, 0.5, 1.0][(x + y) as usize % 4];
-                l.surface_mut().unwrap().write_pixel(x, y, &photocraft_raster::from_rgba(&fmt, [t.fract(), 1.0 - t.fract(), 0.3, a]));
+                l.surface_mut().unwrap().write_pixel(x, y, &evophoto_raster::from_rgba(&fmt, [t.fract(), 1.0 - t.fract(), 0.3, a]));
             }
         }
         let mut sharp = LayerMask::reveal_all();
@@ -279,8 +279,8 @@ fn normal_rgb_test_buffers(fmt: PixelFormat) -> (Buffer, Buffer) {
             let t = i as f32 / 16.0;
             let b = [2.0 * t, 0.4, -0.25 + t, [0.0, 0.25, 0.75, 1.0][i % 4]];
             let s = [0.9 - t, 0.1 + t, 0.3, [0.0, -0.0, 0.5, 1.0][i % 4]];
-            bottom.write_pixel(x, y, &photocraft_raster::from_rgba(&fmt, b));
-            top.write_pixel(x, y, &photocraft_raster::from_rgba(&fmt, s));
+            bottom.write_pixel(x, y, &evophoto_raster::from_rgba(&fmt, b));
+            top.write_pixel(x, y, &evophoto_raster::from_rgba(&fmt, s));
         }
     }
     (surface_to_buffer(&bottom, rect), surface_to_buffer(&top, rect))
@@ -422,9 +422,9 @@ fn blend_px(depth: SampleType, mode: BlendMode, bottom: [f32; 3], top: [f32; 3])
     let mut d = Document::new("b", Size::new(1, 1), ColorMode::Rgb, depth);
     let fmt = d.pixel_format();
     let mut b = Layer::raster("b", fmt);
-    b.surface_mut().unwrap().fill_rect(Rect::new(0, 0, 1, 1), &photocraft_raster::from_rgba(&fmt, [bottom[0], bottom[1], bottom[2], 1.0]));
+    b.surface_mut().unwrap().fill_rect(Rect::new(0, 0, 1, 1), &evophoto_raster::from_rgba(&fmt, [bottom[0], bottom[1], bottom[2], 1.0]));
     let mut t = Layer::raster("t", fmt);
-    t.surface_mut().unwrap().fill_rect(Rect::new(0, 0, 1, 1), &photocraft_raster::from_rgba(&fmt, [top[0], top[1], top[2], 1.0]));
+    t.surface_mut().unwrap().fill_rect(Rect::new(0, 0, 1, 1), &evophoto_raster::from_rgba(&fmt, [top[0], top[1], top[2], 1.0]));
     t.blend = mode;
     d.layers = vec![b, t];
     px(&d, 0, 0)
@@ -432,7 +432,7 @@ fn blend_px(depth: SampleType, mode: BlendMode, bottom: [f32; 3], top: [f32; 3])
 
 #[test]
 fn non_separable_modes_keep_values_above_one_in_32_bit() {
-    use photocraft_color::blend::{blend_rgb_within, lum};
+    use evophoto_color::blend::{blend_rgb_within, lum};
     let modes = [BlendMode::Hue, BlendMode::Saturation, BlendMode::Color, BlendMode::Luminosity];
     // Hue over a grey of 2: the grey (the backdrop has no saturation), not ClipColor dividing
     // by the rounding noise of `max − lum` (Hue over (4, 3.9999, 4) gave 27.7 in blue).
@@ -454,7 +454,7 @@ fn non_separable_modes_keep_values_above_one_in_32_bit() {
     for depth in [SampleType::U8, SampleType::U16] {
         for m in modes {
             let got = blend_px(depth, m, bg, top);
-            let want = photocraft_color::blend::blend_rgb(m, bg, top);
+            let want = evophoto_color::blend::blend_rgb(m, bg, top);
             assert!(got.iter().zip(want).all(|(g, w)| (g - w).abs() <= 1.0 / 255.0), "{m:?} {depth:?}: {got:?} vs {want:?}");
         }
         let got = blend_px(depth, BlendMode::Color, bg, top);
@@ -463,7 +463,7 @@ fn non_separable_modes_keep_values_above_one_in_32_bit() {
     // A 32-bit document's in-range colours that stay in range are unchanged.
     for m in modes {
         let got = blend_px(SampleType::F32, m, [0.6, 0.3, 0.2], [0.2, 0.7, 0.5]);
-        let want = photocraft_color::blend::blend_rgb(m, [0.6, 0.3, 0.2], [0.2, 0.7, 0.5]);
+        let want = evophoto_color::blend::blend_rgb(m, [0.6, 0.3, 0.2], [0.2, 0.7, 0.5]);
         assert!(got.iter().zip(want).all(|(g, w)| (g - w).abs() <= 1e-5), "{m:?}: {got:?} vs {want:?}");
     }
 }
@@ -844,14 +844,14 @@ fn hue_saturation_roundtrips_and_desaturates() {
     }
     let mut buf = Buffer::filled(Rect::new(0, 0, 1, 1), [0.8, 0.3, 0.1, 1.0]);
     adjust::apply(
-        &Adjustment::HueSaturation { hue: 0.0, saturation: -100.0, lightness: 0.0, colorize: false, ranges: photocraft_doc::adjust::HueRange::defaults() },
+        &Adjustment::HueSaturation { hue: 0.0, saturation: -100.0, lightness: 0.0, colorize: false, ranges: evophoto_doc::adjust::HueRange::defaults() },
         &mut buf,
     );
     let p = buf.px[0];
     assert!((p[0] - p[1]).abs() < 1e-5 && (p[1] - p[2]).abs() < 1e-5);
     let mut buf = Buffer::filled(Rect::new(0, 0, 1, 1), [1.0, 0.0, 0.0, 1.0]);
     adjust::apply(
-        &Adjustment::HueSaturation { hue: 120.0, saturation: 0.0, lightness: 0.0, colorize: false, ranges: photocraft_doc::adjust::HueRange::defaults() },
+        &Adjustment::HueSaturation { hue: 120.0, saturation: 0.0, lightness: 0.0, colorize: false, ranges: evophoto_doc::adjust::HueRange::defaults() },
         &mut buf,
     );
     assert!(close4(buf.px[0], [0.0, 1.0, 0.0, 1.0]));
@@ -863,7 +863,7 @@ fn solid_and_gradient_fill_layers() {
     d.layers.push(Layer::new("fill", LayerContent::Fill(Fill::Solid(Color::rgb(0.0, 0.0, 1.0)))));
     assert!(close4(px(&d, 5, 0), [0.0, 0.0, 1.0, 1.0]));
 
-    let g = Fill::gradient(vec![(0.0, Color::BLACK), (1.0, Color::WHITE)], 0.0, 1.0, photocraft_doc::GradientStyle::Linear, false);
+    let g = Fill::gradient(vec![(0.0, Color::BLACK), (1.0, Color::WHITE)], 0.0, 1.0, evophoto_doc::GradientStyle::Linear, false);
     let patterns = pattern::PreparedPatterns::new(&[], pattern::PREPARED_PATTERN_BYTES);
     let buf = render_fill(&g, Rect::new(0, 0, 10, 1), Rect::new(0, 0, 10, 1), &patterns, None);
     // tile independence: a 1px render of the right edge equals the full render
@@ -873,7 +873,7 @@ fn solid_and_gradient_fill_layers() {
 }
 
 fn dithered_gradient(stops: Vec<(f32, Color)>, angle: f32) -> Fill {
-    let mut f = Fill::gradient(stops, angle, 1.0, photocraft_doc::GradientStyle::Linear, false);
+    let mut f = Fill::gradient(stops, angle, 1.0, evophoto_doc::GradientStyle::Linear, false);
     if let Fill::Gradient { dither, .. } = &mut f {
         *dither = true;
     }
@@ -915,7 +915,7 @@ fn dithered_gradient_fill_is_rounded_to_the_document_depth() {
         }
     }
     assert_eq!(gradient_fill::render_quantized(&f, rect, rect, None), gradient_fill::render(&f, rect, rect));
-    let plain = Fill::gradient(stops, 0.0, 1.0, photocraft_doc::GradientStyle::Linear, false);
+    let plain = Fill::gradient(stops, 0.0, 1.0, evophoto_doc::GradientStyle::Linear, false);
     assert_eq!(gradient_fill::render_quantized(&plain, rect, rect, Some(255.0)), gradient_fill::render(&plain, rect, rect));
 }
 
@@ -959,7 +959,7 @@ fn a_16_bit_lab_invert_layer_keeps_greys_neutral() {
     d.layers.push(bg);
     d.layers.push(Layer::new("inv", LayerContent::Adjustment(Adjustment::Invert)));
     let p = px(&d, 1, 1);
-    let lab = photocraft_color::convert::srgb_to_lab([p[0], p[1], p[2]]);
+    let lab = evophoto_color::convert::srgb_to_lab([p[0], p[1], p[2]]);
     assert!((lab[0] - 75.0).abs() < 0.1 && lab[1].abs() < 0.05 && lab[2].abs() < 0.05, "{lab:?}");
 }
 
@@ -978,7 +978,7 @@ fn cmyk_doc(ink: [f32; 4], depth: SampleType) -> Document {
 /// (unfeathered) mask as linear ink mixes.
 #[test]
 fn cmyk_ink_adjustments_composite_on_the_documents_inks() {
-    use photocraft_color::convert::cmyk_to_rgb;
+    use evophoto_color::convert::cmyk_to_rgb;
     let ink = [0.2, 0.4, 0.6, 0.1];
     let rgb = |i: [f32; 4]| {
         let c = cmyk_to_rgb(i);
@@ -1042,8 +1042,8 @@ fn only_cmyk_stacks_with_ink_adjustments_render_on_their_inks() {
 /// black ink kept (photoshop corpus cmyk16 hue-saturation.psd: every ink within half a level).
 #[test]
 fn cmyk_hue_saturation_and_color_balance_keep_the_black_ink() {
-    use photocraft_color::convert::cmyk_to_rgb;
-    let ranges = photocraft_doc::adjust::HueRange::defaults();
+    use evophoto_color::convert::cmyk_to_rgb;
+    let ranges = evophoto_doc::adjust::HueRange::defaults();
     let hue = Adjustment::HueSaturation { hue: 40.0, saturation: 25.0, lightness: -10.0, colorize: false, ranges: ranges.clone() };
     let balance =
         Adjustment::ColorBalance { shadows: [20.0, -10.0, 0.0], midtones: [-15.0, 10.0, 30.0], highlights: [0.0, 0.0, -20.0], preserve_luminosity: true };
@@ -1075,7 +1075,7 @@ fn cmyk_hue_saturation_and_color_balance_keep_the_black_ink() {
 /// RGB compositor.
 #[test]
 fn cmyk_ink_compositing_inlines_open_groups() {
-    use photocraft_color::convert::cmyk_to_rgb;
+    use evophoto_color::convert::cmyk_to_rgb;
     let r = Rect::new(0, 0, 4, 4);
     let mut d = cmyk_doc([0.2, 0.4, 0.6, 0.1], SampleType::U16);
     let stored: [f32; 4] = std::array::from_fn(|c| d.layers[0].surface().unwrap().pixel(0, 0)[c]);
@@ -1108,7 +1108,7 @@ fn cmyk_ink_compositing_keeps_blank_paper_without_alpha() {
     d.layers.push(Layer::new("t", LayerContent::Adjustment(Adjustment::Threshold { level: 0.5 })));
     assert!(native::render_cmyk(&d, d.bounds(), 64).is_some());
     // Paper is white, so Threshold keeps it paper.
-    let white = photocraft_color::convert::cmyk_to_rgb([0.0; 4]);
+    let white = evophoto_color::convert::cmyk_to_rgb([0.0; 4]);
     assert!(close4(px(&d, 2, 2), [white[0], white[1], white[2], 1.0]), "{:?}", px(&d, 2, 2));
 }
 
@@ -1139,7 +1139,7 @@ fn flatten_to_surface_leaves_transparent_pixels_empty_in_every_mode() {
             let mut d = Document::new("t", Size::new(300, 200), mode, sample);
             let fmt = PixelFormat::new(mode, sample, true);
             let mut l = Layer::raster("dot", fmt);
-            let opaque: Vec<f32> = photocraft_raster::from_rgba(&fmt, [0.9, 0.4, 0.1, 1.0]);
+            let opaque: Vec<f32> = evophoto_raster::from_rgba(&fmt, [0.9, 0.4, 0.1, 1.0]);
             l.surface_mut().unwrap().fill_rect(Rect::new(120, 80, 140, 90), &opaque);
             d.layers.push(l);
             let s = flatten_to_surface(&d, fmt, None);
@@ -1168,9 +1168,9 @@ fn two_solid_layers(depth: SampleType, mode: BlendMode, bg: [f32; 3], top: [f32;
     let mut d = Document::new("hdr", Size::new(4, 4), ColorMode::Rgb, depth);
     let fmt = d.pixel_format();
     let mut b = Layer::raster("bg", fmt);
-    b.surface_mut().unwrap().fill_rect(Rect::new(0, 0, 4, 4), &photocraft_raster::from_rgba(&fmt, [bg[0], bg[1], bg[2], 1.0]));
+    b.surface_mut().unwrap().fill_rect(Rect::new(0, 0, 4, 4), &evophoto_raster::from_rgba(&fmt, [bg[0], bg[1], bg[2], 1.0]));
     let mut t = Layer::raster("top", fmt);
-    t.surface_mut().unwrap().fill_rect(Rect::new(0, 0, 4, 4), &photocraft_raster::from_rgba(&fmt, [top[0], top[1], top[2], 1.0]));
+    t.surface_mut().unwrap().fill_rect(Rect::new(0, 0, 4, 4), &evophoto_raster::from_rgba(&fmt, [top[0], top[1], top[2], 1.0]));
     t.blend = mode;
     d.layers.push(b);
     d.layers.push(t);
@@ -1228,7 +1228,7 @@ fn buffer_over_background() {
 
 // ---------- layer effects ----------
 
-use photocraft_doc::{Effect, FxCommon, FxPaint, Glow, GlowSource, GlowTechnique, Gradient, GradientStyle, Satin, Shadow, StrokeFx, StrokePosition};
+use evophoto_doc::{Effect, FxCommon, FxPaint, Glow, GlowSource, GlowTechnique, Gradient, GradientStyle, Satin, Shadow, StrokeFx, StrokePosition};
 
 fn fx_doc(effects: Vec<Effect>) -> Document {
     let mut d = doc_white(40, 40);
@@ -1240,7 +1240,7 @@ fn fx_doc(effects: Vec<Effect>) -> Document {
 
 fn stroke(size: f32, position: StrokePosition) -> Effect {
     Effect::Stroke(StrokeFx {
-        common: FxCommon::new(photocraft_color::BlendMode::Normal, 1.0),
+        common: FxCommon::new(evophoto_color::BlendMode::Normal, 1.0),
         size,
         position,
         paint: FxPaint::Color(Color::rgb(0.0, 0.0, 1.0)),
@@ -1307,7 +1307,7 @@ fn master_switch_and_per_effect_enable() {
 
 #[test]
 fn color_overlay_ignores_fill_opacity_but_not_opacity() {
-    let mut d = fx_doc(vec![Effect::ColorOverlay { common: FxCommon::new(photocraft_color::BlendMode::Normal, 1.0), color: Color::rgb(0.0, 1.0, 0.0) }]);
+    let mut d = fx_doc(vec![Effect::ColorOverlay { common: FxCommon::new(evophoto_color::BlendMode::Normal, 1.0), color: Color::rgb(0.0, 1.0, 0.0) }]);
     d.layers[1].fill_opacity = 0.0;
     assert!(close4(px(&d, 20, 20), [0.0, 1.0, 0.0, 1.0]), "overlay shows at fill 0");
     d.layers[1].opacity = 0.5;
@@ -1316,14 +1316,14 @@ fn color_overlay_ignores_fill_opacity_but_not_opacity() {
 
 fn shadow(distance: f32, angle: f32) -> Shadow {
     Shadow {
-        common: FxCommon::new(photocraft_color::BlendMode::Normal, 1.0),
+        common: FxCommon::new(evophoto_color::BlendMode::Normal, 1.0),
         color: Color::BLACK,
         angle,
         use_global_light: false,
         distance,
         spread: 1.0,
         size: 0.0,
-        contour: photocraft_doc::Contour::Linear,
+        contour: evophoto_doc::Contour::Linear,
         anti_alias: false,
         noise: 0.0,
         knocks_out: true,
@@ -1393,12 +1393,12 @@ fn inner_shadow_only_inside() {
 
 fn glow(technique: GlowTechnique, source: GlowSource) -> Glow {
     Glow {
-        common: FxCommon::new(photocraft_color::BlendMode::Normal, 1.0),
+        common: FxCommon::new(evophoto_color::BlendMode::Normal, 1.0),
         paint: FxPaint::Color(Color::rgb(0.0, 1.0, 0.0)),
         technique,
         spread: 0.0,
         size: 4.0,
-        contour: photocraft_doc::Contour::Linear,
+        contour: evophoto_doc::Contour::Linear,
         anti_alias: false,
         range: 0.5,
         jitter: 0.0,
@@ -1513,7 +1513,7 @@ fn glow_gradient_follows_the_shape() {
 #[test]
 fn relayout_damage_covers_a_layer_whose_gradient_frame_moved() {
     let overlay = Effect::GradientOverlay {
-        common: FxCommon::new(photocraft_color::BlendMode::Normal, 1.0),
+        common: FxCommon::new(evophoto_color::BlendMode::Normal, 1.0),
         gradient: Gradient::default(),
         dither: false,
         interpolation: None,
@@ -1533,7 +1533,7 @@ fn relayout_damage_covers_a_layer_whose_gradient_frame_moved() {
     // Same bounds, other pixels: the frame stays, the pixels' own damage is enough.
     assert_eq!(crate::relayout_damage(&a, &grown(&a, Rect::new(10, 10, 30, 30), [0.0, 1.0, 0.0, 1.0])), Rect::EMPTY);
     // A Color Overlay doesn't depend on the frame.
-    let c = fx_doc(vec![Effect::ColorOverlay { common: FxCommon::new(photocraft_color::BlendMode::Normal, 1.0), color: Color::BLACK }]);
+    let c = fx_doc(vec![Effect::ColorOverlay { common: FxCommon::new(evophoto_color::BlendMode::Normal, 1.0), color: Color::BLACK }]);
     assert_eq!(crate::relayout_damage(&c, &grown(&c, Rect::new(10, 10, 36, 34), [1.0, 0.0, 0.0, 1.0])), Rect::EMPTY);
     // Nor does a disabled overlay.
     let mut off = a.clone();
@@ -1545,7 +1545,7 @@ fn relayout_damage_covers_a_layer_whose_gradient_frame_moved() {
 fn gradient_overlay_follows_angle_and_reverse() {
     let g = Gradient { stops: vec![(0.0, Color::BLACK), (1.0, Color::WHITE)], angle: 0.0, ..Gradient::default() };
     let d = fx_doc(vec![Effect::GradientOverlay {
-        common: FxCommon::new(photocraft_color::BlendMode::Normal, 1.0),
+        common: FxCommon::new(evophoto_color::BlendMode::Normal, 1.0),
         gradient: g.clone(),
         dither: false,
         interpolation: None,
@@ -1553,7 +1553,7 @@ fn gradient_overlay_follows_angle_and_reverse() {
     let (l, r) = (px(&d, 10, 20), px(&d, 29, 20));
     assert!(l[0] < 0.1 && r[0] > 0.9, "{l:?} {r:?}");
     let d = fx_doc(vec![Effect::GradientOverlay {
-        common: FxCommon::new(photocraft_color::BlendMode::Normal, 1.0),
+        common: FxCommon::new(evophoto_color::BlendMode::Normal, 1.0),
         gradient: Gradient { reverse: true, style: GradientStyle::Linear, ..g },
         dither: false,
         interpolation: None,
@@ -1564,21 +1564,21 @@ fn gradient_overlay_follows_angle_and_reverse() {
 #[test]
 fn satin_and_bevel_stay_inside_shape() {
     let satin = Effect::Satin(Satin {
-        common: FxCommon::new(photocraft_color::BlendMode::Multiply, 1.0),
+        common: FxCommon::new(evophoto_color::BlendMode::Multiply, 1.0),
         color: Color::BLACK,
         angle: 19.0,
         distance: 4.0,
         size: 4.0,
-        contour: photocraft_doc::Contour::Linear,
+        contour: evophoto_doc::Contour::Linear,
         anti_alias: true,
         invert: false,
     });
     let d = fx_doc(vec![
         satin,
-        Effect::BevelEmboss(photocraft_doc::Bevel {
+        Effect::BevelEmboss(evophoto_doc::Bevel {
             enabled: true,
-            style: photocraft_doc::BevelStyle::InnerBevel,
-            technique: photocraft_doc::BevelTechnique::Smooth,
+            style: evophoto_doc::BevelStyle::InnerBevel,
+            technique: evophoto_doc::BevelTechnique::Smooth,
             depth: 1.0,
             up: true,
             size: 4.0,
@@ -1586,11 +1586,11 @@ fn satin_and_bevel_stay_inside_shape() {
             angle: 90.0,
             altitude: 30.0,
             use_global_light: false,
-            gloss_contour: photocraft_doc::Contour::Linear,
+            gloss_contour: evophoto_doc::Contour::Linear,
             gloss_anti_alias: false,
-            highlight: FxCommon::new(photocraft_color::BlendMode::Screen, 0.75),
+            highlight: FxCommon::new(evophoto_color::BlendMode::Screen, 0.75),
             highlight_color: Color::WHITE,
-            shadow: FxCommon::new(photocraft_color::BlendMode::Multiply, 0.75),
+            shadow: FxCommon::new(evophoto_color::BlendMode::Multiply, 0.75),
             shadow_color: Color::BLACK,
             contour: None,
             texture: None,
@@ -1611,7 +1611,7 @@ fn satin_and_bevel_stay_inside_shape() {
 #[test]
 fn a_gloss_contour_leaves_the_flat_face_of_a_bevel_unlit() {
     let fill = [151.0 / 255.0, 22.0 / 255.0, 23.0 / 255.0, 1.0];
-    let rolling = photocraft_doc::Contour::Custom {
+    let rolling = evophoto_doc::Contour::Custom {
         name: "Rolling Slope - Descending".into(),
         points: [(0.0078, 1.0), (0.2078, 0.3922), (0.3804, 0.4196), (0.7020, 0.6), (0.9882, 0.0)]
             .iter()
@@ -1619,13 +1619,13 @@ fn a_gloss_contour_leaves_the_flat_face_of_a_bevel_unlit() {
             .collect(),
         corners: vec![],
     };
-    let render = |gloss_contour: photocraft_doc::Contour| {
+    let render = |gloss_contour: evophoto_doc::Contour| {
         let mut d = doc_white(40, 40);
         let mut l = solid_layer("sq", Rect::new(10, 10, 30, 30), fill);
-        l.effects.items = vec![Effect::BevelEmboss(photocraft_doc::Bevel {
+        l.effects.items = vec![Effect::BevelEmboss(evophoto_doc::Bevel {
             enabled: true,
-            style: photocraft_doc::BevelStyle::InnerBevel,
-            technique: photocraft_doc::BevelTechnique::ChiselHard,
+            style: evophoto_doc::BevelStyle::InnerBevel,
+            technique: evophoto_doc::BevelTechnique::ChiselHard,
             depth: 1.47,
             up: false,
             size: 3.0,
@@ -1635,9 +1635,9 @@ fn a_gloss_contour_leaves_the_flat_face_of_a_bevel_unlit() {
             use_global_light: false,
             gloss_contour,
             gloss_anti_alias: false,
-            highlight: FxCommon::new(photocraft_color::BlendMode::Overlay, 1.0),
+            highlight: FxCommon::new(evophoto_color::BlendMode::Overlay, 1.0),
             highlight_color: Color::WHITE,
-            shadow: FxCommon::new(photocraft_color::BlendMode::Overlay, 0.16),
+            shadow: FxCommon::new(evophoto_color::BlendMode::Overlay, 0.16),
             shadow_color: Color::BLACK,
             contour: None,
             texture: None,
@@ -1650,7 +1650,7 @@ fn a_gloss_contour_leaves_the_flat_face_of_a_bevel_unlit() {
         let p = px(&d, x, y);
         assert!(close4(p, fill), "flat face ({x},{y}) keeps the fill: {:?}", p.map(|v| (v * 255.0).round()));
     }
-    let linear = render(photocraft_doc::Contour::Linear);
+    let linear = render(evophoto_doc::Contour::Linear);
     assert!(close4(px(&linear, 20, 20), fill), "Linear leaves the flat face too");
     assert!(!close4(px(&d, 20, 11), fill), "the slopes are still shaded");
 }
@@ -1687,7 +1687,7 @@ fn effects_render_identically_in_tiles() {
         d.depth = depth;
         for layer in &mut d.layers {
             if let Some(surface) = layer.surface_mut() {
-                *surface = surface.convert(photocraft_color::PixelFormat { sample: depth, ..surface.format() });
+                *surface = surface.convert(evophoto_color::PixelFormat { sample: depth, ..surface.format() });
             }
         }
         let full = flatten(&d);
@@ -1711,7 +1711,7 @@ fn parallel_tiles_match_single_pass() {
     d.layers.push(a);
     let mut clip = solid_layer("clip", Rect::new(30, 0, 97, 61), [0.0, 1.0, 0.0, 1.0]);
     clip.clipped = true;
-    clip.blend = photocraft_color::BlendMode::Multiply;
+    clip.blend = evophoto_color::BlendMode::Multiply;
     d.layers.push(clip);
     let mut g = Layer::group("g", vec![solid_layer("in", Rect::new(50, 20, 90, 60), [0.2, 0.3, 0.9, 1.0])]);
     g.opacity = 0.6;
@@ -1730,7 +1730,7 @@ fn parallel_tiles_match_single_pass() {
 
 #[test]
 fn vector_mask_combines_with_pixel_mask() {
-    use photocraft_doc::{Path, Subpath, VectorMask};
+    use evophoto_doc::{Path, Subpath, VectorMask};
     let mut d = doc_white(8, 8);
     let mut l = solid_layer("k", Rect::new(0, 0, 8, 8), [0.0, 0.0, 0.0, 1.0]);
     // Vector mask reveals x in 0..4 (and half of column 4); the pixel mask hides rows 0..2.
@@ -1767,7 +1767,7 @@ fn effect_maps_over_distant_pixels_are_not_built_over_the_canvas() {
     let mut doc = Document::new("big", Size::new(200_000, 200_000), ColorMode::Rgb, SampleType::U8);
     let mut l = solid_layer("fx", Rect::new(0, 0, 1, 1), [1.0, 0.0, 0.0, 1.0]);
     l.surface_mut().unwrap().fill_rect(Rect::new(190_000, 190_000, 190_001, 190_001), &[1.0, 0.0, 0.0, 1.0]);
-    l.effects.items.push(photocraft_doc::Effect::default_drop_shadow());
+    l.effects.items.push(evophoto_doc::Effect::default_drop_shadow());
     doc.layers.push(l);
     let t = std::time::Instant::now();
     let px = render(&doc, Rect::new(0, 0, 4, 4));
@@ -1779,7 +1779,7 @@ fn effect_maps_over_distant_pixels_are_not_built_over_the_canvas() {
 fn effect_maps_are_cached_and_invalidated_by_pixel_changes() {
     let mut doc = doc_white(64, 64);
     let mut l = solid_layer("fx", Rect::new(16, 16, 48, 48), [1.0, 0.0, 0.0, 1.0]);
-    l.effects.items.push(photocraft_doc::Effect::default_drop_shadow());
+    l.effects.items.push(evophoto_doc::Effect::default_drop_shadow());
     doc.layers.push(l);
     let patterns = pattern::PreparedPatterns::new(&doc.patterns, pattern::PREPARED_PATTERN_BYTES);
     let cx = Ctx::for_doc(&doc, &patterns);
@@ -1804,9 +1804,9 @@ fn effect_maps_are_cached_and_invalidated_by_pixel_changes() {
 
     // Tileless masks differ only in their defaults; reusing their effect maps leaves a ghost shadow.
     let mut masked = fx_doc(vec![Effect::DropShadow(shadow(5.0, 90.0))]);
-    masked.layers[1].mask = Some(photocraft_doc::LayerMask::reveal_all());
+    masked.layers[1].mask = Some(evophoto_doc::LayerMask::reveal_all());
     assert!(close4(px(&masked, 20, 32), [0.0, 0.0, 0.0, 1.0]));
-    masked.layers[1].mask = Some(photocraft_doc::LayerMask::hide_all());
+    masked.layers[1].mask = Some(evophoto_doc::LayerMask::hide_all());
     let warm = flatten(&masked);
     let mut cold = masked.clone();
     cold.layers[1].id = Layer::raster("uncached", cold.pixel_format()).id;
@@ -1816,11 +1816,11 @@ fn effect_maps_are_cached_and_invalidated_by_pixel_changes() {
 
 // ---------- Transparency Shapes Layer off on tall documents (#1909) ----------
 
-fn bevel_fx(style: photocraft_doc::BevelStyle, soften: f32) -> Effect {
-    Effect::BevelEmboss(photocraft_doc::Bevel {
+fn bevel_fx(style: evophoto_doc::BevelStyle, soften: f32) -> Effect {
+    Effect::BevelEmboss(evophoto_doc::Bevel {
         enabled: true,
         style,
-        technique: photocraft_doc::BevelTechnique::Smooth,
+        technique: evophoto_doc::BevelTechnique::Smooth,
         depth: 1.0,
         up: true,
         size: 5.0,
@@ -1828,11 +1828,11 @@ fn bevel_fx(style: photocraft_doc::BevelStyle, soften: f32) -> Effect {
         angle: 120.0,
         altitude: 30.0,
         use_global_light: false,
-        gloss_contour: photocraft_doc::Contour::Linear,
+        gloss_contour: evophoto_doc::Contour::Linear,
         gloss_anti_alias: false,
-        highlight: FxCommon::new(photocraft_color::BlendMode::Screen, 0.75),
+        highlight: FxCommon::new(evophoto_color::BlendMode::Screen, 0.75),
         highlight_color: Color::WHITE,
-        shadow: FxCommon::new(photocraft_color::BlendMode::Multiply, 0.75),
+        shadow: FxCommon::new(evophoto_color::BlendMode::Multiply, 0.75),
         shadow_color: Color::BLACK,
         contour: None,
         texture: None,
@@ -1842,15 +1842,15 @@ fn bevel_fx(style: photocraft_doc::BevelStyle, soften: f32) -> Effect {
 /// A tall page of layers with Transparency Shapes Layer off, one effect stack each (every local
 /// kind), most masked to a soft-edged block so their effect shapes vary down the page.
 fn shapeless_fx_doc(depth: SampleType) -> Document {
-    use photocraft_doc::BevelStyle;
+    use evophoto_doc::BevelStyle;
     let mut d = Document::with_background("t", Size::new(48, 640), ColorMode::Rgb, depth, Color::WHITE);
     let satin = Effect::Satin(Satin {
-        common: FxCommon::new(photocraft_color::BlendMode::Multiply, 1.0),
+        common: FxCommon::new(evophoto_color::BlendMode::Multiply, 1.0),
         color: Color::BLACK,
         angle: 19.0,
         distance: 4.0,
         size: 5.0,
-        contour: photocraft_doc::Contour::Linear,
+        contour: evophoto_doc::Contour::Linear,
         anti_alias: true,
         invert: false,
     });
@@ -1870,13 +1870,13 @@ fn shapeless_fx_doc(depth: SampleType) -> Document {
         let y = 24 + i as i32 * 66;
         let mut l = Layer::raster(format!("fx{i}"), d.pixel_format());
         let c = [0.2 + 0.08 * i as f32, 0.5, 1.0 - 0.1 * i as f32, 1.0];
-        l.surface_mut().unwrap().fill_rect(Rect::new(10, y, 38, y + 18), &photocraft_raster::from_rgba(&d.pixel_format(), c));
+        l.surface_mut().unwrap().fill_rect(Rect::new(10, y, 38, y + 18), &evophoto_raster::from_rgba(&d.pixel_format(), c));
         l.effects.items = fx;
         l.advanced.transparency_shapes = false;
         l.opacity = 0.8;
         // The last layer stays unmasked: its shape is the whole canvas, edged only at its sides.
         if i < 8 {
-            let mut m = photocraft_raster::Surface::new(mask_fmt);
+            let mut m = evophoto_raster::Surface::new(mask_fmt);
             m.fill_rect(Rect::new(4 + i as i32, y - 12, 44, y + 30), &[1.0]);
             m.fill_rect(Rect::new(4 + i as i32, y + 30, 30, y + 34), &[0.5]);
             l.mask = Some(LayerMask { surface: m, enabled: true, linked: true, density: 1.0, feather: 0.0 });
@@ -1886,10 +1886,10 @@ fn shapeless_fx_doc(depth: SampleType) -> Document {
     // A tsly-off stroked layer inside a group whose own effects reach much further: the group's
     // effect shape composites its children over the group's whole region, far past any band.
     let mut inner = Layer::raster("inner", d.pixel_format());
-    inner.surface_mut().unwrap().fill_rect(Rect::new(12, 300, 30, 310), &photocraft_raster::from_rgba(&d.pixel_format(), [0.1, 0.9, 0.3, 1.0]));
+    inner.surface_mut().unwrap().fill_rect(Rect::new(12, 300, 30, 310), &evophoto_raster::from_rgba(&d.pixel_format(), [0.1, 0.9, 0.3, 1.0]));
     inner.effects.items = vec![stroke(3.0, StrokePosition::Outside)];
     inner.advanced.transparency_shapes = false;
-    let mut m = photocraft_raster::Surface::new(mask_fmt);
+    let mut m = evophoto_raster::Surface::new(mask_fmt);
     m.fill_rect(Rect::new(8, 240, 36, 380), &[1.0]);
     inner.mask = Some(LayerMask { surface: m, enabled: true, linked: true, density: 1.0, feather: 0.0 });
     let mut g = Layer::group("g", vec![inner]);
@@ -1898,10 +1898,10 @@ fn shapeless_fx_doc(depth: SampleType) -> Document {
     d.layers.push(g);
     // A clipping mask: a tsly-off stroked layer clipped to a base with large effects of its own.
     let mut base = Layer::raster("base", d.pixel_format());
-    base.surface_mut().unwrap().fill_rect(Rect::new(6, 420, 42, 470), &photocraft_raster::from_rgba(&d.pixel_format(), [0.9, 0.9, 0.2, 1.0]));
+    base.surface_mut().unwrap().fill_rect(Rect::new(6, 420, 42, 470), &evophoto_raster::from_rgba(&d.pixel_format(), [0.9, 0.9, 0.2, 1.0]));
     base.effects.items = vec![Effect::OuterGlow(Glow { size: 150.0, ..glow(GlowTechnique::Softer, GlowSource::Edge) })];
     let mut clip = Layer::raster("clip", d.pixel_format());
-    clip.surface_mut().unwrap().fill_rect(Rect::new(14, 430, 34, 450), &photocraft_raster::from_rgba(&d.pixel_format(), [0.6, 0.1, 0.6, 1.0]));
+    clip.surface_mut().unwrap().fill_rect(Rect::new(14, 430, 34, 450), &evophoto_raster::from_rgba(&d.pixel_format(), [0.6, 0.1, 0.6, 1.0]));
     clip.effects.items = vec![stroke(2.0, StrokePosition::Center), Effect::InnerShadow(Shadow { size: 3.0, spread: 0.0, ..shadow(2.0, 45.0) })];
     clip.advanced.transparency_shapes = false;
     clip.clipped = true;
@@ -2061,10 +2061,10 @@ fn the_effect_map_estimate_counts_the_maps_building_takes() {
     // keeps thrashing, too many and one that fits loses its shared maps. Strokes build distance
     // fields and overlays nothing beyond the shape (#8372 review), so count what the builder does.
     let mut d = ordinary_fx_doc(SampleType::U8);
-    let overlay = Effect::ColorOverlay { common: FxCommon::new(photocraft_color::BlendMode::Normal, 1.0), color: Color::rgb(0.0, 1.0, 0.0) };
+    let overlay = Effect::ColorOverlay { common: FxCommon::new(evophoto_color::BlendMode::Normal, 1.0), color: Color::rgb(0.0, 1.0, 0.0) };
     for fx in [vec![overlay], vec![stroke(2.0, StrokePosition::Outside), stroke(60.0, StrokePosition::Outside)], vec![stroke(4.0, StrokePosition::Inside)]] {
         let mut l = Layer::raster("extra", d.pixel_format());
-        l.surface_mut().unwrap().fill_rect(Rect::new(14, 100, 34, 130), &photocraft_raster::from_rgba(&d.pixel_format(), [0.3, 0.6, 0.9, 1.0]));
+        l.surface_mut().unwrap().fill_rect(Rect::new(14, 100, 34, 130), &evophoto_raster::from_rgba(&d.pixel_format(), [0.3, 0.6, 0.9, 1.0]));
         l.effects.items = fx;
         d.layers.push(l);
     }
@@ -2083,7 +2083,7 @@ fn the_effect_map_estimate_counts_the_maps_building_takes() {
     let big = |fx: Vec<Effect>, n: usize| {
         let mut big = Document::with_background("big", Size::new(9000, 6000), ColorMode::Rgb, SampleType::U8, Color::WHITE);
         let mut l = Layer::raster("fill", big.pixel_format());
-        l.surface_mut().unwrap().fill_rect(big.bounds(), &photocraft_raster::from_rgba(&big.pixel_format(), [0.8, 0.5, 0.3, 1.0]));
+        l.surface_mut().unwrap().fill_rect(big.bounds(), &evophoto_raster::from_rgba(&big.pixel_format(), [0.8, 0.5, 0.3, 1.0]));
         l.effects.items = fx;
         big.layers.extend(std::iter::repeat_n(l, n));
         fx_region_bytes(&big.layers, big.bounds())
@@ -2096,7 +2096,7 @@ fn the_effect_map_estimate_counts_the_maps_building_takes() {
     // A narrow and a wide stroke: the shape, the inside distance and both outside fields.
     assert!(big(vec![stroke(2.0, StrokePosition::Outside), stroke(60.0, StrokePosition::Outside)], 1) > budget);
     // Colour overlays need the shape only: three fit.
-    let overlay = Effect::ColorOverlay { common: FxCommon::new(photocraft_color::BlendMode::Normal, 1.0), color: Color::BLACK };
+    let overlay = Effect::ColorOverlay { common: FxCommon::new(evophoto_color::BlendMode::Normal, 1.0), color: Color::BLACK };
     assert!(big(vec![overlay], 3) < budget);
 }
 
@@ -2178,10 +2178,10 @@ fn emboss_shades_the_composited_layer() {
     // Emboss styles paint over the layer as composited (for type: mixed at the text gamma), so a
     // Normal white highlight `k` on an edge pixel keeps (1 − R) = (1 − k)(1 − C) whatever C is:
     // the ratio of type to raster results equals that of their plain composites.
-    let emboss = Effect::BevelEmboss(photocraft_doc::Bevel {
+    let emboss = Effect::BevelEmboss(evophoto_doc::Bevel {
         enabled: true,
-        style: photocraft_doc::BevelStyle::Emboss,
-        technique: photocraft_doc::BevelTechnique::Smooth,
+        style: evophoto_doc::BevelStyle::Emboss,
+        technique: evophoto_doc::BevelTechnique::Smooth,
         depth: 1.0,
         up: true,
         size: 6.0,
@@ -2189,11 +2189,11 @@ fn emboss_shades_the_composited_layer() {
         angle: 90.0,
         altitude: 30.0,
         use_global_light: false,
-        gloss_contour: photocraft_doc::Contour::Linear,
+        gloss_contour: evophoto_doc::Contour::Linear,
         gloss_anti_alias: false,
-        highlight: FxCommon::new(photocraft_color::BlendMode::Normal, 1.0),
+        highlight: FxCommon::new(evophoto_color::BlendMode::Normal, 1.0),
         highlight_color: Color::WHITE,
-        shadow: FxCommon::new(photocraft_color::BlendMode::Multiply, 0.0),
+        shadow: FxCommon::new(evophoto_color::BlendMode::Multiply, 0.0),
         shadow_color: Color::BLACK,
         contour: None,
         texture: None,
@@ -2203,7 +2203,7 @@ fn emboss_shades_the_composited_layer() {
         let mut l = solid_layer("sq", Rect::new(10, 10, 30, 30), [0.2, 0.1, 0.6, 1.0]);
         l.surface_mut().unwrap().fill_rect(Rect::new(10, 10, 30, 11), &[0.2, 0.1, 0.6, 0.5]);
         if text {
-            let t = photocraft_doc::TextLayer { cache: l.surface().cloned(), ..Default::default() };
+            let t = evophoto_doc::TextLayer { cache: l.surface().cloned(), ..Default::default() };
             l = Layer::new("t", LayerContent::Text(t));
         }
         if fx {
@@ -2226,7 +2226,7 @@ fn interior_effects_keep_the_layer_alpha() {
     // A colour overlay replaces a half-transparent pixel's colour without adding coverage.
     let mut d = Document::new("t", Size::new(40, 40), ColorMode::Rgb, SampleType::U8);
     let mut l = solid_layer("sq", Rect::new(10, 10, 30, 30), [1.0, 0.0, 0.0, 0.5]);
-    l.effects.items = vec![Effect::ColorOverlay { common: FxCommon::new(photocraft_color::BlendMode::Normal, 1.0), color: Color::rgb(0.0, 1.0, 0.0) }];
+    l.effects.items = vec![Effect::ColorOverlay { common: FxCommon::new(evophoto_color::BlendMode::Normal, 1.0), color: Color::rgb(0.0, 1.0, 0.0) }];
     d.layers.push(l);
     assert!(close4(px(&d, 20, 20), [0.0, 1.0, 0.0, 0.5]), "{:?}", px(&d, 20, 20));
 }
@@ -2236,7 +2236,7 @@ fn upper_stroke_blends_with_the_backdrop_not_the_lower_stroke() {
     // Multiply yellow (3 px) listed above a Normal blue (8 px): the inner ring multiplies the
     // white backdrop (stays yellow), the outer ring is blue.
     let yellow = Effect::Stroke(StrokeFx {
-        common: FxCommon::new(photocraft_color::BlendMode::Multiply, 1.0),
+        common: FxCommon::new(evophoto_color::BlendMode::Multiply, 1.0),
         size: 3.0,
         position: StrokePosition::Outside,
         paint: FxPaint::Color(Color::rgb(1.0, 1.0, 0.0)),
@@ -2271,8 +2271,8 @@ fn shadow_knockout_beneath_a_layer_in_a_blending_mode() {
     // the black shadow) instead of black (white over white), so a logo's Exclusion bar with a
     // drop shadow came out blank. A red Multiply square came out black instead of red.
     for (blend, colour, inside, depth) in [
-        (photocraft_color::BlendMode::Exclusion, [1.0, 1.0, 1.0, 1.0], [0.0, 0.0, 0.0, 1.0]),
-        (photocraft_color::BlendMode::Multiply, [1.0, 0.0, 0.0, 1.0], [1.0, 0.0, 0.0, 1.0]),
+        (evophoto_color::BlendMode::Exclusion, [1.0, 1.0, 1.0, 1.0], [0.0, 0.0, 0.0, 1.0]),
+        (evophoto_color::BlendMode::Multiply, [1.0, 0.0, 0.0, 1.0], [1.0, 0.0, 0.0, 1.0]),
     ]
     .into_iter()
     .flat_map(|c| SampleType::ALL.map(|depth| (c, depth)))
@@ -2295,14 +2295,14 @@ fn shadow_knockout_beneath_a_layer_in_a_blending_mode() {
 
 #[test]
 fn linked_pattern_overlay_anchors_at_the_effects_reference_point() {
-    use photocraft_doc::pattern::Pattern;
+    use evophoto_doc::pattern::Pattern;
     // 2 × 1 tile: red, blue. Anchored at x = 11 (reference point), x = 11 is red, 12 blue.
-    let mut tile = photocraft_raster::Surface::new(PixelFormat::RGBA8);
+    let mut tile = evophoto_raster::Surface::new(PixelFormat::RGBA8);
     tile.fill_rect(Rect::new(0, 0, 1, 1), &[1.0, 0.0, 0.0, 1.0]);
     tile.fill_rect(Rect::new(1, 0, 2, 1), &[0.0, 0.0, 1.0, 1.0]);
     let pat = Pattern::new("rb", tile, 2, 1);
     let overlay = Effect::PatternOverlay {
-        common: FxCommon::new(photocraft_color::BlendMode::Normal, 1.0),
+        common: FxCommon::new(evophoto_color::BlendMode::Normal, 1.0),
         name: "rb".into(),
         id: pat.id.clone(),
         scale: 1.0,
@@ -2337,11 +2337,11 @@ fn channel_restrictions_keep_the_backdrop() {
     assert_eq!(channel_weights(&d.layers[1], ColorMode::Rgb), Some([1.0, 1.0, 0.0]));
 }
 
-fn range(black: [u8; 2], white: [u8; 2]) -> photocraft_doc::BlendRange {
-    photocraft_doc::BlendRange { black, white }
+fn range(black: [u8; 2], white: [u8; 2]) -> evophoto_doc::BlendRange {
+    evophoto_doc::BlendRange { black, white }
 }
 
-const FULL: photocraft_doc::BlendRange = photocraft_doc::BlendRange::FULL;
+const FULL: evophoto_doc::BlendRange = evophoto_doc::BlendRange::FULL;
 
 #[test]
 fn blend_if_this_layer_hides_by_the_layers_own_value() {
@@ -2494,8 +2494,8 @@ fn effect_maps_built_inside_parallel_tiles_do_not_deadlock() {
     // all wait on the same map (a rayon-parallel blur deadlocked here).
     let mut d = doc_white(900, 700);
     let mut l = solid_layer("fx", Rect::new(100, 100, 800, 600), [0.2, 0.4, 0.9, 1.0]);
-    l.effects.items = vec![photocraft_doc::Effect::default_drop_shadow()];
-    if let photocraft_doc::Effect::DropShadow(s) = &mut l.effects.items[0] {
+    l.effects.items = vec![evophoto_doc::Effect::default_drop_shadow()];
+    if let evophoto_doc::Effect::DropShadow(s) = &mut l.effects.items[0] {
         s.size = 30.0;
     }
     d.layers.push(l);
@@ -2828,7 +2828,7 @@ fn exposure_scales_32_bit_samples_as_stored() {
 /// through an adjustment layer alike. 8/16-bit documents still clip to the table.
 #[test]
 fn float_curves_extend_past_the_unit_range_like_photoshop() {
-    use photocraft_doc::adjust::CurvePoint;
+    use evophoto_doc::adjust::CurvePoint;
     let line = vec![CurvePoint { input: 0.0, output: 0.0 }, CurvePoint { input: 1.0, output: 128.0 / 255.0 }];
     let ident = vec![CurvePoint { input: 0.0, output: 0.0 }, CurvePoint { input: 1.0, output: 1.0 }];
     let adj = Adjustment::Curves { master: line, per_channel: std::array::from_fn(|_| ident.clone()), space: ToneSpace::Rgb, black: Vec::new(), pencil: false };
@@ -2871,7 +2871,7 @@ fn float_curves_extend_past_the_unit_range_like_photoshop() {
 
 #[test]
 fn float_adjustments_preserve_hdr_range() {
-    let identity = vec![photocraft_doc::adjust::CurvePoint { input: 0.0, output: 0.0 }, photocraft_doc::adjust::CurvePoint { input: 1.0, output: 1.0 }];
+    let identity = vec![evophoto_doc::adjust::CurvePoint { input: 0.0, output: 0.0 }, evophoto_doc::adjust::CurvePoint { input: 1.0, output: 1.0 }];
     let levels = LevelsChannel { in_black: 0.25, in_white: 0.75, gamma: 2.0, out_black: -0.1, out_white: 1.5 };
     let adjustments = [
         (Adjustment::Exposure { exposure: 0.0, offset: 0.0, gamma: 1.0 }, [4.0, 2.0, 0.5]),
@@ -2914,8 +2914,8 @@ fn float_adjustments_preserve_hdr_range() {
 
 #[test]
 fn float_tone_adjustments_preserve_negative_and_untouched_channels() {
-    let identity = vec![photocraft_doc::adjust::CurvePoint { input: 0.0, output: 0.0 }, photocraft_doc::adjust::CurvePoint { input: 1.0, output: 1.0 }];
-    let edited = vec![photocraft_doc::adjust::CurvePoint { input: 0.0, output: 0.0 }, photocraft_doc::adjust::CurvePoint { input: 1.0, output: 0.5 }];
+    let identity = vec![evophoto_doc::adjust::CurvePoint { input: 0.0, output: 0.0 }, evophoto_doc::adjust::CurvePoint { input: 1.0, output: 1.0 }];
+    let edited = vec![evophoto_doc::adjust::CurvePoint { input: 0.0, output: 0.0 }, evophoto_doc::adjust::CurvePoint { input: 1.0, output: 0.5 }];
     for (adj, want) in [
         (
             Adjustment::Levels { master: Default::default(), per_channel: Default::default(), space: Default::default(), black: Default::default() },
@@ -2979,7 +2979,7 @@ fn small_gradient_fill_matches_photoshop_at_all_depths() {
     let stops = vec![(0.0, Color::rgb(0.0, 0.0, 0.0)), (1.0, Color::rgb(1.0, 1.0, 1.0))];
     for depth in [SampleType::U8, SampleType::U16, SampleType::F32] {
         let mut d = Document::new("g", Size::new(4, 4), ColorMode::Rgb, depth);
-        let fill = Fill::gradient(stops.clone(), 30.0, 1.0, photocraft_doc::GradientStyle::Reflected, false);
+        let fill = Fill::gradient(stops.clone(), 30.0, 1.0, evophoto_doc::GradientStyle::Reflected, false);
         d.layers.push(Layer::new("g", LayerContent::Fill(fill)));
         let out = flatten(&d);
         for y in 0..4usize {
@@ -2995,16 +2995,16 @@ fn small_gradient_fill_matches_photoshop_at_all_depths() {
 /// A shape layer's gradient fill must render the same pixels as the compositor's gradient
 /// fill layers, for every non-default gradient field (midpoints, opacity stops, centre offset,
 /// dither, unsorted stops) and all five styles, in both frames: "Align with layer" on lays the
-/// gradient out over the shape's bounds, off over the canvas. `photocraft-vector` cannot
+/// gradient out over the shape's bounds, off over the canvas. `evophoto-vector` cannot
 /// depend on this crate, so it carries a copy of this ramp and geometry — this test is what
 /// keeps the two in step (only interior pixels, where the shape's coverage is exactly 1).
 #[test]
 fn shape_layer_gradients_match_fill_layers() {
-    use photocraft_doc::GradientStyle;
+    use evophoto_doc::GradientStyle;
     let canvas = Rect::new(0, 0, 64, 48);
     // rect(x, y, w, h): the shape spans (16, 8)–(64, 48), so its whole-pixel bounds sit strictly
     // inside the canvas — "Align with layer" then picks a different frame than the canvas.
-    let path = photocraft_vector::shapes::rect(16.0, 8.0, 48.0, 40.0);
+    let path = evophoto_vector::shapes::rect(16.0, 8.0, 48.0, 40.0);
     let layer_frame = Rect::new(16, 8, 64, 48);
     let grad = |style: GradientStyle, midpoints: Vec<f32>, opacity_stops: Vec<(f32, f32)>, offset: (f32, f32), dither: bool, unsorted: bool, align: bool| {
         let mut stops = vec![(0.0, Color::BLACK), (0.5, Color::rgb(1.0, 0.25, 0.5)), (1.0, Color::WHITE)];
@@ -3030,8 +3030,8 @@ fn shape_layer_gradients_match_fill_layers() {
                 let f = grad(style, mids.clone(), opac.clone(), *offset, *dither, *unsorted, align);
                 let frame = if align { layer_frame } else { canvas };
                 let want = gradient_fill::render(&f, canvas, frame);
-                let sh = photocraft_doc::vector::ShapeLayer { path: path.clone(), fill: Some(f), ..Default::default() };
-                let s = photocraft_vector::render_shape(&sh, PixelFormat::RGBA8, canvas);
+                let sh = evophoto_doc::vector::ShapeLayer { path: path.clone(), fill: Some(f), ..Default::default() };
+                let s = evophoto_vector::render_shape(&sh, PixelFormat::RGBA8, canvas);
                 let mut worst = 0.0f32;
                 for y in 9..47 {
                     for x in 17..63 {
@@ -3218,7 +3218,7 @@ fn large_documents_thumbnail_from_a_proxy() {
     assert_eq!(at(90, 50), vec![255, 255, 255, 255]);
     // Effects don't scale with a proxy: such documents reduce the exact composite.
     assert!(proxy::proxy_faithful(&d));
-    d.layers[1].effects.items.push(photocraft_doc::Effect::default_drop_shadow());
+    d.layers[1].effects.items.push(evophoto_doc::Effect::default_drop_shadow());
     assert!(!proxy::proxy_faithful(&d));
 }
 
@@ -3226,9 +3226,9 @@ fn large_documents_thumbnail_from_a_proxy() {
 /// parallel), each carrying a different effect.
 #[cfg(not(target_arch = "wasm32"))]
 fn nested_parallel_fx_doc() -> Document {
-    use photocraft_doc::{Bevel, BevelStyle, BevelTechnique, Contour, Effect, FxCommon, FxPaint, Glow, GlowSource, GlowTechnique, StrokeFx, StrokePosition};
+    use evophoto_doc::{Bevel, BevelStyle, BevelTechnique, Contour, Effect, FxCommon, FxPaint, Glow, GlowSource, GlowTechnique, StrokeFx, StrokePosition};
     let mut d = doc_white(512, 512);
-    let g = |a: f32| Fill::gradient(vec![(0.0, Color::BLACK), (1.0, Color::rgb(0.2, 0.5, 0.9))], a, 1.0, photocraft_doc::GradientStyle::Linear, false);
+    let g = |a: f32| Fill::gradient(vec![(0.0, Color::BLACK), (1.0, Color::rgb(0.2, 0.5, 0.9))], a, 1.0, evophoto_doc::GradientStyle::Linear, false);
     let mut shadow = Layer::new("shadow", LayerContent::Fill(g(0.0)));
     shadow.effects.items = vec![Effect::default_drop_shadow()];
     let mut stroke = Layer::new("stroke", LayerContent::Fill(g(45.0)));
@@ -3456,7 +3456,7 @@ fn clipped_brightness_and_desaturation_whiten_a_lighter_color_logo() {
 
 #[test]
 fn outer_glow_does_not_paint_through_a_zero_fill_layer() {
-    use photocraft_doc::{Contour, Effect, FxCommon, FxPaint, Glow, GlowSource, GlowTechnique};
+    use evophoto_doc::{Contour, Effect, FxCommon, FxPaint, Glow, GlowSource, GlowTechnique};
 
     let background = [0.18, 0.42, 0.85, 1.0];
     let rect = Rect::new(24, 24, 72, 72);
@@ -3498,7 +3498,7 @@ fn outer_glow_does_not_paint_through_a_zero_fill_layer() {
 // Map follows L. Rendered through the document compositor at every depth.
 #[test]
 fn lab_documents_evaluate_invert_threshold_and_gradient_map_on_lab() {
-    use photocraft_color::convert::{lab_to_srgb, srgb_to_lab};
+    use evophoto_color::convert::{lab_to_srgb, srgb_to_lab};
     let c = lab_to_srgb([30.0, 12.0, -18.0]);
     for depth in SampleType::ALL {
         let render = |adj: Adjustment| {
@@ -3525,7 +3525,7 @@ fn lab_doc_adjusted(rgb: [f32; 3], adj: Adjustment, depth: SampleType) -> [f32; 
     let mut doc = Document::with_background("lab", Size::new(4, 4), ColorMode::Lab, depth, Color::rgb(rgb[0], rgb[1], rgb[2]));
     doc.layers.push(Layer::new("adj", LayerContent::Adjustment(adj)));
     let p = px(&doc, 1, 1);
-    photocraft_color::convert::srgb_to_lab([p[0], p[1], p[2]])
+    evophoto_color::convert::srgb_to_lab([p[0], p[1], p[2]])
 }
 
 fn near3(got: [f32; 3], want: [f32; 3], tol: f32, what: &str) {
@@ -3537,14 +3537,14 @@ const MUTED: [f32; 3] = [0.40, 0.42, 0.60];
 
 #[test]
 fn lab_documents_invert_and_posterize_l_a_and_b() {
-    let lab = photocraft_color::convert::srgb_to_lab(MUTED);
+    let lab = evophoto_color::convert::srgb_to_lab(MUTED);
     for depth in SampleType::ALL {
         // Invert: L -> 100 - L and a, b -> their opposites (-a - 1 on the 8-bit 0..255 grid).
         let inv = lab_doc_adjusted(MUTED, Adjustment::Invert, depth);
         let step = if depth == SampleType::U8 { 1.0 } else { 0.0 };
         near3(inv, [100.0 - lab[0], -lab[1] - step, -lab[2] - step], 1.0, &format!("{depth:?} invert"));
         // An RGB invert would land elsewhere: lightness 100 - L is the Lab rule.
-        let rgb_inv = photocraft_color::convert::srgb_to_lab(MUTED.map(|v| 1.0 - v));
+        let rgb_inv = evophoto_color::convert::srgb_to_lab(MUTED.map(|v| 1.0 - v));
         assert!((rgb_inv[0] - inv[0]).abs() > 2.0, "{depth:?}: {rgb_inv:?} vs {inv:?}");
         // Posterize, three levels: the same steps on L, a and b (here all land on the middle
         // step: L ≈ 50 and a, b ≈ -1 (0 at 16 bits, whose middle level is 128), a neutral grey).
@@ -3572,7 +3572,7 @@ fn lab_stack(lab: [f32; 3], depth: SampleType, adjustments: Vec<Adjustment>) -> 
 
 /// Display RGB of stored Lab `n`.
 fn lab_display(n: [f32; 3]) -> [f32; 3] {
-    photocraft_color::convert::lab_to_srgb([n[0] * 100.0, n[1] * 255.0 - 128.0, n[2] * 255.0 - 128.0])
+    evophoto_color::convert::lab_to_srgb([n[0] * 100.0, n[1] * 255.0 - 128.0, n[2] * 255.0 - 128.0])
 }
 
 // A saturated purple far outside sRGB (L 60, a +90, b -90). Read through display RGB it clips,
@@ -3587,7 +3587,7 @@ fn lab_adjustments_work_on_the_stored_values() {
     let want = lab_display([byte(102), byte(37), byte(217)]);
     near3([p[0], p[1], p[2]], want, 1e-4, "inverted out-of-gamut purple");
     // Through clipped display RGB the result is another colour.
-    let clipped = photocraft_color::convert::srgb_to_lab(lab_display([byte(153), byte(218), byte(38)]));
+    let clipped = evophoto_color::convert::srgb_to_lab(lab_display([byte(153), byte(218), byte(38)]));
     let via_rgb = lab_display([1.0 - clipped[0] / 100.0, (-clipped[1] - 1.0 + 128.0) / 255.0, (-clipped[2] - 1.0 + 128.0) / 255.0]);
     assert!(via_rgb.iter().zip(want).any(|(a, b)| (a - b).abs() > 4.0 / 255.0), "the clipped path differs: {via_rgb:?} vs {want:?}");
     // Levels on L only (a Lab record), half masked by opacity: L 0.6 → 0.6^(1/2) mixed halfway.
@@ -3628,7 +3628,7 @@ fn lab_adjustment_results_are_whole_samples() {
         let p = px(&doc, 1, 1);
         let stack = native_lab::LabStack::new(&doc);
         assert!(stack.is_some_and(|s| s.adjusts()), "{depth:?}: the native path");
-        let l = photocraft_color::convert::srgb_to_lab([p[0], p[1], p[2]])[0] / 100.0;
+        let l = evophoto_color::convert::srgb_to_lab([p[0], p[1], p[2]])[0] / 100.0;
         assert!((l * q - (l * q).round()).abs() < 0.02, "{depth:?}: L {} is between two samples", l * q);
     }
 }
@@ -3652,7 +3652,7 @@ fn lab_adjustment_results_round_a_and_b_after_the_opacity_mix() {
     }
     assert!(native_lab::LabStack::new(&doc).is_some_and(|s| s.adjusts()), "the native path");
     let p = px(&doc, 1, 1);
-    let a = photocraft_color::convert::srgb_to_lab([p[0], p[1], p[2]])[1] + 128.0;
+    let a = evophoto_color::convert::srgb_to_lab([p[0], p[1], p[2]])[1] + 128.0;
     assert!((a - 146.0).abs() < 0.02, "a {a} is not 146");
 }
 
@@ -3674,11 +3674,11 @@ fn lab_flatten_keeps_the_stored_values() {
 fn lab_stacks_with_other_layers_keep_the_rgb_compositor() {
     let lab = [0.6, 0.5, 0.5];
     assert!(native_lab::LabStack::new(&lab_stack(lab, SampleType::U8, vec![Adjustment::Invert])).is_some_and(|s| s.adjusts()));
-    let hue = Adjustment::HueSaturation { hue: 30.0, saturation: 0.0, lightness: 0.0, colorize: false, ranges: photocraft_doc::adjust::HueRange::defaults() };
+    let hue = Adjustment::HueSaturation { hue: 30.0, saturation: 0.0, lightness: 0.0, colorize: false, ranges: evophoto_doc::adjust::HueRange::defaults() };
     assert!(native_lab::LabStack::new(&lab_stack(lab, SampleType::U8, vec![hue])).is_none());
     let mut multiply = lab_stack(lab, SampleType::U8, vec![Adjustment::Invert]);
     if let Some(l) = multiply.layers.last_mut() {
-        l.blend = photocraft_color::blend::BlendMode::Multiply;
+        l.blend = evophoto_color::blend::BlendMode::Multiply;
     }
     assert!(native_lab::LabStack::new(&multiply).is_none());
     let rgb = Document::with_background("rgb", Size::new(4, 4), ColorMode::Rgb, SampleType::U8, Color::rgb(0.5, 0.5, 0.5));
@@ -3687,7 +3687,7 @@ fn lab_stacks_with_other_layers_keep_the_rgb_compositor() {
 
 #[test]
 fn lab_documents_brightness_contrast_moves_lightness_only() {
-    let lab = photocraft_color::convert::srgb_to_lab(MUTED);
+    let lab = evophoto_color::convert::srgb_to_lab(MUTED);
     for depth in SampleType::ALL {
         for legacy in [true, false] {
             let got = lab_doc_adjusted(MUTED, Adjustment::BrightnessContrast { brightness: 40.0, contrast: 20.0, legacy }, depth);
@@ -3718,8 +3718,8 @@ fn lab_documents_gradient_map_follows_lightness() {
     let stops = vec![(0.0, [0.0, 0.0, 1.0]), (1.0, [1.0, 1.0, 0.0])];
     // A grey and a saturated colour of the same L map to the same colour.
     let red = [0.9, 0.1, 0.1];
-    let l = photocraft_color::convert::srgb_to_lab(red)[0];
-    let grey = photocraft_color::convert::lab_to_srgb([l, 0.0, 0.0]);
+    let l = evophoto_color::convert::srgb_to_lab(red)[0];
+    let grey = evophoto_color::convert::lab_to_srgb([l, 0.0, 0.0]);
     for depth in SampleType::ALL {
         for reverse in [false, true] {
             let adj = Adjustment::GradientMap { stops: stops.clone(), reverse, dither: false };
@@ -3727,7 +3727,7 @@ fn lab_documents_gradient_map_follows_lightness() {
             let b = lab_doc_adjusted(grey, adj.clone(), depth);
             near3(a, b, 1.0, &format!("{depth:?} reverse {reverse}"));
             let t = if reverse { 1.0 - l / 100.0 } else { l / 100.0 };
-            let want = photocraft_color::convert::srgb_to_lab([t, t, 1.0 - t]);
+            let want = evophoto_color::convert::srgb_to_lab([t, t, 1.0 - t]);
             near3(a, want, 1.5, &format!("{depth:?} reverse {reverse}"));
         }
     }
@@ -3965,12 +3965,12 @@ fn a_gigapixel_new_document_reduces_without_compositing_its_canvas() {
 #[test]
 fn shape_layer_bounds_includes_vector_bounds_clipped_to_canvas_and_preserves_effects() {
     let canvas = Rect::new(0, 0, 100, 100);
-    let subpath = photocraft_doc::vector::Subpath::polygon(&[(-20.0, -20.0), (50.0, -20.0), (50.0, 50.0), (-20.0, 50.0)]);
-    let path = photocraft_doc::vector::Path { subpaths: vec![subpath], ..Default::default() };
-    let sh = photocraft_doc::vector::ShapeLayer {
+    let subpath = evophoto_doc::vector::Subpath::polygon(&[(-20.0, -20.0), (50.0, -20.0), (50.0, 50.0), (-20.0, 50.0)]);
+    let path = evophoto_doc::vector::Path { subpaths: vec![subpath], ..Default::default() };
+    let sh = evophoto_doc::vector::ShapeLayer {
         path,
-        fill: Some(photocraft_doc::Fill::Solid(photocraft_doc::Color::BLACK)),
-        stroke: Some(photocraft_doc::vector::ShapeStroke { width: 4.0, opacity: 1.0, ..Default::default() }),
+        fill: Some(evophoto_doc::Fill::Solid(evophoto_doc::Color::BLACK)),
+        stroke: Some(evophoto_doc::vector::ShapeStroke { width: 4.0, opacity: 1.0, ..Default::default() }),
         ..Default::default()
     };
     let mut layer = Layer::new("shape", LayerContent::Shape(sh));
@@ -3987,7 +3987,7 @@ fn shape_layer_bounds_includes_vector_bounds_clipped_to_canvas_and_preserves_eff
 }
 
 #[test]
-#[ignore = "timing: cargo test --release -p photocraft-compose modern_lut_timing -- --ignored --nocapture"]
+#[ignore = "timing: cargo test --release -p evophoto-compose modern_lut_timing -- --ignored --nocapture"]
 fn modern_lut_timing() {
     let t = std::time::Instant::now();
     for _ in 0..100 {
@@ -3997,7 +3997,7 @@ fn modern_lut_timing() {
 }
 
 #[test]
-#[ignore = "timing: cargo test --release -p photocraft-compose cmyk_ink_render_timing -- --ignored --nocapture"]
+#[ignore = "timing: cargo test --release -p evophoto-compose cmyk_ink_render_timing -- --ignored --nocapture"]
 fn cmyk_ink_render_timing() {
     // 24 MP CMYK8 photo-sized noise with one adjustment layer: the ink path (Invert) against the
     // RGB compositor (Exposure, which the inks don't carry).
@@ -4228,7 +4228,7 @@ fn dissolve_color_overlay_preserves_binary_layer_coverage() {
         .unwrap()
         .effects
         .items
-        .push(photocraft_doc::Effect::ColorOverlay { common: photocraft_doc::FxCommon::new(BlendMode::Normal, 1.0), color: Color::BLACK });
+        .push(evophoto_doc::Effect::ColorOverlay { common: evophoto_doc::FxCommon::new(BlendMode::Normal, 1.0), color: Color::BLACK });
     let styled = render(&d, d.bounds()).px;
     assert_eq!(styled, control, "an identity overlay should not turn dissolve pixels gray");
     d.layers.last_mut().unwrap().blend = BlendMode::Normal;
@@ -4250,7 +4250,7 @@ fn clipped_dissolve_adjustment_preserves_alpha_and_document_coverage() {
         adjustment.blend = BlendMode::Dissolve;
         adjustment.opacity = 0.6;
         adjustment.fill_opacity = 0.5;
-        let mut mask = photocraft_raster::Surface::new(PixelFormat::GRAY8);
+        let mut mask = evophoto_raster::Surface::new(PixelFormat::GRAY8);
         mask.fill_rect(Rect::new(-3, -2, 260, 12), &[1.0]);
         adjustment.mask = Some(LayerMask { surface: mask, enabled: true, linked: true, density: 1.0, feather: 0.0 });
         d.layers.push(adjustment);

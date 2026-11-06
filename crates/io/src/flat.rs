@@ -1,12 +1,12 @@
-//! Flat raster formats via `photocraft-codecs`.
+//! Flat raster formats via `evophoto-codecs`.
 
 use std::sync::Arc;
 
-use photocraft_codecs::{self as codecs, ChannelLayout, Format, Image, SampleType as CSample};
-use photocraft_color::{BlendMode, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::{AlphaChannel, Document, Layer, LayerContent};
-use photocraft_geom::{Rect, Size, TILE_SIZE};
-use photocraft_raster::Surface;
+use evophoto_codecs::{self as codecs, ChannelLayout, Format, Image, SampleType as CSample};
+use evophoto_color::{BlendMode, ColorMode, PixelFormat, SampleType};
+use evophoto_doc::{AlphaChannel, Document, Layer, LayerContent};
+use evophoto_geom::{Rect, Size, TILE_SIZE};
+use evophoto_raster::Surface;
 
 use crate::{ExportOptions, ExportResult, ImportResult, IoError, TgaBits, XmpEmbed};
 
@@ -35,7 +35,7 @@ pub fn import_flat(name: &str, bytes: &[u8]) -> Result<ImportResult, IoError> {
         && r.document.mode == ColorMode::Rgb
     {
         r.document.mode = ColorMode::Indexed;
-        r.document.color_table = Some(photocraft_doc::ColorTable { colors, transparent });
+        r.document.color_table = Some(evophoto_doc::ColorTable { colors, transparent });
     }
     r.document.file_encoding = file_encoding_as(format, bytes);
     if format == Some(Format::Tga) && img.layout() == ChannelLayout::Rgba {
@@ -47,8 +47,8 @@ pub fn import_flat(name: &str, bytes: &[u8]) -> Result<ImportResult, IoError> {
     let d = &mut r.document;
     if d.icc_profile.is_none() && matches!(format, Some(Format::OpenExr | Format::Hdr)) {
         d.icc_profile = match d.mode {
-            ColorMode::Rgb => Some(photocraft_cms::Builtin::LinearSrgb.profile().to_bytes()),
-            ColorMode::Grayscale => Some(photocraft_cms::builtin::linear_gray().to_bytes()),
+            ColorMode::Rgb => Some(evophoto_cms::Builtin::LinearSrgb.profile().to_bytes()),
+            ColorMode::Grayscale => Some(evophoto_cms::builtin::linear_gray().to_bytes()),
             _ => None,
         };
     }
@@ -70,7 +70,7 @@ pub fn import_flat(name: &str, bytes: &[u8]) -> Result<ImportResult, IoError> {
 fn hdr_fallback(img: &Image) -> Option<(Arc<Vec<u8>>, String)> {
     let c = img.cicp.filter(|c| c.is_hdr() && img.sample_type().is_float())?;
     let warning = format!("the HDR colour primaries (H.273 code {}) aren't supported; the image is read as linear sRGB", c.primaries);
-    Some((photocraft_cms::Builtin::LinearSrgb.profile().to_bytes(), warning))
+    Some((evophoto_cms::Builtin::LinearSrgb.profile().to_bytes(), warning))
 }
 
 /// The profile a HEIF's `nclx` colour description stands for, when the file has no ICC profile
@@ -85,7 +85,7 @@ fn cicp_profile(img: &Image) -> Option<Arc<Vec<u8>>> {
     }
     // Unspecified primaries on an HDR image: BT.2100's, which PQ and HLG are defined with.
     let primaries = if c.primaries == 2 && c.is_hdr() { 9 } else { c.primaries };
-    photocraft_cms::builtin::cicp_rgb(primaries, c.transfer, linear).map(|p| p.to_bytes())
+    evophoto_cms::builtin::cicp_rgb(primaries, c.transfer, linear).map(|p| p.to_bytes())
 }
 
 /// Every frame of a GIF as a single-layer document, handed to `each` in order with its delay in
@@ -114,13 +114,13 @@ fn import_frames(name: &str, frames: Vec<codecs::AnimationFrame>, each: &mut dyn
 /// (estimated from its quantisation tables), a WebP's lossless or lossy encoding with its
 /// quality, and a PNG's `sTER` stereo pairing. A lossy WebP whose quality can't be read gets
 /// [`DEFAULT_LOSSY_WEBP_QUALITY`].
-pub fn file_encoding(bytes: &[u8]) -> photocraft_doc::FileEncoding {
+pub fn file_encoding(bytes: &[u8]) -> evophoto_doc::FileEncoding {
     file_encoding_as(codecs::detect(bytes), bytes)
 }
 
 /// [`file_encoding`] for `bytes` already detected as `format`.
-fn file_encoding_as(format: Option<Format>, bytes: &[u8]) -> photocraft_doc::FileEncoding {
-    let mut e = photocraft_doc::FileEncoding::default();
+fn file_encoding_as(format: Option<Format>, bytes: &[u8]) -> evophoto_doc::FileEncoding {
+    let mut e = evophoto_doc::FileEncoding::default();
     match format {
         Some(Format::Jpeg) => e.jpeg_quality = codecs::jpeg_quality(bytes),
         Some(Format::Png) => e.png_stereo = codecs::png_stereo(bytes).map(codecs::PngStereo::mode),
@@ -187,7 +187,7 @@ fn tga_alpha_to_channel(doc: &mut Document) -> Result<(), IoError> {
     layer.name = "Background".into();
     layer.locks.transparency = true;
     layer.locks.position = true;
-    doc.channels.push(photocraft_doc::AlphaChannel::new("Alpha 1", alpha));
+    doc.channels.push(evophoto_doc::AlphaChannel::new("Alpha 1", alpha));
     Ok(())
 }
 
@@ -289,7 +289,7 @@ pub(crate) fn image_to_document(name: &str, img: &Image) -> Result<ImportResult,
         warnings.extend(crate::unequal_resolution_warning(f64::from(x), f64::from(y)));
     }
     // Guides in the Photoshop resources a JPEG (APP13) or TIFF carries: resource 1032.
-    let guides = img.meta.photoshop_resources.as_deref().and_then(|r| photocraft_psd::tiff::resources_from_bytes(r).ok());
+    let guides = img.meta.photoshop_resources.as_deref().and_then(|r| evophoto_psd::tiff::resources_from_bytes(r).ok());
     if let Some(g) = guides.as_ref().and_then(|(res, _)| res.iter().find(|r| r.id == 1032)) {
         crate::psd_import::parse_guides(&g.data, &mut doc);
     }
@@ -341,8 +341,8 @@ pub(crate) fn single_layer(doc: &Document) -> Option<&Surface> {
         && l.effects.items.is_empty()
         && l.effects.psd_raw.is_none()
         && matches!(l.blend, BlendMode::Normal | BlendMode::PassThrough)
-        && photocraft_compose::channel_weights(l, doc.mode).is_none()
-        && !photocraft_compose::blend_if_active(l, doc.mode);
+        && evophoto_compose::channel_weights(l, doc.mode).is_none()
+        && !evophoto_compose::blend_if_active(l, doc.mode);
     match (&l.content, ok) {
         (LayerContent::Raster(s), true) if s.format() == doc.pixel_format() => Some(s),
         _ => None,
@@ -420,7 +420,7 @@ fn document_to_image_for(doc: &Document, warnings: &mut Vec<String>, cmyk_target
             // A CMYK target is written as CMYK with the document's own profile (#2220), which it
             // therefore needs; RGB-only targets keep the compositor's own handling (built-in
             // coated CMYK when the embedded profile is unusable).
-            use photocraft_cms::{Builtin, ColorSpace, Intent, Profile, Transform};
+            use evophoto_cms::{Builtin, ColorSpace, Intent, Profile, Transform};
             let profile = match doc.icc_profile.as_ref() {
                 Some(bytes) => Profile::parse(bytes).map_err(|e| IoError::Unsupported(format!("invalid CMYK composite profile: {e}")))?,
                 None => Builtin::CoatedCmyk.profile().clone(),
@@ -442,14 +442,14 @@ fn document_to_image_for(doc: &Document, warnings: &mut Vec<String>, cmyk_target
                 // RGB-only targets use the sRGB composite directly, without separating CMYK; the
                 // compositor renders Lab documents in sRGB. Either way the file is tagged sRGB.
                 warnings.push(format!("{:?} composite written as sRGB RGB (colour-managed conversion)", fmt.mode));
-                icc = Some(photocraft_cms::Builtin::Srgb.profile().to_bytes().to_vec());
+                icc = Some(evophoto_cms::Builtin::Srgb.profile().to_bytes().to_vec());
             }
             let colors = if gray { 1 } else { 3 };
             // Rendered and quantised in bands (no full-size float composite), with alpha; the
             // alpha is dropped afterwards, in place, when every pixel turned out opaque.
             let mut data = try_buffer(n, (colors + 1) * cs.bytes())?;
             let mut opaque = true;
-            let _ = photocraft_compose::render_bands(doc, canvas, 0, |band| -> Result<(), ()> {
+            let _ = evophoto_compose::render_bands(doc, canvas, 0, |band| -> Result<(), ()> {
                 opaque &= band.px.iter().all(|p| p[3] >= 1.0);
                 let parts = crate::pixels::par_map(crate::pixels::bands(band.px.len()), |range| {
                     let mut out = Vec::with_capacity(range.len() * (colors + 1) * cs.bytes());
@@ -463,7 +463,7 @@ fn document_to_image_for(doc: &Document, warnings: &mut Vec<String>, cmyk_target
                     };
                     for p in &band.px[range] {
                         if gray {
-                            put(photocraft_color::convert::rgb_to_gray([p[0], p[1], p[2]]));
+                            put(evophoto_color::convert::rgb_to_gray([p[0], p[1], p[2]]));
                         } else {
                             put(p[0]);
                             put(p[1]);
@@ -511,7 +511,7 @@ fn cmyk_composite(doc: &Document, canvas: Rect, cs: CSample, n: usize, warnings:
             CSample::F16 | CSample::F32 => out.extend_from_slice(&v.to_ne_bytes()),
         }
     };
-    let native = photocraft_compose::cmyk::render_cmyk_bands(doc, canvas, 0, |band| -> Result<(), ()> {
+    let native = evophoto_compose::cmyk::render_cmyk_bands(doc, canvas, 0, |band| -> Result<(), ()> {
         opaque &= band.px.iter().all(|p| p[4] >= 1.0);
         let parts = crate::pixels::par_map(crate::pixels::bands(band.px.len()), |range| {
             let mut out = Vec::with_capacity(range.len() * 5 * cs.bytes());
@@ -530,17 +530,17 @@ fn cmyk_composite(doc: &Document, canvas: Rect, cs: CSample, n: usize, warnings:
     if native.is_none() {
         // Through RGB and back: the colour model is kept, exact ink values are not.
         warnings.push("CMYK composite converted back through the document's CMYK profile; ink values can differ from the layers'".to_string());
-        let space = photocraft_compose::cmyk_space(doc);
+        let space = evophoto_compose::cmyk_space(doc);
         let to = PixelFormat::new(ColorMode::Cmyk, SampleType::F32, true);
-        let _ = photocraft_compose::render_bands(doc, canvas, 0, |band| -> Result<(), ()> {
+        let _ = evophoto_compose::render_bands(doc, canvas, 0, |band| -> Result<(), ()> {
             opaque &= band.px.iter().all(|p| p[3] >= 1.0);
             let parts = crate::pixels::par_map(crate::pixels::bands(band.px.len()), |range| {
                 // The composite came through the document's CMYK profile: convert back through it.
-                photocraft_color::convert::with_cmyk_space(space.as_ref(), || {
+                evophoto_color::convert::with_cmyk_space(space.as_ref(), || {
                     let mut out = Vec::with_capacity(range.len() * 5 * cs.bytes());
                     let mut v = [0.0f32; 5];
                     for p in band.px.get(range).unwrap_or_default() {
-                        photocraft_raster::from_rgba_into(&to, *p, &mut v);
+                        evophoto_raster::from_rgba_into(&to, *p, &mut v);
                         for x in v {
                             put(&mut out, x);
                         }
@@ -585,9 +585,9 @@ pub(crate) fn opaque_surface(s: &Surface, r: Rect) -> bool {
     let fmt = s.format();
     let (ch, bps) = (fmt.channels(), fmt.sample.bytes());
     let a = ch - 1;
-    let alpha_ok = |px: &[u8]| photocraft_color::read_sample(px, fmt.sample, a) >= 1.0;
+    let alpha_ok = |px: &[u8]| evophoto_color::read_sample(px, fmt.sample, a) >= 1.0;
     let mut default = vec![0u8; ch * bps];
-    photocraft_raster::encode_pixel(&fmt, &s.default_pixel(), &mut default);
+    evophoto_raster::encode_pixel(&fmt, &s.default_pixel(), &mut default);
     r.tiles().all(|tc| {
         let tr = tc.rect().intersect(&r);
         match s.tile(tc) {
@@ -613,13 +613,13 @@ fn composite_share(format: Format) -> f32 {
 
 /// Flattens and encodes as `format`.
 pub fn export_flat(doc: &Document, format: Format, opts: &ExportOptions) -> Result<ExportResult, IoError> {
-    export_flat_with(doc, format, opts, &photocraft_raster::Interrupt::NONE)
+    export_flat_with(doc, format, opts, &evophoto_raster::Interrupt::NONE)
 }
 
 /// [`export_flat`] reporting a coarse step through `ctl` once the composite is rendered; the
 /// encoder does the rest (#3389).
-pub(crate) fn export_flat_with(doc: &Document, format: Format, opts: &ExportOptions, ctl: &photocraft_raster::Interrupt) -> Result<ExportResult, IoError> {
-    use photocraft_cms::{Builtin, Intent};
+pub(crate) fn export_flat_with(doc: &Document, format: Format, opts: &ExportOptions, ctl: &evophoto_raster::Interrupt) -> Result<ExportResult, IoError> {
+    use evophoto_cms::{Builtin, Intent};
     if let Some(r) = export_mode_specific(doc, format, opts)? {
         return Ok(r);
     }
@@ -650,7 +650,7 @@ pub(crate) fn export_flat_with(doc: &Document, format: Format, opts: &ExportOpti
         // see [`import_flat`]).
         if let Some(linear) = convert_rgb(&img, Builtin::LinearSrgb.profile(), Intent::RelativeColorimetric, false, CSample::F32)? {
             img = linear;
-        } else if let Some(linear) = convert_gray(&img, photocraft_cms::builtin::linear_gray(), CSample::F32)? {
+        } else if let Some(linear) = convert_gray(&img, evophoto_cms::builtin::linear_gray(), CSample::F32)? {
             img = linear;
         }
     } else if !format.caps().icc || (img.layout().is_gray() && !format.caps().layouts.iter().any(|l| l.is_gray())) {
@@ -803,8 +803,8 @@ fn matte_over_white(img: &Image) -> Result<Image, IoError> {
 
 /// RGB pixels converted from their profile (sRGB when untagged) to `dst`, unclamped, untagged and
 /// stored as `sample`. `None` when the image isn't RGB or already holds `dst`'s colours.
-fn convert_rgb(img: &Image, dst: &photocraft_cms::Profile, intent: photocraft_cms::Intent, bpc: bool, sample: CSample) -> Result<Option<Image>, IoError> {
-    use photocraft_cms::{Builtin, ColorSpace, Profile};
+fn convert_rgb(img: &Image, dst: &evophoto_cms::Profile, intent: evophoto_cms::Intent, bpc: bool, sample: CSample) -> Result<Option<Image>, IoError> {
+    use evophoto_cms::{Builtin, ColorSpace, Profile};
     if !img.layout().is_rgb() {
         return Ok(None);
     }
@@ -815,8 +815,8 @@ fn convert_rgb(img: &Image, dst: &photocraft_cms::Profile, intent: photocraft_cm
 
 /// Gray pixels converted from their profile (sGray when untagged) to `dst`, unclamped, untagged
 /// and stored as `sample`. `None` when the image isn't gray or already holds `dst`'s colours.
-fn convert_gray(img: &Image, dst: &photocraft_cms::Profile, sample: CSample) -> Result<Option<Image>, IoError> {
-    use photocraft_cms::{Builtin, ColorSpace, Intent, Profile};
+fn convert_gray(img: &Image, dst: &evophoto_cms::Profile, sample: CSample) -> Result<Option<Image>, IoError> {
+    use evophoto_cms::{Builtin, ColorSpace, Intent, Profile};
     if !matches!(img.layout(), ChannelLayout::Gray | ChannelLayout::GrayA) {
         return Ok(None);
     }
@@ -828,16 +828,16 @@ fn convert_gray(img: &Image, dst: &photocraft_cms::Profile, sample: CSample) -> 
 /// `img`'s pixels converted from `src` to `dst` (see [`convert_rgb`]).
 fn convert_from(
     img: &Image,
-    src: &photocraft_cms::Profile,
-    dst: &photocraft_cms::Profile,
-    intent: photocraft_cms::Intent,
+    src: &evophoto_cms::Profile,
+    dst: &evophoto_cms::Profile,
+    intent: evophoto_cms::Intent,
     bpc: bool,
     sample: CSample,
 ) -> Result<Option<Image>, IoError> {
     if src.same_colors(dst) {
         return Ok(None);
     }
-    let t = photocraft_cms::Transform::new(src, dst, intent, bpc).map_err(|e| IoError::Unsupported(e.to_string()))?;
+    let t = evophoto_cms::Transform::new(src, dst, intent, bpc).map_err(|e| IoError::Unsupported(e.to_string()))?;
     let stride = img.layout().channels();
     let out = map_bands(img, img.layout(), sample, |mut vals| {
         t.apply(&mut vals, stride);
@@ -849,7 +849,7 @@ fn convert_from(
 /// Colour-managed CMYK → sRGB for formats that cannot store CMYK (the document's embedded
 /// CMYK profile when it parses, else the built-in coated CMYK; relative colorimetric + BPC).
 fn cmyk_image_to_srgb(img: &Image) -> Result<Image, IoError> {
-    use photocraft_cms::{Builtin, ColorSpace, Intent, Profile, Transform};
+    use evophoto_cms::{Builtin, ColorSpace, Intent, Profile, Transform};
     let src = img
         .icc
         .as_ref()
@@ -909,9 +909,9 @@ fn export_mode_specific(doc: &Document, format: Format, opts: &ExportOptions) ->
             let png_transparent_index = table.transparent.map(usize::from).filter(|_| format == Format::Png);
             let (opaque_indices, colors): (Vec<u8>, Vec<_>) =
                 table.colors.iter().copied().enumerate().filter(|(i, _)| Some(*i) != png_transparent_index).map(|(i, c)| (i as u8, c)).unzip();
-            let opaque = photocraft_doc::ColorTable { colors, transparent: None };
+            let opaque = evophoto_doc::ColorTable { colors, transparent: None };
             let mut idx = try_buffer(doc.size.area() as usize, 1)?;
-            photocraft_compose::render_bands(doc, doc.bounds(), 0, |band| -> Result<(), IoError> {
+            evophoto_compose::render_bands(doc, doc.bounds(), 0, |band| -> Result<(), IoError> {
                 for p in &band.px {
                     let i = match table.transparent {
                         Some(t) if p[3] < 0.5 => t,
@@ -943,7 +943,7 @@ fn export_mode_specific(doc: &Document, format: Format, opts: &ExportOptions) ->
         ColorMode::Duotone => {
             let Some(d) = doc.duotone.as_ref() else { return Ok(None) };
             let mut shown = doc.clone();
-            shown.layers.push(photocraft_doc::Layer::new("Duotone", photocraft_doc::LayerContent::Adjustment(d.display_adjustment())));
+            shown.layers.push(evophoto_doc::Layer::new("Duotone", evophoto_doc::LayerContent::Adjustment(d.display_adjustment())));
             shown.mode = ColorMode::Rgb;
             shown.icc_profile = None;
             shown.duotone = None;
@@ -959,7 +959,7 @@ fn export_mode_specific(doc: &Document, format: Format, opts: &ExportOptions) ->
 #[cfg(test)]
 mod cicp_tests {
     use super::*;
-    use photocraft_cms::{Builtin, Profile};
+    use evophoto_cms::{Builtin, Profile};
 
     fn tagged(sample: CSample, cicp: codecs::Cicp) -> Image {
         let mut img = Image::new(1, 1, ChannelLayout::Rgb, sample).unwrap();

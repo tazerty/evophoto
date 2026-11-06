@@ -13,7 +13,7 @@ fn session(w: u32, h: u32) -> Session {
     s.execute("layer.new.layer", json!({})).unwrap();
     s.edit("pattern", |doc, active| {
         let surf = doc.layer_mut(active.unwrap()).unwrap().surface_mut().unwrap();
-        let r = photocraft_geom::Rect::new(0, 0, w as i32, h as i32);
+        let r = evophoto_geom::Rect::new(0, 0, w as i32, h as i32);
         let mut px = Vec::with_capacity((w * h * 4) as usize);
         for y in 0..h {
             for x in 0..w {
@@ -325,7 +325,7 @@ fn background_job_finishes_bookkeeping_on_edited_document_after_tab_switch() {
                 s.edit("Deferred Blur", |doc, active| {
                     let layer = active.ok_or_else(|| EngineError::Other("no active layer".into()))?;
                     let surface = doc.layer_mut(layer).ok_or(EngineError::NoLayer(layer))?.surface_mut().ok_or(EngineError::NoLayer(layer))?;
-                    surface.fill_rect(photocraft_geom::Rect::new(0, 0, 1, 1), &[0.4, 0.3, 0.2, 1.0]);
+                    surface.fill_rect(evophoto_geom::Rect::new(0, 0, 1, 1), &[0.4, 0.3, 0.2, 1.0]);
                     Ok(())
                 })?;
                 Ok(json!({"filter": {"radius": 2}}))
@@ -371,8 +371,8 @@ fn background_filter_on_a_channel_fades_that_channel_after_a_tab_switch() {
         s.edit("pattern", |doc, _| {
             let c = if quick_mask { doc.quick_mask.as_mut() } else { doc.channels.first_mut() };
             let c = c.ok_or_else(|| EngineError::Other("no channel".into()))?;
-            c.surface.fill_rect(photocraft_geom::Rect::new(0, 0, 32, 24), &[0.0]);
-            c.surface.fill_rect(photocraft_geom::Rect::new(8, 6, 20, 16), &[1.0]);
+            c.surface.fill_rect(evophoto_geom::Rect::new(0, 0, 32, 24), &[0.0]);
+            c.surface.fill_rect(evophoto_geom::Rect::new(8, 6, 20, 16), &[1.0]);
             Ok(())
         })
         .unwrap();
@@ -523,7 +523,7 @@ fn remove_runs_as_a_job() {
 fn open_runs_as_a_job_and_cancel_adds_nothing() {
     let mut src = session(40, 30);
     let doc = (*src.active().unwrap().doc).clone();
-    let bytes = photocraft_io::export(&doc, "x.psd", &Default::default()).unwrap().bytes;
+    let bytes = evophoto_io::export(&doc, "x.psd", &Default::default()).unwrap().bytes;
     src.close(0);
     let mut s = Session::new();
     let id = job(s.start_open("x.psd", OpenSource::Bytes(Arc::new(bytes.clone()))).unwrap());
@@ -549,8 +549,8 @@ fn open_runs_as_a_job_and_cancel_adds_nothing() {
 fn an_open_that_asks_about_its_profile_holds_the_document_back() {
     let mut src = session(8, 8);
     let mut doc = (*src.active().unwrap().doc).clone();
-    doc.icc_profile = Some(photocraft_cms::Builtin::from_id("adobe-rgb-compat").unwrap().profile().to_bytes());
-    let bytes = Arc::new(photocraft_io::export(&doc, "x.png", &Default::default()).unwrap().bytes);
+    doc.icc_profile = Some(evophoto_cms::Builtin::from_id("adobe-rgb-compat").unwrap().profile().to_bytes());
+    let bytes = Arc::new(evophoto_io::export(&doc, "x.png", &Default::default()).unwrap().bytes);
     src.close(0);
     let mut s = Session::new();
     s.execute("edit.colorSettings", json!({"askOnMismatch": true, "policyRgb": "preserve"})).unwrap();
@@ -576,7 +576,7 @@ fn warm_layer_bounds_visits_every_layer_and_can_be_cancelled() {
     s.execute("layer.groupLayers", json!({})).unwrap();
     s.execute("layer.new.layer", json!({})).unwrap();
     let doc = s.active().unwrap().doc.clone();
-    fn count(layers: &[photocraft_doc::Layer]) -> usize {
+    fn count(layers: &[evophoto_doc::Layer]) -> usize {
         layers.iter().map(|l| 1 + l.children().map_or(0, count)).sum()
     }
     assert!(doc.layers.iter().any(|l| l.children().is_some_and(|c| !c.is_empty())), "a group with a layer in it");
@@ -630,7 +630,7 @@ fn params_that_are_not_an_object_are_rejected_before_running() {
 #[test]
 // Wall-clock timing depends on machine load (the release corpus job runs every test), so it is
 // opt-in; perf_scenarios tracks the same numbers as P25/P49.
-#[ignore = "timing: cargo test --release -p photocraft-engine --lib cancel_takes -- --ignored"]
+#[ignore = "timing: cargo test --release -p evophoto-engine --lib cancel_takes -- --ignored"]
 fn cancel_takes_effect_within_200_ms_on_24_mp() {
     for (cmd, params, select) in [("filter.blur.gaussianBlur", json!({"radius": 50}), false), ("edit.contentAwareFill", json!({}), true)] {
         let mut s = session(6000, 4000);

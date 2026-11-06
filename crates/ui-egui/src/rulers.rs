@@ -3,11 +3,11 @@
 //! undoable engine commands (`view.newGuide` / `view.moveGuide` / `view.deleteGuide`).
 
 use egui::{Align2, Color32, Pos2, Rect, Sense, Stroke, pos2, vec2};
-use photocraft_doc::Document;
-use photocraft_engine::prefs::{GuidesGridAndSlices, Unit};
+use evophoto_doc::Document;
+use evophoto_engine::prefs::{GuidesGridAndSlices, Unit};
 use serde_json::json;
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::canvas::ViewXform;
 use crate::theme::Tokens;
 
@@ -15,12 +15,12 @@ pub const RULER: f32 = 16.0;
 
 /// A `#rrggbb` preference colour.
 fn pref_color(s: &str, fallback: Color32) -> Color32 {
-    photocraft_engine::prefs::parse_hex(s).map_or(fallback, |c| Color32::from_rgb(c[0], c[1], c[2]))
+    evophoto_engine::prefs::parse_hex(s).map_or(fallback, |c| Color32::from_rgb(c[0], c[1], c[2]))
 }
 
 /// Draw a line in a Guides/Grid preference style (lines, dashed lines, dots).
-fn styled_line(painter: &egui::Painter, a: Pos2, b: Pos2, stroke: Stroke, style: photocraft_engine::prefs::LineStyle) {
-    use photocraft_engine::prefs::LineStyle;
+fn styled_line(painter: &egui::Painter, a: Pos2, b: Pos2, stroke: Stroke, style: evophoto_engine::prefs::LineStyle) {
+    use evophoto_engine::prefs::LineStyle;
     match style {
         LineStyle::Lines => {
             painter.line_segment([a, b], stroke);
@@ -119,7 +119,7 @@ impl GuideDrag {
 }
 
 /// Canvas area left after the rulers.
-pub fn content_rect(app: &PhotocraftApp, rect: Rect) -> Rect {
+pub fn content_rect(app: &EvoPhotoApp, rect: Rect) -> Rect {
     if app.ui.extras.rulers { Rect::from_min_max(rect.min + vec2(RULER, RULER), rect.max) } else { rect }
 }
 
@@ -127,7 +127,7 @@ pub fn content_rect(app: &PhotocraftApp, rect: Rect) -> Rect {
 /// there is removed, as in Photoshop, and either ruler removes it (#6286): the top ruler measures
 /// document x and the left one y, so the ruler the guide was not dragged out of can lie over a
 /// coordinate that is still inside the document on the guide's own axis.
-pub(crate) fn dropped_on_a_ruler(app: &PhotocraftApp, full: Rect, p: Pos2) -> bool {
+pub(crate) fn dropped_on_a_ruler(app: &EvoPhotoApp, full: Rect, p: Pos2) -> bool {
     if !app.ui.extras.rulers {
         return false;
     }
@@ -150,7 +150,7 @@ pub(crate) fn grid_major_px(g: &GuidesGridAndSlices, dpi: f64, size: [f64; 2], p
 
 /// View › Show › Grid, from Preferences › Guides, Grid & Slices (spacing, subdivisions, colour,
 /// style). Photoshop's default is a gridline every inch with 4 subdivisions.
-pub fn draw_grid(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform, doc: &Document) {
+pub fn draw_grid(app: &EvoPhotoApp, painter: &egui::Painter, xf: &ViewXform, doc: &Document) {
     let g = &app.session.prefs().guides_grid_and_slices;
     let ppi = app.session.prefs().units_and_rulers.point_size.per_inch();
     let (w, h) = (doc.size.width as f64, doc.size.height as f64);
@@ -202,7 +202,7 @@ pub fn guide_cursor(xf: &ViewXform, vertical: bool) -> egui::CursorIcon {
     crate::tool_cursor::resize(if vertical { [1.0, 0.0] } else { [0.0, 1.0] }, xf)
 }
 
-pub fn draw_guides(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform, doc: &Document) {
+pub fn draw_guides(app: &EvoPhotoApp, painter: &egui::Painter, xf: &ViewXform, doc: &Document) {
     let clip = painter.clip_rect();
     let drag = app.guide_drag;
     let g = &app.session.prefs().guides_grid_and_slices;
@@ -242,21 +242,21 @@ pub fn draw_guides(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform,
 /// The position readout of a guide being dragged: `X:` for a vertical guide, `Y:` for a horizontal
 /// one, measured from the ruler zero point in the ruler unit. Pixels keep one decimal, as
 /// Photoshop's "X: 103.2 px".
-pub fn guide_drag_readout(app: &PhotocraftApp, d: GuideDrag) -> Option<(&'static str, String)> {
+pub fn guide_drag_readout(app: &EvoPhotoApp, d: GuideDrag) -> Option<(&'static str, String)> {
     let doc = &app.session.active()?.doc;
     let ur = &app.session.prefs().units_and_rulers;
     let axis = usize::from(!d.vertical);
     let px = d.pos - doc.ruler_origin.get(axis).copied().unwrap_or(0.0);
     let extent = if d.vertical { doc.size.width } else { doc.size.height } as f64;
     let value = match ur.rulers {
-        Unit::Pixels => photocraft_engine::prefs::fmt_decimals(px, 1),
+        Unit::Pixels => evophoto_engine::prefs::fmt_decimals(px, 1),
         _ => ur.format(px, f64::from(doc.resolution_dpi), extent),
     };
     Some((if d.vertical { "X:" } else { "Y:" }, format!("{value} {}", ur.rulers.suffix())))
 }
 
 /// Draw [`guide_drag_readout`] beside the pointer while a guide is dragged.
-pub fn draw_guide_drag_readout(app: &PhotocraftApp, ctx: &egui::Context) {
+pub fn draw_guide_drag_readout(app: &EvoPhotoApp, ctx: &egui::Context) {
     let (Some(d), Some(at)) = (app.guide_drag, ctx.pointer_latest_pos()) else { return };
     if let Some((label, value)) = guide_drag_readout(app, d) {
         crate::canvas::draw_value_readout(app, ctx, "guide-drag-readout", at, [label], [value]);
@@ -264,7 +264,7 @@ pub fn draw_guide_drag_readout(app: &PhotocraftApp, ctx: &egui::Context) {
 }
 
 /// Existing guide under a document point (within 4 screen px).
-pub fn guide_at(app: &PhotocraftApp, x: f64, y: f64) -> Option<(bool, usize)> {
+pub fn guide_at(app: &EvoPhotoApp, x: f64, y: f64) -> Option<(bool, usize)> {
     // Hidden canvas guides are not interactive: the Move tool must reach the layer below.
     // Keep hit testing consistent with the visibility gate in canvas::draw.
     if !app.ui.extras.guides || !app.ui.view.shows(app.ui.view.show.canvas_guides) || app.ui.extras.lock_guides {
@@ -288,7 +288,7 @@ pub fn guide_at(app: &PhotocraftApp, x: f64, y: f64) -> Option<(bool, usize)> {
 /// Finish a guide drag: create, move, or delete (dropped outside the canvas or on a ruler). An
 /// existing guide released where it was pressed is a click: it's selected and stays put, as in
 /// Photoshop; a moved one stays selected.
-pub fn finish_drag(app: &mut PhotocraftApp, d: GuideDrag) {
+pub fn finish_drag(app: &mut EvoPhotoApp, d: GuideDrag) {
     let Some(size) = app.session.active().map(|s| s.doc.size) else { return };
     // A drop on a ruler removes the guide even when the drag held its own axis, which otherwise
     // reads as a click: dragged sideways onto the left ruler, a horizontal guide never moves in y.
@@ -362,7 +362,7 @@ fn snap_px_to_tick(px: f64, origin: f64, tick: f64) -> f64 {
 
 /// Where a zero-point drag from the ruler corner lands for the pointer at document `d`: on the
 /// nearest ruler tick (`ticks`, px per axis) with Shift, else View › Snap To targets.
-fn origin_drop(app: &mut PhotocraftApp, d: [f64; 2], shift: bool, origin: [f64; 2], ticks: [f64; 2]) -> [f64; 2] {
+fn origin_drop(app: &mut EvoPhotoApp, d: [f64; 2], shift: bool, origin: [f64; 2], ticks: [f64; 2]) -> [f64; 2] {
     if shift {
         [snap_px_to_tick(d[0], origin[0], ticks[0]), snap_px_to_tick(d[1], origin[1], ticks[1])]
     } else {
@@ -381,12 +381,12 @@ fn ruler_pos(xf: &ViewXform, vertical: bool, u: f64, px_per_unit: f64, zero: [f6
 /// Document pixels per ruler unit and the labelled tick step (in ruler units) of the top ruler
 /// (`y_axis` false) or the left one, from Preferences › Units & Rulers and the zoom. Minor ticks
 /// sit at tenths of the step.
-fn ruler_scale(app: &PhotocraftApp, xf: &ViewXform, y_axis: bool) -> (f64, f64) {
+fn ruler_scale(app: &EvoPhotoApp, xf: &ViewXform, y_axis: bool) -> (f64, f64) {
     ruler_scale_of(app, app.session.active().map(|d| &*d.doc), xf, y_axis)
 }
 
 /// [`ruler_scale`] for the view of `doc`.
-fn ruler_scale_of(app: &PhotocraftApp, doc: Option<&photocraft_doc::Document>, xf: &ViewXform, y_axis: bool) -> (f64, f64) {
+fn ruler_scale_of(app: &EvoPhotoApp, doc: Option<&evophoto_doc::Document>, xf: &ViewXform, y_axis: bool) -> (f64, f64) {
     let ur = &app.session.prefs().units_and_rulers;
     let (unit, ppi) = (ur.rulers, ur.point_size.per_inch());
     let (dpi, size) = doc.map_or((72.0, [1.0, 1.0]), |d| (d.resolution_dpi.max(1.0) as f64, [d.size.width as f64, d.size.height as f64]));
@@ -398,7 +398,7 @@ fn ruler_scale_of(app: &PhotocraftApp, doc: Option<&photocraft_doc::Document>, x
 
 /// `pos` (document px) moved to the nearest tick mark the ruler draws (counted from the zero point): where a guide lands when
 /// Shift is held while dragging it out of a ruler, as in Photoshop (#3770).
-fn snap_to_tick(app: &PhotocraftApp, xf: &ViewXform, vertical: bool, pos: f64) -> f64 {
+fn snap_to_tick(app: &EvoPhotoApp, xf: &ViewXform, vertical: bool, pos: f64) -> f64 {
     // A vertical guide sits at an x position, which the top ruler measures.
     let (px_per_unit, step) = ruler_scale(app, xf, !vertical);
     // Ticks count from the zero point (#2955), which a vertical guide measures along x.
@@ -417,11 +417,11 @@ fn ruler_label(v: f64, step: f64, whole: bool) -> String {
 /// Returns the top, left and corner rects, the painter, the zero point and the minor tick sizes.
 #[allow(clippy::type_complexity)]
 fn paint(
-    app: &PhotocraftApp,
+    app: &EvoPhotoApp,
     ui: &egui::Ui,
     full: Rect,
     xf: &ViewXform,
-    doc: &photocraft_doc::Document,
+    doc: &evophoto_doc::Document,
 ) -> (Rect, Rect, Rect, egui::Painter, [f64; 2], [f64; 2]) {
     let t = Tokens::get(ui.ctx());
     let top = Rect::from_min_max(pos2(full.left() + RULER, full.top()), pos2(full.right(), full.top() + RULER));
@@ -484,13 +484,13 @@ fn paint(
 /// Rulers for a document view that isn't the active one (another tile of Window › Arrange, a
 /// floating window): shown as the active view's are, but guides and the zero point are dragged
 /// in the active view (#6017).
-pub fn paint_rulers(app: &PhotocraftApp, ui: &egui::Ui, full: Rect, xf: &ViewXform, doc: &photocraft_doc::Document) {
+pub fn paint_rulers(app: &EvoPhotoApp, ui: &egui::Ui, full: Rect, xf: &ViewXform, doc: &evophoto_doc::Document) {
     paint(app, ui, full, xf, doc);
 }
 
 /// Rulers along the top and left of `full` (the canvas rect before `content_rect`), with the
 /// pointer position marked; dragging out of a ruler creates a guide.
-pub fn draw_rulers(app: &mut PhotocraftApp, ui: &mut egui::Ui, full: Rect, xf: &ViewXform) {
+pub fn draw_rulers(app: &mut EvoPhotoApp, ui: &mut egui::Ui, full: Rect, xf: &ViewXform) {
     let Some(doc) = app.session.active().map(|d| d.doc.clone()) else { return };
     let (top, left, corner, p, origin, ticks) = paint(app, ui, full, xf, &doc);
     let t = Tokens::get(ui.ctx());
@@ -542,7 +542,7 @@ pub fn draw_rulers(app: &mut PhotocraftApp, ui: &mut egui::Ui, full: Rect, xf: &
 
 /// The ruler corner: drag the zero point out of it (cross hairs mark where it lands; Shift snaps
 /// to the ruler ticks), double-click it to put the zero point back at the image's top-left.
-fn corner_origin(app: &mut PhotocraftApp, ui: &egui::Ui, resp: &egui::Response, p: &egui::Painter, xf: &ViewXform, origin: [f64; 2], ticks: [f64; 2]) {
+fn corner_origin(app: &mut EvoPhotoApp, ui: &egui::Ui, resp: &egui::Response, p: &egui::Painter, xf: &ViewXform, origin: [f64; 2], ticks: [f64; 2]) {
     let id = resp.id.with("origin-drag");
     if resp.hovered() || resp.dragged() {
         ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
@@ -584,7 +584,7 @@ mod tests {
         let mut failures = Vec::new();
         for theme in crate::theme::ThemeKind::ALL {
             for (zoom, flip, rotation, width) in [(1.0, false, 0.0, 560.0), (1.0, false, 0.0, 800.0), (0.25, true, 0.0, 560.0), (2.0, false, 30.0, 560.0)] {
-                let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+                let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
                 app.run("file.new", json!({"width": 256, "height": 128})).unwrap();
                 let full = Rect::from_min_size(pos2(32.0, 32.0), vec2(width - 80.0, 320.0));
                 let corner = Rect::from_min_size(full.min, vec2(RULER, RULER));
@@ -597,7 +597,7 @@ mod tests {
                     },
                     app,
                 );
-                PhotocraftApp::setup_context(&h.ctx, theme);
+                EvoPhotoApp::setup_context(&h.ctx, theme);
                 h.event(egui::Event::PointerMoved(corner.center()));
                 h.run_steps(4);
                 let mut ticks = 0;
@@ -622,7 +622,7 @@ mod tests {
     /// narrow "1" lines up with a wide "0".
     #[test]
     fn left_ruler_label_characters_are_centred() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 256, "height": 128})).unwrap();
         let (mut h, full, _) = ruler_harness(app);
         h.run_steps(2);
@@ -654,7 +654,7 @@ mod tests {
     }
 
     /// Rulers alone in a 400×300 frame at 100 %, centred on a 256×128 document.
-    fn ruler_harness(app: PhotocraftApp) -> (egui_kittest::Harness<'static, PhotocraftApp>, Rect, ViewXform) {
+    fn ruler_harness(app: EvoPhotoApp) -> (egui_kittest::Harness<'static, EvoPhotoApp>, Rect, ViewXform) {
         let full = Rect::from_min_size(pos2(0.0, 0.0), vec2(400.0, 300.0));
         let rect = Rect::from_min_max(full.min + vec2(RULER, RULER), full.max);
         let xf = ViewXform { rect, zoom: 1.0, center: [128.0, 64.0], flip: false, rotation: 0.0, aspect: 1.0 };
@@ -665,12 +665,12 @@ mod tests {
         (h, full, xf)
     }
 
-    fn press(h: &mut egui_kittest::Harness<'static, PhotocraftApp>, pos: Pos2, pressed: bool, modifiers: egui::Modifiers) {
+    fn press(h: &mut egui_kittest::Harness<'static, EvoPhotoApp>, pos: Pos2, pressed: bool, modifiers: egui::Modifiers) {
         h.event(egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers });
         h.run_steps(2);
     }
 
-    fn drag_corner_to(h: &mut egui_kittest::Harness<'static, PhotocraftApp>, full: Rect, to: Pos2, modifiers: egui::Modifiers) {
+    fn drag_corner_to(h: &mut egui_kittest::Harness<'static, EvoPhotoApp>, full: Rect, to: Pos2, modifiers: egui::Modifiers) {
         let corner = Rect::from_min_size(full.min, vec2(RULER, RULER)).center();
         h.event(egui::Event::ModifiersChanged(modifiers));
         h.event(egui::Event::PointerMoved(corner));
@@ -685,7 +685,7 @@ mod tests {
         h.run_steps(1);
     }
 
-    fn origin(h: &egui_kittest::Harness<'static, PhotocraftApp>) -> [f64; 2] {
+    fn origin(h: &egui_kittest::Harness<'static, EvoPhotoApp>) -> [f64; 2] {
         h.state().session.active().unwrap().doc.ruler_origin
     }
 
@@ -694,7 +694,7 @@ mod tests {
     /// resets it.
     #[test]
     fn dragging_the_ruler_corner_sets_the_zero_point_and_double_click_resets_it() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 256, "height": 128})).unwrap();
         app.ui.extras.snap = false;
         let (mut h, full, xf) = ruler_harness(app);
@@ -762,7 +762,7 @@ mod tests {
     #[test]
     fn info_panel_position_reads_from_the_zero_point() {
         use egui_kittest::kittest::Queryable;
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         app.run("view.setRulerOrigin", json!({"x": 20, "y": 5})).unwrap();
         app.hover_doc = Some([50.5, 20.5]);
@@ -778,7 +778,7 @@ mod tests {
     #[test]
     fn info_panel_shows_guide_drag_position_outside_canvas() {
         use egui_kittest::kittest::Queryable;
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         app.hover_doc = None;
         app.guide_drag = Some(GuideDrag { vertical: true, index: None, pos: 42.0, press: 42.0, over_ruler: false });
@@ -797,7 +797,7 @@ mod tests {
     #[test]
     fn guide_drag_shows_its_position_beside_the_pointer() {
         use egui_kittest::kittest::Queryable;
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         let v = GuideDrag { vertical: true, index: Some(0), pos: 103.24, press: 50.0, over_ruler: false };
         assert_eq!(guide_drag_readout(&app, v), Some(("X:", "103.2 px".to_owned())));
@@ -820,12 +820,12 @@ mod tests {
         assert!(h.query_by_label("X:").is_none(), "no readout once the drag ends");
     }
 
-    type AppHarness = egui_kittest::Harness<'static, PhotocraftApp>;
+    type AppHarness = egui_kittest::Harness<'static, EvoPhotoApp>;
 
     /// The real canvas on a 400 × 300 document with a horizontal guide at y = 100, at 100 %,
     /// with the Move tool and snapping off.
     fn canvas_harness(rulers: bool) -> AppHarness {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         app.run("view.newGuide", json!({"orientation": "horizontal", "position": 100})).unwrap();
         app.sync_views();
@@ -833,7 +833,7 @@ mod tests {
         app.ui.extras.snap = false;
         app.ui.tool = crate::state::Tool::Move;
         let mut h = egui_kittest::Harness::builder().with_size(vec2(800.0, 600.0)).build_ui_state(
-            |ui, app: &mut PhotocraftApp| {
+            |ui, app: &mut EvoPhotoApp| {
                 if !ui.ctx().fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                     return;
                 }
@@ -841,7 +841,7 @@ mod tests {
             },
             app,
         );
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+        EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         h.run_steps(4);
         let v = &mut h.state_mut().ui.views[0];
         (v.zoom, v.center, v.fit_pending) = (1.0, [200.0, 150.0], false);
@@ -939,7 +939,7 @@ mod tests {
 
     #[test]
     fn hidden_guides_are_not_hit_tested() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 200, "height": 100})).unwrap();
         app.sync_views();
         app.session.execute("view.newGuide", json!({"orientation": "vertical", "position": 50})).unwrap();
@@ -990,7 +990,7 @@ mod tests {
 
     #[test]
     fn picking_a_ruler_unit_changes_the_preference() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         assert_eq!(app.session.prefs().units_and_rulers.rulers, Unit::Pixels);
         // The context menu applies its pick exactly as the preference pane does.
         app.run("prefs.set", json!({"path": "unitsAndRulers.rulers", "value": "cm"})).unwrap();
@@ -1005,8 +1005,8 @@ mod tests {
         let saved = Rc::new(RefCell::new(None::<String>));
         let launch = |saved: &Rc<RefCell<Option<String>>>| {
             let (load, store) = (saved.clone(), saved.clone());
-            PhotocraftApp::new(
-                photocraft_engine::Session::new(),
+            EvoPhotoApp::new(
+                evophoto_engine::Session::new(),
                 crate::Services {
                     load_prefs: Some(Box::new(move || load.borrow().clone())),
                     save_prefs: Some(Box::new(move |text| {
@@ -1030,7 +1030,7 @@ mod tests {
 
     #[test]
     fn guide_drags_create_move_and_delete() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 200, "height": 100})).unwrap();
         app.sync_views();
         finish_drag(&mut app, GuideDrag { vertical: true, index: None, pos: 50.0, press: 50.0, over_ruler: false });
@@ -1063,7 +1063,7 @@ mod tests {
             (Tool::MagicWand, false),
             (Tool::RectMarquee, true),
         ] {
-            let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+            let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
             app.run("file.new", json!({"width": 80, "height": 60, "background": "transparent"})).unwrap();
             app.sync_views();
             app.ui.tool = tool;
@@ -1071,7 +1071,7 @@ mod tests {
             let layer = app.session.active().unwrap().active_layer.unwrap();
             app.session
                 .edit("paint", |doc, _| {
-                    doc.layer_mut(layer).unwrap().surface_mut().unwrap().fill_rect(photocraft_geom::Rect::new(10, 10, 30, 30), &[1.0, 0.0, 0.0, 1.0]);
+                    doc.layer_mut(layer).unwrap().surface_mut().unwrap().fill_rect(evophoto_geom::Rect::new(10, 10, 30, 30), &[1.0, 0.0, 0.0, 1.0]);
                     Ok(())
                 })
                 .unwrap();
@@ -1213,7 +1213,7 @@ mod tests {
         let rect = Rect::from_min_max(full.min + vec2(RULER, RULER), full.max);
         let xf = ViewXform { rect, zoom: 1.0, center: [128.0, 64.0], flip: false, rotation: 0.0, aspect: 1.0 };
         let drag = |from: Pos2, modifiers: egui::Modifiers| {
-            let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+            let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
             app.run("file.new", json!({"width": 256, "height": 128})).unwrap();
             let mut h = egui_kittest::Harness::builder().with_size(vec2(400.0, 300.0)).build_ui_state(move |ui, app| draw_rulers(app, ui, full, &xf), app);
             let to = xf.to_screen(37.0, 90.0);
@@ -1240,7 +1240,7 @@ mod tests {
     #[test]
     fn a_guide_dropped_on_either_ruler_is_removed() {
         let new_app = || {
-            let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+            let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
             app.run("file.new", json!({"width": 256, "height": 128})).unwrap();
             app.ui.extras.rulers = true;
             // No snapping, so a guide that is kept lands exactly where it is let go.
@@ -1271,10 +1271,10 @@ mod tests {
     /// two are told apart by where the pointer is, not by the position it reads.
     #[test]
     fn a_guide_let_go_on_a_ruler_is_removed_not_moved() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         app.sync_views();
-        let horizontal = |app: &PhotocraftApp| app.session.active().unwrap().doc.guides.horizontal.clone();
+        let horizontal = |app: &EvoPhotoApp| app.session.active().unwrap().doc.guides.horizontal.clone();
         for drag in [
             GuideDrag { vertical: false, index: Some(0), pos: 50.0, press: 10.0, over_ruler: true },
             // Dragged sideways onto the left ruler, a horizontal guide holds its y, which on its own
@@ -1298,7 +1298,7 @@ mod tests {
     /// are shown: with them hidden the whole canvas rect is canvas (#6286).
     #[test]
     fn only_the_ruler_bands_count_as_a_ruler() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         let full = Rect::from_min_size(pos2(16.0, 42.0), vec2(968.0, 642.0));
         let content = Rect::from_min_size(pos2(32.0, 58.0), vec2(952.0, 626.0));
         app.ui.extras.rulers = true;
@@ -1317,15 +1317,15 @@ mod tests {
     }
 
     /// The canvas the guides live on, rulers on, at 100 %.
-    fn tool_canvas_harness(tool: crate::state::Tool) -> egui_kittest::Harness<'static, PhotocraftApp> {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    fn tool_canvas_harness(tool: crate::state::Tool) -> egui_kittest::Harness<'static, EvoPhotoApp> {
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         app.sync_views();
         app.ui.extras.rulers = true;
         app.ui.extras.snap = false;
         app.ui.tool = tool;
         let mut h = egui_kittest::Harness::builder().with_size(vec2(1000.0, 700.0)).build_ui_state(
-            |ui, app: &mut PhotocraftApp| {
+            |ui, app: &mut EvoPhotoApp| {
                 let ctx = ui.ctx().clone();
                 if !ctx.fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                     return;
@@ -1335,7 +1335,7 @@ mod tests {
             },
             app,
         );
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+        EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         h.run_steps(4);
         let v = &mut h.state_mut().ui.views[0];
         v.zoom = 1.0;
@@ -1355,7 +1355,7 @@ mod tests {
             let mut h = tool_canvas_harness(crate::state::Tool::Move);
             h.state_mut().run("view.newGuide", json!({"orientation": "horizontal", "position": 150})).unwrap();
             h.run_steps(1);
-            let at = |h: &egui_kittest::Harness<'static, PhotocraftApp>, x: f32, y: f32| {
+            let at = |h: &egui_kittest::Harness<'static, EvoPhotoApp>, x: f32, y: f32| {
                 let app = h.state();
                 let v = &app.ui.views[0];
                 let xf = ViewXform {
@@ -1406,7 +1406,7 @@ mod tests {
         let rect = Rect::from_min_max(full.min + vec2(RULER, RULER), full.max);
         let xf = ViewXform { rect, zoom: 1.0, center: [128.0, 64.0], flip: false, rotation: 0.0, aspect: 1.0 };
         let new_app = || {
-            let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+            let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
             app.run("file.new", json!({"width": 256, "height": 128})).unwrap();
             app
         };

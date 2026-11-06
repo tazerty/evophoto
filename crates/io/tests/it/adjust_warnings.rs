@@ -1,13 +1,13 @@
 //! Opening a file whose adjustment layer can't be read warns, naming the layer and the reason,
 //! instead of opening it silently without its effect (#1763).
 
-use photocraft_color::{ColorMode, SampleType};
-use photocraft_doc::{Adjustment, Document, Layer, LayerContent};
-use photocraft_geom::Size;
-use photocraft_io::*;
-use photocraft_psd::descriptor::{Descriptor, Id, UnicodeString, Value, VersionedDescriptor};
-use photocraft_psd::{Compression, LayerFlags, LayerRecord, PsdFile, TaggedBlock, Version, testgen};
-use photocraft_raster::Surface;
+use evophoto_color::{ColorMode, SampleType};
+use evophoto_doc::{Adjustment, Document, Layer, LayerContent};
+use evophoto_geom::Size;
+use evophoto_io::*;
+use evophoto_psd::descriptor::{Descriptor, Id, UnicodeString, Value, VersionedDescriptor};
+use evophoto_psd::{Compression, LayerFlags, LayerRecord, PsdFile, TaggedBlock, Version, testgen};
+use evophoto_raster::Surface;
 
 fn reopen(adj: Adjustment, path: &str, opts: &ExportOptions) -> (Document, Vec<String>) {
     let mut d = Document::new("a", Size::new(16, 16), ColorMode::Rgb, SampleType::U8);
@@ -72,7 +72,7 @@ fn identity_cube(domain: &str) -> Vec<u8> {
 
 fn synthetic_lookup_psd(version: Version, depth: u16, cube: &[u8]) -> Vec<u8> {
     const LAYER_NAME: &str = "Custom-domain LUT";
-    let mut file = testgen::layered(version, photocraft_psd::ColorMode::Rgb, depth, Compression::Rle);
+    let mut file = testgen::layered(version, evophoto_psd::ColorMode::Rgb, depth, Compression::Rle);
     let mut flags = LayerFlags::default();
     flags.set_pixel_data_irrelevant(true);
     // Photoshop stores layer-block alignment inside the block length. Make the source payload
@@ -131,7 +131,7 @@ fn photoshop_layout_color_lookup_round_trips_through_psb() {
     let mut bg = Surface::new(d.pixel_format());
     bg.fill_rect(d.bounds(), &[1.0, 0.0, 0.0, 1.0]);
     d.layers.insert(0, Layer::new("bg", LayerContent::Raster(bg)));
-    let px = photocraft_compose::flatten(&d).px[0];
+    let px = evophoto_compose::flatten(&d).px[0];
     assert!(px[0] < 0.05 && (px[1] - 1.0).abs() < 0.05 && (px[2] - 1.0).abs() < 0.05, "{px:?}");
 }
 
@@ -140,18 +140,18 @@ fn short_color_lookup_table_warns_on_open() {
     // A stored table shorter than size³×3 renders as the identity; opening must say so, naming
     // the layer (#1763).
     let short = Adjustment::ColorLookup { name: "t.cube".into(), size: 3, lut: Some(std::sync::Arc::new(vec![0.5; 7])), tetrahedral: false, dither: false };
-    let (doc, warnings) = reopen(short, "x.pcraft", &ExportOptions::default());
+    let (doc, warnings) = reopen(short, "x.evophoto", &ExportOptions::default());
     assert!(matches!(&doc.layers[0].content, LayerContent::Adjustment(Adjustment::ColorLookup { .. })), "{:?}", doc.layers[0].content);
     let w: Vec<&String> = warnings.iter().filter(|w| w.contains("Teal Look")).collect();
     assert_eq!(w.len(), 1, "{warnings:?}");
     assert!(w[0].contains("Color Lookup") && w[0].contains("7 values") && w[0].contains("81"), "{}", w[0]);
     // A table long enough for its size opens without the note.
     let ok = Adjustment::ColorLookup { name: "t.cube".into(), size: 2, lut: Some(std::sync::Arc::new(vec![0.5; 24])), tetrahedral: false, dither: false };
-    let (_, warnings) = reopen(ok, "x.pcraft", &ExportOptions::default());
+    let (_, warnings) = reopen(ok, "x.evophoto", &ExportOptions::default());
     assert!(warnings.iter().all(|w| !w.contains("Teal Look")), "{warnings:?}");
     // A missing table renders as the identity too.
     let none = Adjustment::ColorLookup { name: "t.cube".into(), size: 2, lut: None, tetrahedral: false, dither: false };
-    let (_, warnings) = reopen(none, "x.pcraft", &ExportOptions::default());
+    let (_, warnings) = reopen(none, "x.evophoto", &ExportOptions::default());
     assert!(warnings.iter().any(|w| w.contains("Teal Look") && w.contains("no usable table")), "{warnings:?}");
 }
 
@@ -184,8 +184,8 @@ fn custom_domain_lookup_warns_and_round_trips_verbatim() {
                 warnings[0]
             );
 
-            let native = export(&opened.document, "preserved.pcraft", &ExportOptions::default()).expect("save native document");
-            let native_open = import("preserved.pcraft", &native.bytes).expect("reopen native document");
+            let native = export(&opened.document, "preserved.evophoto", &ExportOptions::default()).expect("save native document");
+            let native_open = import("preserved.evophoto", &native.bytes).expect("reopen native document");
             assert_eq!(unsupported_lookup_raw(&native_open.document), source_block, "native preservation, {extension}, {depth}-bit");
 
             let output_name = format!("roundtrip.{extension}");

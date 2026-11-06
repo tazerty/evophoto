@@ -1,10 +1,10 @@
 //! Photoshop's mixed-order Intel TIFF type blocks and unsafe/unresolved type fallback (#4758).
 
-use photocraft_color::{ColorMode, SampleType};
-use photocraft_doc::text::{CharStyle, TextRun};
-use photocraft_doc::{Document, Layer, LayerContent, Size, TextLayer};
-use photocraft_geom::Affine;
-use photocraft_io::{ExportOptions, PsdExportOptions, document_to_psd_with, export, import, psd_to_document};
+use evophoto_color::{ColorMode, SampleType};
+use evophoto_doc::text::{CharStyle, TextRun};
+use evophoto_doc::{Document, Layer, LayerContent, Size, TextLayer};
+use evophoto_geom::Affine;
+use evophoto_io::{ExportOptions, PsdExportOptions, document_to_psd_with, export, import, psd_to_document};
 
 fn document() -> Document {
     let mut doc = Document::new("Synthetic type", Size::new(640, 400), ColorMode::Rgb, SampleType::U8);
@@ -16,7 +16,7 @@ fn document() -> Document {
     };
     t.runs = vec![TextRun { len: t.text.len(), style: CharStyle { size_pt: 24.0, ..Default::default() } }];
     t.sync_summary();
-    t.cache = Some(photocraft_text::TextEngine::default().render(&t, doc.resolution_dpi, doc.pixel_format()).1.surface);
+    t.cache = Some(evophoto_text::TextEngine::default().render(&t, doc.resolution_dpi, doc.pixel_format()).1.surface);
     doc.layers.push(Layer::new("Synthetic", LayerContent::Text(t)));
     doc
 }
@@ -27,13 +27,13 @@ fn photoshop_mixed_order_tiff_import_keeps_editable_geometry_and_pixels() {
     let (psd, _) = document_to_psd_with(&doc, &PsdExportOptions::default());
     let canonical = &psd.layers()[0].block(b"TySh").unwrap().data;
     let encoded = export(&doc, "test.tif", &ExportOptions { tiff_layers: true, ..Default::default() }).unwrap();
-    let mut image = photocraft_codecs::decode(&encoded.bytes).unwrap();
+    let mut image = evophoto_codecs::decode(&encoded.bytes).unwrap();
     let blocks = image.meta.photoshop_layers.as_mut().unwrap();
     let at = blocks.windows(8).position(|b| b == b"MIB8hSyT").unwrap() + 12;
     // Only the text version/descriptor switch order; warp and bounds remain little-endian.
-    let (_, used) = photocraft_psd::descriptor::VersionedDescriptor::parse_prefix(&canonical[52..]).unwrap();
+    let (_, used) = evophoto_psd::descriptor::VersionedDescriptor::parse_prefix(&canonical[52..]).unwrap();
     blocks[at + 50..at + 52 + used].copy_from_slice(&canonical[50..52 + used]);
-    let bytes = photocraft_codecs::encode(&image, photocraft_codecs::Format::Tiff, &Default::default()).unwrap();
+    let bytes = evophoto_codecs::encode(&image, evophoto_codecs::Format::Tiff, &Default::default()).unwrap();
     let opened = import("photoshop.tif", &bytes).unwrap();
     assert!(!opened.warnings.iter().any(|w| w.contains("TySh")), "{:?}", opened.warnings);
     let LayerContent::Text(before) = &doc.layers[0].content else { panic!("source type") };
@@ -42,7 +42,7 @@ fn photoshop_mixed_order_tiff_import_keeps_editable_geometry_and_pixels() {
     assert_eq!(after.size_pt, 24.0);
     assert_eq!(after.text, before.text);
     assert_eq!(after.cache.as_ref().unwrap().content_bounds(), before.cache.as_ref().unwrap().content_bounds());
-    let rerendered = photocraft_text::TextEngine::default().render(after, opened.document.resolution_dpi, opened.document.pixel_format()).1.surface;
+    let rerendered = evophoto_text::TextEngine::default().render(after, opened.document.resolution_dpi, opened.document.pixel_format()).1.surface;
     assert_eq!(rerendered.content_bounds(), after.cache.as_ref().unwrap().content_bounds());
 }
 

@@ -1307,49 +1307,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "craft-docpath"
-version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=82a24b006eefa036b43c09a67fb9a3fbd17ffe63#82a24b006eefa036b43c09a67fb9a3fbd17ffe63"
-
-[[package]]
-name = "craft-jpeg"
-version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=6e7f28518dd1cb57e1624bdc269c3c14316b13ae#6e7f28518dd1cb57e1624bdc269c3c14316b13ae"
-dependencies = [
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "craft-print"
-version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=3d37da389a3618ab9b76109da11416e9ca4ea719#3d37da389a3618ab9b76109da11416e9ca4ea719"
-dependencies = [
- "craft-winprint-gdi",
- "miniz_oxide 0.8.9",
- "roxmltree 0.20.0",
- "tempfile",
- "winprint",
- "winsafe",
-]
-
-[[package]]
-name = "craft-ui"
-version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=5c874d51eeb3de70e735c8ce87a59a7dedd47675#5c874d51eeb3de70e735c8ce87a59a7dedd47675"
-dependencies = [
- "egui",
- "serde",
-]
-
-[[package]]
-name = "craft-winprint-gdi"
-version = "0.1.0"
-source = "git+https://github.com/storytold/winprint.rs?rev=417ac3c4d14d3da5485a99c7d5ce8f05664ec312#417ac3c4d14d3da5485a99c7d5ce8f05664ec312"
-dependencies = [
- "windows-sys 0.61.2",
-]
-
-[[package]]
 name = "crc32fast"
 version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2024,6 +1981,549 @@ checksum = "8be9f3dfaaffdae2972880079a491a1a8bb7cbed0b8dd7a347f668b4150a3b93"
 dependencies = [
  "event-listener",
  "pin-project-lite",
+]
+
+[[package]]
+name = "evo-docpath"
+version = "0.1.0"
+
+[[package]]
+name = "evo-jpeg"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "evo-print"
+version = "0.1.0"
+dependencies = [
+ "evo-winprint-gdi",
+ "miniz_oxide 0.8.9",
+ "roxmltree 0.20.0",
+ "tempfile",
+ "winprint",
+ "winsafe",
+]
+
+[[package]]
+name = "evo-ui"
+version = "0.1.0"
+dependencies = [
+ "egui",
+ "serde",
+]
+
+[[package]]
+name = "evo-winprint-gdi"
+version = "0.1.0"
+dependencies = [
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "evophoto"
+version = "0.16.0"
+dependencies = [
+ "arboard",
+ "async-io",
+ "chrono",
+ "clap",
+ "core-graphics2",
+ "dispatch2",
+ "eframe",
+ "egui",
+ "evophoto-automation",
+ "evophoto-cms",
+ "evophoto-codecs",
+ "evophoto-color",
+ "evophoto-compose",
+ "evophoto-doc",
+ "evophoto-engine",
+ "evophoto-format",
+ "evophoto-geom",
+ "evophoto-io",
+ "evophoto-raster",
+ "evophoto-tablet",
+ "evophoto-ui-egui",
+ "fmv-macos-events",
+ "futures-lite",
+ "log",
+ "muda",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "open",
+ "resvg",
+ "rfd",
+ "ron",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "ureq",
+ "winit",
+ "winresource",
+ "winsafe",
+ "wl-clipboard-rs",
+ "x11rb",
+ "xcap",
+ "zbus",
+]
+
+[[package]]
+name = "evophoto-affinity"
+version = "0.16.0"
+dependencies = [
+ "crc32fast",
+ "flate2",
+ "proptest",
+ "ruzstd",
+]
+
+[[package]]
+name = "evophoto-algo"
+version = "0.16.0"
+dependencies = [
+ "evophoto-color",
+ "evophoto-geom",
+ "evophoto-raster",
+ "evophoto-testkit",
+ "rayon",
+ "rustfft",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "evophoto-automation"
+version = "0.16.0"
+dependencies = [
+ "base64 0.22.1",
+ "cap-std",
+ "clap",
+ "evophoto-codecs",
+ "evophoto-compose",
+ "evophoto-doc",
+ "evophoto-engine",
+ "evophoto-format",
+ "evophoto-io",
+ "evophoto-raw",
+ "getrandom 0.3.4",
+ "rmcp",
+ "rustix 1.1.5",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "evophoto-cli"
+version = "0.16.0"
+dependencies = [
+ "clap",
+ "clap_complete",
+ "clap_mangen",
+ "evophoto-automation",
+ "evophoto-codecs",
+ "evophoto-engine",
+ "evophoto-format",
+ "evophoto-io",
+ "evophoto-raw",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "winresource",
+]
+
+[[package]]
+name = "evophoto-cms"
+version = "0.16.0"
+dependencies = [
+ "moxcms",
+ "rayon",
+]
+
+[[package]]
+name = "evophoto-codecs"
+version = "0.16.0"
+dependencies = [
+ "evo-jpeg",
+ "evophoto-heif",
+ "exr",
+ "flate2",
+ "half",
+ "image",
+ "image-webp",
+ "jpeg-encoder",
+ "png 0.18.1",
+ "proptest",
+ "rayon",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tiff",
+ "zune-core 0.5.3",
+ "zune-jpeg 0.5.15",
+]
+
+[[package]]
+name = "evophoto-color"
+version = "0.16.0"
+dependencies = [
+ "evophoto-cms",
+ "serde",
+]
+
+[[package]]
+name = "evophoto-compose"
+version = "0.16.0"
+dependencies = [
+ "criterion",
+ "evophoto-cms",
+ "evophoto-color",
+ "evophoto-doc",
+ "evophoto-geom",
+ "evophoto-paint",
+ "evophoto-raster",
+ "evophoto-vector",
+ "proptest",
+ "rayon",
+]
+
+[[package]]
+name = "evophoto-doc"
+version = "0.16.0"
+dependencies = [
+ "evophoto-color",
+ "evophoto-geom",
+ "evophoto-raster",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "evophoto-engine"
+version = "0.16.0"
+dependencies = [
+ "blake3",
+ "chrono",
+ "evo-print",
+ "evophoto-affinity",
+ "evophoto-algo",
+ "evophoto-cms",
+ "evophoto-codecs",
+ "evophoto-color",
+ "evophoto-compose",
+ "evophoto-doc",
+ "evophoto-format",
+ "evophoto-geom",
+ "evophoto-io",
+ "evophoto-ipp",
+ "evophoto-ops",
+ "evophoto-paint",
+ "evophoto-plugins",
+ "evophoto-psd",
+ "evophoto-raster",
+ "evophoto-raw",
+ "evophoto-testkit",
+ "evophoto-text",
+ "evophoto-vector",
+ "exr",
+ "flate2",
+ "rayon",
+ "roxmltree 0.21.1",
+ "same-file",
+ "semver",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "wat",
+ "winsafe",
+]
+
+[[package]]
+name = "evophoto-format"
+version = "0.16.0"
+dependencies = [
+ "blake3",
+ "crc32fast",
+ "evophoto-codecs",
+ "evophoto-color",
+ "evophoto-doc",
+ "evophoto-geom",
+ "evophoto-raster",
+ "exacl",
+ "flate2",
+ "libc",
+ "proptest",
+ "rustix 1.1.5",
+ "ruzstd",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "winsafe",
+]
+
+[[package]]
+name = "evophoto-geom"
+version = "0.16.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "evophoto-gpu"
+version = "0.16.0"
+dependencies = [
+ "evophoto-cms",
+ "evophoto-color",
+ "evophoto-compose",
+ "evophoto-doc",
+ "evophoto-geom",
+ "evophoto-raster",
+ "evophoto-vector",
+ "half",
+ "log",
+ "pollster 1.0.1",
+ "rayon",
+ "wgpu",
+]
+
+[[package]]
+name = "evophoto-heif"
+version = "0.16.0"
+dependencies = [
+ "heic-rs",
+]
+
+[[package]]
+name = "evophoto-io"
+version = "0.16.0"
+dependencies = [
+ "blake3",
+ "crc32fast",
+ "evo-docpath",
+ "evophoto-affinity",
+ "evophoto-algo",
+ "evophoto-cms",
+ "evophoto-codecs",
+ "evophoto-color",
+ "evophoto-compose",
+ "evophoto-doc",
+ "evophoto-format",
+ "evophoto-geom",
+ "evophoto-paint",
+ "evophoto-psd",
+ "evophoto-raster",
+ "evophoto-raw",
+ "evophoto-testkit",
+ "evophoto-text",
+ "evophoto-vector",
+ "flate2",
+ "proptest",
+ "resvg",
+ "roxmltree 0.21.1",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "evophoto-ipp"
+version = "0.16.0"
+
+[[package]]
+name = "evophoto-ops"
+version = "0.16.0"
+dependencies = [
+ "evophoto-doc",
+]
+
+[[package]]
+name = "evophoto-paint"
+version = "0.16.0"
+dependencies = [
+ "evophoto-color",
+ "evophoto-geom",
+ "evophoto-raster",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "evophoto-plugins"
+version = "0.16.0"
+dependencies = [
+ "evophoto-color",
+ "evophoto-geom",
+ "evophoto-raster",
+ "rayon",
+ "rustix 1.1.5",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "wasmi",
+ "wat",
+]
+
+[[package]]
+name = "evophoto-psd"
+version = "0.16.0"
+dependencies = [
+ "evophoto-psd",
+ "flate2",
+ "proptest",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "evophoto-raster"
+version = "0.16.0"
+dependencies = [
+ "evophoto-color",
+ "evophoto-geom",
+ "proptest",
+ "rayon",
+ "serde",
+]
+
+[[package]]
+name = "evophoto-raw"
+version = "0.16.0"
+dependencies = [
+ "evophoto-raw",
+ "flate2",
+ "image",
+ "jxl-oxide",
+ "png 0.18.1",
+ "rayon",
+ "zune-core 0.5.3",
+ "zune-jpeg 0.5.15",
+ "zune-jpegxl",
+]
+
+[[package]]
+name = "evophoto-tablet"
+version = "0.16.0"
+dependencies = [
+ "block2 0.6.2",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-core-graphics",
+ "objc2-foundation 0.3.2",
+ "x11rb",
+]
+
+[[package]]
+name = "evophoto-testkit"
+version = "0.16.0"
+dependencies = [
+ "memory-stats",
+ "serde_json",
+]
+
+[[package]]
+name = "evophoto-text"
+version = "0.16.0"
+dependencies = [
+ "evophoto-color",
+ "evophoto-doc",
+ "evophoto-geom",
+ "evophoto-psd",
+ "evophoto-raster",
+ "flate2",
+ "parley",
+ "rayon",
+ "skrifa",
+]
+
+[[package]]
+name = "evophoto-ui-egui"
+version = "0.16.0"
+dependencies = [
+ "base64 0.22.1",
+ "eframe",
+ "egui",
+ "egui_extras",
+ "egui_kittest",
+ "epaint_default_fonts",
+ "evo-print",
+ "evo-ui",
+ "evophoto-algo",
+ "evophoto-cms",
+ "evophoto-codecs",
+ "evophoto-color",
+ "evophoto-compose",
+ "evophoto-doc",
+ "evophoto-engine",
+ "evophoto-format",
+ "evophoto-geom",
+ "evophoto-gpu",
+ "evophoto-io",
+ "evophoto-paint",
+ "evophoto-plugins",
+ "evophoto-psd",
+ "evophoto-raster",
+ "evophoto-raw",
+ "evophoto-testkit",
+ "evophoto-text",
+ "evophoto-vector",
+ "flate2",
+ "log",
+ "rayon",
+ "serde",
+ "serde_json",
+ "sys-locale",
+ "tempfile",
+ "toml",
+ "unicode-bidi",
+ "winsafe",
+]
+
+[[package]]
+name = "evophoto-vector"
+version = "0.16.0"
+dependencies = [
+ "evophoto-color",
+ "evophoto-doc",
+ "evophoto-geom",
+ "evophoto-raster",
+ "rayon",
+]
+
+[[package]]
+name = "evophoto-web"
+version = "0.16.0"
+dependencies = [
+ "eframe",
+ "egui",
+ "evophoto-codecs",
+ "evophoto-doc",
+ "evophoto-engine",
+ "evophoto-io",
+ "evophoto-paint",
+ "evophoto-psd",
+ "evophoto-ui-egui",
+ "js-sys",
+ "log",
+ "rfd",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
+name = "evophoto-web-boot"
+version = "0.16.0"
+dependencies = [
+ "flate2",
+ "js-sys",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
@@ -4738,511 +5238,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e57fef6bc5981e38c2ce2d63bfa546861309f875b8a75f092d1d54ae2d64f266"
 dependencies = [
  "siphasher",
-]
-
-[[package]]
-name = "photocraft"
-version = "0.16.0"
-dependencies = [
- "arboard",
- "async-io",
- "chrono",
- "clap",
- "core-graphics2",
- "dispatch2",
- "eframe",
- "egui",
- "fmv-macos-events",
- "futures-lite",
- "log",
- "muda",
- "objc2 0.6.4",
- "objc2-app-kit 0.3.2",
- "objc2-foundation 0.3.2",
- "open",
- "photocraft-automation",
- "photocraft-cms",
- "photocraft-codecs",
- "photocraft-color",
- "photocraft-compose",
- "photocraft-doc",
- "photocraft-engine",
- "photocraft-format",
- "photocraft-geom",
- "photocraft-io",
- "photocraft-raster",
- "photocraft-tablet",
- "photocraft-ui-egui",
- "resvg",
- "rfd",
- "ron",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "ureq",
- "winit",
- "winresource",
- "winsafe",
- "wl-clipboard-rs",
- "x11rb",
- "xcap",
- "zbus",
-]
-
-[[package]]
-name = "photocraft-affinity"
-version = "0.16.0"
-dependencies = [
- "crc32fast",
- "flate2",
- "proptest",
- "ruzstd",
-]
-
-[[package]]
-name = "photocraft-algo"
-version = "0.16.0"
-dependencies = [
- "photocraft-color",
- "photocraft-geom",
- "photocraft-raster",
- "photocraft-testkit",
- "rayon",
- "rustfft",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "photocraft-automation"
-version = "0.16.0"
-dependencies = [
- "base64 0.22.1",
- "cap-std",
- "clap",
- "getrandom 0.3.4",
- "photocraft-codecs",
- "photocraft-compose",
- "photocraft-doc",
- "photocraft-engine",
- "photocraft-format",
- "photocraft-io",
- "photocraft-raw",
- "rmcp",
- "rustix 1.1.5",
- "schemars",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "photocraft-cli"
-version = "0.16.0"
-dependencies = [
- "clap",
- "clap_complete",
- "clap_mangen",
- "photocraft-automation",
- "photocraft-codecs",
- "photocraft-engine",
- "photocraft-format",
- "photocraft-io",
- "photocraft-raw",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
- "winresource",
-]
-
-[[package]]
-name = "photocraft-cms"
-version = "0.16.0"
-dependencies = [
- "moxcms",
- "rayon",
-]
-
-[[package]]
-name = "photocraft-codecs"
-version = "0.16.0"
-dependencies = [
- "craft-jpeg",
- "exr",
- "flate2",
- "half",
- "image",
- "image-webp",
- "jpeg-encoder",
- "photocraft-heif",
- "png 0.18.1",
- "proptest",
- "rayon",
- "serde_json",
- "thiserror 2.0.21",
- "tiff",
- "zune-core 0.5.3",
- "zune-jpeg 0.5.15",
-]
-
-[[package]]
-name = "photocraft-color"
-version = "0.16.0"
-dependencies = [
- "photocraft-cms",
- "serde",
-]
-
-[[package]]
-name = "photocraft-compose"
-version = "0.16.0"
-dependencies = [
- "criterion",
- "photocraft-cms",
- "photocraft-color",
- "photocraft-doc",
- "photocraft-geom",
- "photocraft-paint",
- "photocraft-raster",
- "photocraft-vector",
- "proptest",
- "rayon",
-]
-
-[[package]]
-name = "photocraft-doc"
-version = "0.16.0"
-dependencies = [
- "photocraft-color",
- "photocraft-geom",
- "photocraft-raster",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "photocraft-engine"
-version = "0.16.0"
-dependencies = [
- "blake3",
- "chrono",
- "craft-print",
- "exr",
- "flate2",
- "photocraft-affinity",
- "photocraft-algo",
- "photocraft-cms",
- "photocraft-codecs",
- "photocraft-color",
- "photocraft-compose",
- "photocraft-doc",
- "photocraft-format",
- "photocraft-geom",
- "photocraft-io",
- "photocraft-ipp",
- "photocraft-ops",
- "photocraft-paint",
- "photocraft-plugins",
- "photocraft-psd",
- "photocraft-raster",
- "photocraft-raw",
- "photocraft-testkit",
- "photocraft-text",
- "photocraft-vector",
- "rayon",
- "roxmltree 0.21.1",
- "same-file",
- "semver",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "wat",
- "winsafe",
-]
-
-[[package]]
-name = "photocraft-format"
-version = "0.16.0"
-dependencies = [
- "blake3",
- "crc32fast",
- "exacl",
- "flate2",
- "libc",
- "photocraft-codecs",
- "photocraft-color",
- "photocraft-doc",
- "photocraft-geom",
- "photocraft-raster",
- "proptest",
- "rustix 1.1.5",
- "ruzstd",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "winsafe",
-]
-
-[[package]]
-name = "photocraft-geom"
-version = "0.16.0"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "photocraft-gpu"
-version = "0.16.0"
-dependencies = [
- "half",
- "log",
- "photocraft-cms",
- "photocraft-color",
- "photocraft-compose",
- "photocraft-doc",
- "photocraft-geom",
- "photocraft-raster",
- "photocraft-vector",
- "pollster 1.0.1",
- "rayon",
- "wgpu",
-]
-
-[[package]]
-name = "photocraft-heif"
-version = "0.16.0"
-dependencies = [
- "heic-rs",
-]
-
-[[package]]
-name = "photocraft-io"
-version = "0.16.0"
-dependencies = [
- "blake3",
- "craft-docpath",
- "crc32fast",
- "flate2",
- "photocraft-affinity",
- "photocraft-algo",
- "photocraft-cms",
- "photocraft-codecs",
- "photocraft-color",
- "photocraft-compose",
- "photocraft-doc",
- "photocraft-format",
- "photocraft-geom",
- "photocraft-paint",
- "photocraft-psd",
- "photocraft-raster",
- "photocraft-raw",
- "photocraft-testkit",
- "photocraft-text",
- "photocraft-vector",
- "proptest",
- "resvg",
- "roxmltree 0.21.1",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "photocraft-ipp"
-version = "0.16.0"
-
-[[package]]
-name = "photocraft-ops"
-version = "0.16.0"
-dependencies = [
- "photocraft-doc",
-]
-
-[[package]]
-name = "photocraft-paint"
-version = "0.16.0"
-dependencies = [
- "photocraft-color",
- "photocraft-geom",
- "photocraft-raster",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "photocraft-plugins"
-version = "0.16.0"
-dependencies = [
- "photocraft-color",
- "photocraft-geom",
- "photocraft-raster",
- "rayon",
- "rustix 1.1.5",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "wasmi",
- "wat",
-]
-
-[[package]]
-name = "photocraft-psd"
-version = "0.16.0"
-dependencies = [
- "flate2",
- "photocraft-psd",
- "proptest",
- "serde",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "photocraft-raster"
-version = "0.16.0"
-dependencies = [
- "photocraft-color",
- "photocraft-geom",
- "proptest",
- "rayon",
- "serde",
-]
-
-[[package]]
-name = "photocraft-raw"
-version = "0.16.0"
-dependencies = [
- "flate2",
- "image",
- "jxl-oxide",
- "photocraft-raw",
- "png 0.18.1",
- "rayon",
- "zune-core 0.5.3",
- "zune-jpeg 0.5.15",
- "zune-jpegxl",
-]
-
-[[package]]
-name = "photocraft-tablet"
-version = "0.16.0"
-dependencies = [
- "block2 0.6.2",
- "objc2 0.6.4",
- "objc2-app-kit 0.3.2",
- "objc2-core-graphics",
- "objc2-foundation 0.3.2",
- "x11rb",
-]
-
-[[package]]
-name = "photocraft-testkit"
-version = "0.16.0"
-dependencies = [
- "memory-stats",
- "serde_json",
-]
-
-[[package]]
-name = "photocraft-text"
-version = "0.16.0"
-dependencies = [
- "flate2",
- "parley",
- "photocraft-color",
- "photocraft-doc",
- "photocraft-geom",
- "photocraft-psd",
- "photocraft-raster",
- "rayon",
- "skrifa",
-]
-
-[[package]]
-name = "photocraft-ui-egui"
-version = "0.16.0"
-dependencies = [
- "base64 0.22.1",
- "craft-print",
- "craft-ui",
- "eframe",
- "egui",
- "egui_extras",
- "egui_kittest",
- "epaint_default_fonts",
- "flate2",
- "log",
- "photocraft-algo",
- "photocraft-cms",
- "photocraft-codecs",
- "photocraft-color",
- "photocraft-compose",
- "photocraft-doc",
- "photocraft-engine",
- "photocraft-format",
- "photocraft-geom",
- "photocraft-gpu",
- "photocraft-io",
- "photocraft-paint",
- "photocraft-plugins",
- "photocraft-psd",
- "photocraft-raster",
- "photocraft-raw",
- "photocraft-testkit",
- "photocraft-text",
- "photocraft-vector",
- "rayon",
- "serde",
- "serde_json",
- "sys-locale",
- "tempfile",
- "toml",
- "unicode-bidi",
- "winsafe",
-]
-
-[[package]]
-name = "photocraft-vector"
-version = "0.16.0"
-dependencies = [
- "photocraft-color",
- "photocraft-doc",
- "photocraft-geom",
- "photocraft-raster",
- "rayon",
-]
-
-[[package]]
-name = "photocraft-web"
-version = "0.16.0"
-dependencies = [
- "eframe",
- "egui",
- "js-sys",
- "log",
- "photocraft-codecs",
- "photocraft-doc",
- "photocraft-engine",
- "photocraft-io",
- "photocraft-paint",
- "photocraft-psd",
- "photocraft-ui-egui",
- "rfd",
- "serde_json",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
-name = "photocraft-web-boot"
-version = "0.16.0"
-dependencies = [
- "flate2",
- "js-sys",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]
@@ -8662,7 +8657,6 @@ dependencies = [
 [[package]]
 name = "winprint"
 version = "0.2.1"
-source = "git+https://github.com/storytold/winprint.rs?rev=5f80b9baf6b58937c401656634e42d33f00ddf49#5f80b9baf6b58937c401656634e42d33f00ddf49"
 dependencies = [
  "flate2",
  "fmt-derive",

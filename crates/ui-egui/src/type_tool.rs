@@ -8,12 +8,12 @@ use std::collections::HashMap;
 use std::sync::{Arc, PoisonError};
 
 use egui::{Color32, Pos2, Stroke};
-use photocraft_doc::{Document, LayerContent, LayerId, TextLayer};
-use photocraft_geom::{Affine, Point};
-use photocraft_text::TextLayout;
+use evophoto_doc::{Document, LayerContent, LayerId, TextLayer};
+use evophoto_geom::{Affine, Point};
+use evophoto_text::TextLayout;
 use serde_json::json;
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::canvas::ViewXform;
 use crate::state::{BoxResize, TextEdit};
 
@@ -27,11 +27,11 @@ fn text_layer(doc: &Document, id: LayerId) -> Option<&TextLayer> {
 }
 
 fn byte_of(text: &str, ci: usize) -> usize {
-    photocraft_text::byte_index(text, ci)
+    evophoto_text::byte_index(text, ci)
 }
 
 /// Layout of a type layer (cached per document revision) and its text → document transform.
-pub fn layout(app: &mut PhotocraftApp, id: LayerId) -> Option<(Arc<TextLayout>, Affine, String)> {
+pub fn layout(app: &mut EvoPhotoApp, id: LayerId) -> Option<(Arc<TextLayout>, Affine, String)> {
     let dragged = crate::type_transform::current_transform(app, id);
     // Borrows the document in place (no clone): the canvas hover hit-tests type every frame.
     let st = app.session.active()?;
@@ -43,7 +43,7 @@ pub fn layout(app: &mut PhotocraftApp, id: LayerId) -> Option<(Arc<TextLayout>, 
     {
         return Some((l.clone(), transform, t.text.clone()));
     }
-    let l = Arc::new(photocraft_text::shared().lock().ok()?.layout(t, st.doc.resolution_dpi));
+    let l = Arc::new(evophoto_text::shared().lock().ok()?.layout(t, st.doc.resolution_dpi));
     app.type_layout = Some((key, l.clone()));
     Some((l, transform, t.text.clone()))
 }
@@ -56,7 +56,7 @@ fn to_text(aff: &Affine, x: f64, y: f64) -> (f32, f32) {
 /// Topmost shown type layer (it and every group around it visible, #4320) whose laid-out text
 /// contains the document point. The press and the canvas hover (`hover_path_target`) share it, so
 /// the pointer never promises a path click that the press would turn into editing this layer.
-pub(crate) fn hit_layer(app: &mut PhotocraftApp, x: f64, y: f64) -> Option<LayerId> {
+pub(crate) fn hit_layer(app: &mut EvoPhotoApp, x: f64, y: f64) -> Option<LayerId> {
     let slop = 6.0 / app.point_zoom().max(0.01);
     // A Type Mask session's text is a hidden layer; it is still the text being edited.
     let editing = app.ui.text_edit.as_ref().filter(|ed| ed.mask).map(|ed| LayerId(ed.layer));
@@ -82,7 +82,7 @@ pub(crate) fn hit_layer(app: &mut PhotocraftApp, x: f64, y: f64) -> Option<Layer
         }
         let Some((l, aff, _)) = layout(app, *id) else { return false };
         let (tx, ty) = to_text(&aff, x, y);
-        photocraft_text::text_point_inside(&l, tx, ty, slop)
+        evophoto_text::text_point_inside(&l, tx, ty, slop)
     })
 }
 
@@ -91,7 +91,7 @@ pub(crate) fn hit_layer(app: &mut PhotocraftApp, x: f64, y: f64) -> Option<Layer
 /// they sit somewhere else than the glyphs the caret and selection are placed on.
 pub(crate) fn shows_own_layout(doc: &Document, t: &TextLayer) -> bool {
     let Some(cache) = &t.cache else { return false };
-    let mut eng = photocraft_text::shared().lock().unwrap_or_else(PoisonError::into_inner);
+    let mut eng = evophoto_text::shared().lock().unwrap_or_else(PoisonError::into_inner);
     let ours = eng.render(t, doc.resolution_dpi, doc.pixel_format()).1.surface.content_bounds();
     let have = cache.content_bounds();
     [(ours.x0, have.x0), (ours.y0, have.y0), (ours.x1, have.x1), (ours.y1, have.y1)].iter().all(|(a, b)| (a - b).abs() <= 1)
@@ -100,7 +100,7 @@ pub(crate) fn shows_own_layout(doc: &Document, t: &TextLayer) -> bool {
 /// Start editing an existing type layer. Like Photoshop, editing shows the text as the type
 /// engine lays it out, so a PSD layer is re-rendered first (inside the edit session's history
 /// step, so Cancel brings Photoshop's pixels back).
-fn begin_edit(app: &mut PhotocraftApp, id: LayerId, key: &str) -> Result<(), String> {
+fn begin_edit(app: &mut EvoPhotoApp, id: LayerId, key: &str) -> Result<(), String> {
     let st = app.session.active().ok_or("no document open")?;
     let doc = st.doc.clone();
     if let Some(t) = text_layer(&doc, id)
@@ -113,7 +113,7 @@ fn begin_edit(app: &mut PhotocraftApp, id: LayerId, key: &str) -> Result<(), Str
 
 /// Edit the active type layer from its thumbnail, selecting all text like Photoshop. Reuse the
 /// current session when already editing it, so Cancel and undo still cover the whole edit.
-pub fn edit_active(app: &mut PhotocraftApp) -> Result<(), String> {
+pub fn edit_active(app: &mut EvoPhotoApp) -> Result<(), String> {
     let st = app.session.active().ok_or("no document open")?;
     let id = st.active_layer.ok_or("no active layer")?;
     let n = text_layer(&st.doc, id).ok_or("active layer is not a type layer")?.text.chars().count();
@@ -137,7 +137,7 @@ pub fn edit_active(app: &mut PhotocraftApp) -> Result<(), String> {
         ed.anchor = 0;
         ed.caret = n;
     }
-    let vertical = app.session.active().and_then(|st| text_layer(&st.doc, id)).is_some_and(|t| t.orientation == photocraft_doc::text::Orientation::Vertical);
+    let vertical = app.session.active().and_then(|st| text_layer(&st.doc, id)).is_some_and(|t| t.orientation == evophoto_doc::text::Orientation::Vertical);
     app.ui.text_edit_return_tool = None;
     app.ui.tool = if vertical { crate::state::Tool::VerticalType } else { crate::state::Tool::Type };
     app.ui.mask_target = false;
@@ -148,7 +148,7 @@ pub fn edit_active(app: &mut PhotocraftApp) -> Result<(), String> {
 /// Double-click with the Move tool (Photoshop CC 2019+): edit the type layer under document
 /// point (`x`, `y`) with the caret on the glyph there, switching to the Type tool. False when no
 /// type is there.
-pub fn edit_at(app: &mut PhotocraftApp, x: f64, y: f64) -> bool {
+pub fn edit_at(app: &mut EvoPhotoApp, x: f64, y: f64) -> bool {
     let Some(id) = hit_layer(app, x, y) else { return false };
     let previous_tool = app.ui.tool;
     commit(app);
@@ -172,7 +172,7 @@ pub fn edit_at(app: &mut PhotocraftApp, x: f64, y: f64) -> bool {
         resize: None,
         preedit: None,
     });
-    let vertical = app.session.active().and_then(|st| text_layer(&st.doc, id)).is_some_and(|t| t.orientation == photocraft_doc::text::Orientation::Vertical);
+    let vertical = app.session.active().and_then(|st| text_layer(&st.doc, id)).is_some_and(|t| t.orientation == evophoto_doc::text::Orientation::Vertical);
     if !previous_tool.is_type() {
         app.ui.text_edit_return_tool = Some(previous_tool);
     }
@@ -182,23 +182,23 @@ pub fn edit_at(app: &mut PhotocraftApp, x: f64, y: f64) -> bool {
     true
 }
 
-fn hit_offset(app: &mut PhotocraftApp, id: LayerId, x: f64, y: f64) -> usize {
+fn hit_offset(app: &mut EvoPhotoApp, id: LayerId, x: f64, y: f64) -> usize {
     offset_at(app, id, x, y)
 }
 
 /// The character offset of the caret position nearest document point (`x`, `y`) in layer `id`.
-pub(crate) fn offset_at(app: &mut PhotocraftApp, id: LayerId, x: f64, y: f64) -> usize {
+pub(crate) fn offset_at(app: &mut EvoPhotoApp, id: LayerId, x: f64, y: f64) -> usize {
     let Some((l, aff, text)) = layout(app, id) else { return 0 };
     let (tx, ty) = to_text(&aff, x, y);
     // Type on a path: the point's place along the path is the position in the (single) line.
     let shape = app.session.active().and_then(|s| text_layer(&s.doc, id).map(|t| t.shape.clone()));
     let (tx, ty) = match shape {
-        Some(photocraft_doc::text::TextShape::Path { path, start, flip }) => {
-            photocraft_text::warp::arc_length_at(&path, flip, f64::from(tx), f64::from(ty)).map_or((tx, ty), |s| ((s - f64::from(start)) as f32, -1.0))
+        Some(evophoto_doc::text::TextShape::Path { path, start, flip }) => {
+            evophoto_text::warp::arc_length_at(&path, flip, f64::from(tx), f64::from(ty)).map_or((tx, ty), |s| ((s - f64::from(start)) as f32, -1.0))
         }
         _ => (tx, ty),
     };
-    photocraft_text::hit_char(&l, &text, tx, ty).0
+    evophoto_text::hit_char(&l, &text, tx, ty).0
 }
 
 fn hex(c: [f32; 4]) -> String {
@@ -223,15 +223,15 @@ fn handle_sides(i: u8) -> (bool, bool, bool, bool) {
     }
 }
 
-pub(crate) fn box_shape(app: &PhotocraftApp, id: LayerId) -> Option<(f32, f32, f32, f32)> {
+pub(crate) fn box_shape(app: &EvoPhotoApp, id: LayerId) -> Option<(f32, f32, f32, f32)> {
     match app.session.active().and_then(|s| text_layer(&s.doc, id).map(|t| t.shape.clone()))? {
-        photocraft_doc::text::TextShape::Box { x, y, width, height } => Some((x, y, width, height)),
+        evophoto_doc::text::TextShape::Box { x, y, width, height } => Some((x, y, width, height)),
         _ => None,
     }
 }
 
 /// The paragraph-box handle under the document point, if the layer is paragraph text.
-pub(crate) fn box_handle_at(app: &mut PhotocraftApp, id: LayerId, x: f64, y: f64) -> Option<u8> {
+pub(crate) fn box_handle_at(app: &mut EvoPhotoApp, id: LayerId, x: f64, y: f64) -> Option<u8> {
     let (bx, by, w, h) = box_shape(app, id)?;
     let (_, aff, _) = layout(app, id)?;
     let (r, b) = (bx + w, by + h);
@@ -252,7 +252,7 @@ pub(crate) fn box_handle_at(app: &mut PhotocraftApp, id: LayerId, x: f64, y: f64
 /// the drag about the centre the box started with, so the block grows symmetrically instead of
 /// from one side — pressing or releasing ⌥ mid-drag switches that on and off as if it had been
 /// held from the start.
-fn resize_box(app: &mut PhotocraftApp, ed: &TextEdit, r: BoxResize, x: f64, y: f64, alt: bool) {
+fn resize_box(app: &mut EvoPhotoApp, ed: &TextEdit, r: BoxResize, x: f64, y: f64, alt: bool) {
     let (px, py) = to_text(&r.aff, x, y);
     let (l, rw, t, b) = handle_sides(r.handle);
     let (bx, by, w, h) = (r.shape[0], r.shape[1], r.shape[2], r.shape[3]);
@@ -299,7 +299,7 @@ fn resize_box(app: &mut PhotocraftApp, ed: &TextEdit, r: BoxResize, x: f64, y: f
 
 /// True when document point (`x`, `y`) lies inside the paragraph box of type layer `id` (false
 /// for point text).
-pub(crate) fn inside_box(app: &mut PhotocraftApp, id: LayerId, x: f64, y: f64) -> bool {
+pub(crate) fn inside_box(app: &mut EvoPhotoApp, id: LayerId, x: f64, y: f64) -> bool {
     let Some((bx, by, w, h)) = box_shape(app, id) else { return false };
     let Some((_, aff, _)) = layout(app, id) else { return false };
     let (tx, ty) = to_text(&aff, x, y);
@@ -307,7 +307,7 @@ pub(crate) fn inside_box(app: &mut PhotocraftApp, id: LayerId, x: f64, y: f64) -
 }
 
 /// Pointer down with the Type tool. Returns true when the press was consumed (no box drag).
-pub fn pointer_down(app: &mut PhotocraftApp, x: f64, y: f64, mods: egui::Modifiers) -> bool {
+pub fn pointer_down(app: &mut EvoPhotoApp, x: f64, y: f64, mods: egui::Modifiers) -> bool {
     if let Some(ed) = app.ui.text_edit.clone() {
         let id = LayerId(ed.layer);
         if let Some(i) = box_handle_at(app, id, x, y) {
@@ -366,7 +366,7 @@ pub fn pointer_down(app: &mut PhotocraftApp, x: f64, y: f64, mods: egui::Modifie
     false
 }
 
-pub fn pointer_move(app: &mut PhotocraftApp, x: f64, y: f64, mods: egui::Modifiers) {
+pub fn pointer_move(app: &mut EvoPhotoApp, x: f64, y: f64, mods: egui::Modifiers) {
     let Some(ed) = app.ui.text_edit.clone() else { return };
     if let Some(r) = ed.resize {
         resize_box(app, &ed, r, x, y, mods.alt);
@@ -389,9 +389,9 @@ pub(crate) enum PathClick {
 }
 
 /// Arc length (px) along `sub` from its first anchor to segment `seg` at curve parameter `t`.
-fn arc_length_to(sub: &photocraft_doc::Subpath, seg: usize, t: f64) -> f64 {
+fn arc_length_to(sub: &evophoto_doc::Subpath, seg: usize, t: f64) -> f64 {
     const PIECES: usize = 32;
-    let eval = photocraft_vector::edit::eval;
+    let eval = evophoto_vector::edit::eval;
     let length = |s: &[Point; 4], upto: f64| {
         (1..=PIECES)
             .fold((0.0, eval(s, 0.0)), |(len, prev), j| {
@@ -410,8 +410,8 @@ fn arc_length_to(sub: &photocraft_doc::Subpath, seg: usize, t: f64) -> f64 {
 /// one, area type. The work path's inside counts only while the canvas draws it (selected in the
 /// Paths panel, #6551): a hidden Work Path left after Load as Selection must not turn a plain
 /// click into area type. None while View › Show › Target Path (or Extras) hides paths.
-pub(crate) fn path_target(app: &PhotocraftApp, x: f64, y: f64) -> Option<PathClick> {
-    use photocraft_vector::edit::{Hit, hit};
+pub(crate) fn path_target(app: &EvoPhotoApp, x: f64, y: f64) -> Option<PathClick> {
+    use evophoto_vector::edit::{Hit, hit};
     if !app.ui.view.shows(app.ui.view.show.target_path) {
         return None;
     }
@@ -422,13 +422,13 @@ pub(crate) fn path_target(app: &PhotocraftApp, x: f64, y: f64) -> Option<PathCli
     // anchors than this is not a click target (the click and the pointer agree: plain point
     // text). 4096 anchors is far beyond hand-drawn paths and shapes yet keeps a frame cheap, and
     // it is the most `type.fillPath` accepts, so every area click target can be filled.
-    const MAX_TARGET_KNOTS: usize = photocraft_text::area::MAX_AREA_KNOTS;
-    let small = |path: &photocraft_doc::vector::Path| path.subpaths.iter().map(|s| s.knots.len()).fold(0usize, usize::saturating_add) <= MAX_TARGET_KNOTS;
+    const MAX_TARGET_KNOTS: usize = evophoto_text::area::MAX_AREA_KNOTS;
+    let small = |path: &evophoto_doc::vector::Path| path.subpaths.iter().map(|s| s.knots.len()).fold(0usize, usize::saturating_add) <= MAX_TARGET_KNOTS;
     let tol = 6.0 / app.point_zoom().max(0.01) as f64;
     // Only the horizontal Type tool starts type on a path: vertical type on a path is not laid
     // out yet.
     let vertical = app.ui.tool.is_vertical_type();
-    let outline = |path: &photocraft_doc::vector::Path, shape: Option<u64>| {
+    let outline = |path: &evophoto_doc::vector::Path, shape: Option<u64>| {
         let on_path = |sp: usize, k: usize, t: f64| {
             // Type on a path needs a segment to run along (`type.attachToPath` rejects one anchor).
             let sub = path.subpaths.get(sp).filter(|s| !vertical && s.knots.len() >= 2)?;
@@ -440,7 +440,7 @@ pub(crate) fn path_target(app: &PhotocraftApp, x: f64, y: f64) -> Option<PathCli
             _ => None,
         }
     };
-    let inside = |path: &photocraft_doc::vector::Path| photocraft_text::area::AreaShape::new(path, false).is_some_and(|a| a.contains(x as f32, y as f32));
+    let inside = |path: &evophoto_doc::vector::Path| evophoto_text::area::AreaShape::new(path, false).is_some_and(|a| a.contains(x as f32, y as f32));
     if let Some((id, p)) = shape_path.as_ref().filter(|(_, p)| small(p)) {
         if let Some(c) = outline(p, Some(*id)) {
             return Some(c);
@@ -463,7 +463,7 @@ pub(crate) fn path_target(app: &PhotocraftApp, x: f64, y: f64) -> Option<PathCli
 /// (a click then commits rather than starting new type). While the button is held it is what the
 /// release makes (`pointer_up`): nothing once the drag is a text box, else the path click at the
 /// press.
-pub(crate) fn hover_path_target(app: &mut PhotocraftApp, x: f64, y: f64, shift: bool) -> Option<PathClick> {
+pub(crate) fn hover_path_target(app: &mut EvoPhotoApp, x: f64, y: f64, shift: bool) -> Option<PathClick> {
     if app.ui.text_edit.is_some() {
         return None;
     }
@@ -477,14 +477,14 @@ pub(crate) fn hover_path_target(app: &mut PhotocraftApp, x: f64, y: f64, shift: 
 
 /// Whether a press at `start` released at `end` drags out a paragraph box rather than clicking
 /// (at least 4 screen pixels both ways).
-fn makes_box(app: &PhotocraftApp, start: [f64; 2], end: [f64; 2]) -> bool {
+fn makes_box(app: &EvoPhotoApp, start: [f64; 2], end: [f64; 2]) -> bool {
     let (w, h) = ((end[0] - start[0]).abs(), (end[1] - start[1]).abs());
     let min = 4.0 / app.point_zoom().max(0.01) as f64;
     w >= min && h >= min
 }
 
 /// Pointer up. `rect` is the dragged box (document px) when no edit session consumed the press.
-pub fn pointer_up(app: &mut PhotocraftApp, start: [f64; 2], end: [f64; 2]) {
+pub fn pointer_up(app: &mut EvoPhotoApp, start: [f64; 2], end: [f64; 2]) {
     if let Some(e) = app.ui.text_edit.as_mut() {
         e.dragging = false;
         e.resize = None;
@@ -554,20 +554,20 @@ pub fn pointer_up(app: &mut PhotocraftApp, start: [f64; 2], end: [f64; 2]) {
     }
 }
 
-fn session_key(app: &mut PhotocraftApp) -> String {
+fn session_key(app: &mut EvoPhotoApp) -> String {
     format!("type-{}", app.ui.alloc_id())
 }
 
-fn active_doc_id(app: &PhotocraftApp) -> Option<u64> {
+fn active_doc_id(app: &EvoPhotoApp) -> Option<u64> {
     app.session.active().map(|st| st.doc.id.0)
 }
 
-fn current_text(app: &PhotocraftApp, id: LayerId) -> Option<String> {
+fn current_text(app: &EvoPhotoApp, id: LayerId) -> Option<String> {
     Some(text_layer(&app.session.active()?.doc, id)?.text.clone())
 }
 
 /// The selected characters, clamped after undo/redo may have shortened the text.
-pub(crate) fn selected_range(app: &PhotocraftApp) -> Option<[usize; 2]> {
+pub(crate) fn selected_range(app: &EvoPhotoApp) -> Option<[usize; 2]> {
     let ed = app.ui.text_edit.as_ref()?;
     let n = text_layer(&app.session.active()?.doc, LayerId(ed.layer))?.text.chars().count();
     let (a, b) = (ed.caret.min(ed.anchor).min(n), ed.caret.max(ed.anchor).min(n));
@@ -576,7 +576,7 @@ pub(crate) fn selected_range(app: &PhotocraftApp) -> Option<[usize; 2]> {
 
 /// Copy the selected characters to the system clipboard. Returns the copied range. Shared by the
 /// clipboard Copy event and Edit > Copy during a type edit.
-pub(crate) fn copy_selection(app: &PhotocraftApp, ctx: &egui::Context) -> Option<[usize; 2]> {
+pub(crate) fn copy_selection(app: &EvoPhotoApp, ctx: &egui::Context) -> Option<[usize; 2]> {
     let [a, b] = selected_range(app)?;
     let ed = app.ui.text_edit.as_ref()?;
     let text = text_layer(&app.session.active()?.doc, LayerId(ed.layer))?;
@@ -591,7 +591,7 @@ pub(crate) fn request_paste(ctx: &egui::Context) {
 }
 
 /// Select > All during a type edit selects every character (like ⌘A).
-pub(crate) fn select_all(app: &mut PhotocraftApp) {
+pub(crate) fn select_all(app: &mut EvoPhotoApp) {
     let Some(n) = app.ui.text_edit.as_ref().and_then(|ed| current_text(app, LayerId(ed.layer))).map(|t| t.chars().count()) else { return };
     if let Some(e) = app.ui.text_edit.as_mut() {
         (e.anchor, e.caret) = (0, n);
@@ -599,7 +599,7 @@ pub(crate) fn select_all(app: &mut PhotocraftApp) {
 }
 
 /// Shared by the clipboard Cut event and Edit > Cut during a type edit.
-pub(crate) fn cut_selection(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub(crate) fn cut_selection(app: &mut EvoPhotoApp, ctx: &egui::Context) {
     let Some([a, b]) = copy_selection(app, ctx) else { return };
     if let Some(ed) = app.ui.text_edit.as_mut() {
         ed.anchor = a;
@@ -609,7 +609,7 @@ pub(crate) fn cut_selection(app: &mut PhotocraftApp, ctx: &egui::Context) {
 }
 
 /// Replace the selection with `s`.
-fn insert(app: &mut PhotocraftApp, s: &str) {
+fn insert(app: &mut EvoPhotoApp, s: &str) {
     let Some(ed) = app.ui.text_edit.clone() else { return };
     let (a, b) = (ed.caret.min(ed.anchor), ed.caret.max(ed.anchor));
     let s = s.replace("\r\n", "\n").replace('\r', "\n");
@@ -627,7 +627,7 @@ fn insert(app: &mut PhotocraftApp, s: &str) {
 
 /// Typed text (not a paste): with Preferences ▸ Type ▸ Use Smart Quotes, straight quotes become
 /// typographic (Photoshop does not rewrite pasted text).
-fn insert_typed(app: &mut PhotocraftApp, s: &str) {
+fn insert_typed(app: &mut EvoPhotoApp, s: &str) {
     if !app.session.prefs().type_.smart_quotes {
         return insert(app, s);
     }
@@ -674,7 +674,7 @@ fn opens_quote(prev: Option<char>) -> bool {
 
 /// Alt+←/→: kern the pair before the caret by `by` (1/1000 em). No pair (caret at a text or line
 /// edge): nothing happens, like Photoshop. Not coalesced: one history step per press.
-fn kern_pair(app: &mut PhotocraftApp, id: LayerId, caret: usize, by: f32) {
+fn kern_pair(app: &mut EvoPhotoApp, id: LayerId, caret: usize, by: f32) {
     let Some(text) = current_text(app, id) else { return };
     let before = caret.checked_sub(1).and_then(|i| text.chars().nth(i));
     let after = text.chars().nth(caret);
@@ -697,9 +697,9 @@ pub(crate) enum CharToggle {
 }
 
 impl CharToggle {
-    fn is_on(self, st: &photocraft_doc::text::CharStyle) -> bool {
+    fn is_on(self, st: &evophoto_doc::text::CharStyle) -> bool {
         match self {
-            Self::AllCaps => st.caps == photocraft_doc::text::Caps::AllCaps,
+            Self::AllCaps => st.caps == evophoto_doc::text::Caps::AllCaps,
             Self::Underline => st.underline,
             Self::FauxBold => st.faux_bold,
             Self::FauxItalic => st.faux_italic,
@@ -726,7 +726,7 @@ fn byte_range(text: &str, a: usize, b: usize) -> (usize, usize) {
 
 /// The character styles of the selection, or of the typing style when the text is empty. Empty
 /// when nothing is selected in non-empty text.
-fn selected_styles(t: &TextLayer, a: usize, b: usize) -> Vec<photocraft_doc::text::CharStyle> {
+fn selected_styles(t: &TextLayer, a: usize, b: usize) -> Vec<evophoto_doc::text::CharStyle> {
     let runs = t.char_runs();
     if t.text.is_empty() {
         return runs.into_iter().take(1).map(|r| r.style).collect();
@@ -748,7 +748,7 @@ fn selected_styles(t: &TextLayer, a: usize, b: usize) -> Vec<photocraft_doc::tex
 /// text's typing style. `None` for a collapsed caret in non-empty text: Photoshop would style the
 /// next characters typed, which the document model can't hold apart from the text, so the keys
 /// do nothing there (rather than restyle a word the user didn't select).
-fn format_range(app: &PhotocraftApp, ed: &TextEdit) -> Option<(usize, usize)> {
+fn format_range(app: &EvoPhotoApp, ed: &TextEdit) -> Option<(usize, usize)> {
     let t = text_layer(&app.session.active()?.doc, LayerId(ed.layer))?;
     let n = t.text.chars().count();
     let (a, b) = (ed.caret.min(ed.anchor).min(n), ed.caret.max(ed.anchor).min(n));
@@ -757,7 +757,7 @@ fn format_range(app: &PhotocraftApp, ed: &TextEdit) -> Option<(usize, usize)> {
 
 /// One `type.setStyle` step on the edited layer's `range`, kept apart from the typing session's
 /// coalesced edit so Undo takes back one key press at a time (as with kerning).
-fn set_style(app: &mut PhotocraftApp, ed: &TextEdit, range: (usize, usize), mut p: serde_json::Value) {
+fn set_style(app: &mut EvoPhotoApp, ed: &TextEdit, range: (usize, usize), mut p: serde_json::Value) {
     crate::type_transform::finish(app);
     p["layer"] = json!(ed.layer);
     p["range"] = json!([range.0, range.1]);
@@ -769,7 +769,7 @@ fn set_style(app: &mut PhotocraftApp, ed: &TextEdit, range: (usize, usize), mut 
 
 /// ⇧⌘K/U/B/I/: flips a character style over the selection: off when every selected character
 /// already has it, else on.
-pub(crate) fn toggle_char_style(app: &mut PhotocraftApp, which: CharToggle) {
+pub(crate) fn toggle_char_style(app: &mut EvoPhotoApp, which: CharToggle) {
     let Some(ed) = app.ui.text_edit.clone() else { return };
     let Some(range) = format_range(app, &ed) else { return };
     let Some(styles) = app.session.active().and_then(|s| text_layer(&s.doc, LayerId(ed.layer))).map(|t| selected_styles(t, range.0, range.1)) else {
@@ -782,7 +782,7 @@ pub(crate) fn toggle_char_style(app: &mut PhotocraftApp, which: CharToggle) {
 
 /// ⌥↑/↓ leading, ⇧⌥↑/↓ baseline shift and ⌥←/→ tracking: steps every selected character from its
 /// own value (`key` is `leadingBy`, `baselineShiftBy` or `trackingBy`).
-pub(crate) fn step_char_metric(app: &mut PhotocraftApp, key: &str, by: f32) {
+pub(crate) fn step_char_metric(app: &mut EvoPhotoApp, key: &str, by: f32) {
     let Some(ed) = app.ui.text_edit.clone() else { return };
     let Some(range) = format_range(app, &ed) else { return };
     // Leading steps in the points the Character panel shows for a scaled layer.
@@ -791,7 +791,7 @@ pub(crate) fn step_char_metric(app: &mut PhotocraftApp, key: &str, by: f32) {
 
 /// ⌥⇧⌘H: flips Hyphenate for the paragraphs the selection (or the caret) is in: off when all of
 /// them hyphenate, else on.
-pub(crate) fn toggle_hyphenate(app: &mut PhotocraftApp) {
+pub(crate) fn toggle_hyphenate(app: &mut EvoPhotoApp) {
     let Some(ed) = app.ui.text_edit.clone() else { return };
     let Some(t) = app.session.active().and_then(|s| text_layer(&s.doc, LayerId(ed.layer))) else { return };
     let n = t.text.chars().count();
@@ -816,7 +816,7 @@ pub(crate) fn toggle_hyphenate(app: &mut PhotocraftApp) {
 
 /// IME composition. The preedit text is written into the layer (so it lays out and reflows like
 /// typed text) and replaced by every update; `commit` makes the result final.
-fn ime_update(app: &mut PhotocraftApp, s: &str, commit: bool) {
+fn ime_update(app: &mut EvoPhotoApp, s: &str, commit: bool) {
     let Some(ed) = app.ui.text_edit.clone() else { return };
     let Some(text) = current_text(app, LayerId(ed.layer)) else { return };
     let n = text.chars().count();
@@ -850,7 +850,7 @@ fn ime_update(app: &mut PhotocraftApp, s: &str, commit: bool) {
 
 /// Character index of the previous / next word boundary (shared with `type.navigate`).
 fn word_boundary(text: &str, from: usize, forward: bool) -> usize {
-    photocraft_text::word_boundary(text, from, forward)
+    evophoto_text::word_boundary(text, from, forward)
 }
 
 /// Most clicks in a run that select more: 2 a word, 3 a line, 4 a paragraph, 5 all text. The
@@ -893,8 +893,8 @@ pub(crate) fn click_selection(layout: Option<&TextLayout>, text: &str, caret: us
         }
         3 => {
             let Some(l) = layout else { return paragraph_of(text, c) };
-            let ln = line.and_then(|i| l.lines.get(i)).or_else(|| l.lines.get(photocraft_text::line_index(l, byte_of(text, c))));
-            ln.map_or((c, c), |ln| (photocraft_text::char_index(text, ln.range.start), photocraft_text::char_index(text, ln.range.end)))
+            let ln = line.and_then(|i| l.lines.get(i)).or_else(|| l.lines.get(evophoto_text::line_index(l, byte_of(text, c))));
+            ln.map_or((c, c), |ln| (evophoto_text::char_index(text, ln.range.start), evophoto_text::char_index(text, ln.range.end)))
         }
         4 => paragraph_of(text, c),
         5 => (0, n),
@@ -905,17 +905,17 @@ pub(crate) fn click_selection(layout: Option<&TextLayout>, text: &str, caret: us
 /// Characters of the paragraph holding character `c`, without its hard return.
 fn paragraph_of(text: &str, c: usize) -> (usize, usize) {
     let b = byte_of(text, c);
-    let paras = photocraft_text::layout::split_paragraphs(text);
+    let paras = evophoto_text::layout::split_paragraphs(text);
     let Some(r) = paras.iter().find(|r| b >= r.start && b < r.end).or_else(|| paras.last()) else { return (c, c) };
     let body = text.get(r.clone()).unwrap_or("").trim_end_matches(['\r', '\n']);
-    let start = photocraft_text::char_index(text, r.start);
+    let start = evophoto_text::char_index(text, r.start);
     (start, start + body.chars().count())
 }
 
 /// A click while editing type at document point (`x`, `y`), after it placed the caret there.
 /// `egui_count` is egui's count for the click (see [`next_click_count`]). Like Photoshop, two
 /// clicks select a word, three the line, four the paragraph and five all text.
-pub fn multi_click(app: &mut PhotocraftApp, egui_count: u32, x: f64, y: f64) {
+pub fn multi_click(app: &mut EvoPhotoApp, egui_count: u32, x: f64, y: f64) {
     let Some(ed) = app.ui.text_edit.clone() else {
         app.type_clicks = None;
         return;
@@ -932,7 +932,7 @@ pub fn multi_click(app: &mut PhotocraftApp, egui_count: u32, x: f64, y: f64) {
     let (caret, line) = match &laid {
         Some((l, aff, t)) if *t == text && x.is_finite() && y.is_finite() => {
             let (tx, ty) = to_text(aff, x, y);
-            let (ci, line) = photocraft_text::hit_char(l, t, tx, ty);
+            let (ci, line) = evophoto_text::hit_char(l, t, tx, ty);
             (ci, Some(line))
         }
         _ => (ed.caret, None),
@@ -945,14 +945,14 @@ pub fn multi_click(app: &mut PhotocraftApp, egui_count: u32, x: f64, y: f64) {
 
 /// Caret on the neighbouring line (±1; a column in vertical type), keeping the position
 /// along the line. Works in line space, so it serves both orientations.
-fn line_step(app: &mut PhotocraftApp, id: LayerId, caret: usize, dir: i32) -> usize {
+fn line_step(app: &mut EvoPhotoApp, id: LayerId, caret: usize, dir: i32) -> usize {
     let Some((l, _, text)) = layout(app, id) else { return caret };
     let x = l.caret(byte_of(&text, caret)).0;
-    photocraft_text::line_step(&l, &text, caret, x, dir)
+    evophoto_text::line_step(&l, &text, caret, x, dir)
 }
 
-fn is_vertical(app: &PhotocraftApp, id: LayerId) -> bool {
-    app.session.active().and_then(|s| text_layer(&s.doc, id)).is_some_and(|t| t.orientation == photocraft_doc::text::Orientation::Vertical)
+fn is_vertical(app: &EvoPhotoApp, id: LayerId) -> bool {
+    app.session.active().and_then(|s| text_layer(&s.doc, id)).is_some_and(|t| t.orientation == evophoto_doc::text::Orientation::Vertical)
 }
 
 /// Arrow keys follow the text flow: in vertical type ↑/↓ move along the column (previous/next
@@ -973,14 +973,14 @@ pub(crate) fn flow_key(key: egui::Key, vertical: bool) -> egui::Key {
 }
 
 /// Line start / end for the caret's line.
-fn line_edge(app: &mut PhotocraftApp, id: LayerId, caret: usize, end: bool) -> usize {
+fn line_edge(app: &mut EvoPhotoApp, id: LayerId, caret: usize, end: bool) -> usize {
     let Some((l, _, text)) = layout(app, id) else { return caret };
-    photocraft_text::line_edge(&l, &text, caret, end)
+    evophoto_text::line_edge(&l, &text, caret, end)
 }
 
 /// Keyboard input while editing. Returns true when a type edit session is active (single-key
 /// tool shortcuts must then be skipped). Handled events are removed from the frame's input.
-pub fn handle_keys(app: &mut PhotocraftApp, ctx: &egui::Context) -> bool {
+pub fn handle_keys(app: &mut EvoPhotoApp, ctx: &egui::Context) -> bool {
     end_if_left(app);
     crate::type_transform::cancel_stale(app);
     if !ctx.input(|i| i.focused) {
@@ -1016,7 +1016,7 @@ pub fn handle_keys(app: &mut PhotocraftApp, ctx: &egui::Context) -> bool {
         let (a, b) = (ed.caret.min(ed.anchor), ed.caret.max(ed.anchor));
         let text = current_text(app, id).unwrap_or_default();
         let n = text.chars().count();
-        let set = |app: &mut PhotocraftApp, caret: usize, extend: bool| {
+        let set = |app: &mut EvoPhotoApp, caret: usize, extend: bool| {
             if let Some(e) = app.ui.text_edit.as_mut() {
                 e.caret = caret.min(n);
                 if !extend {
@@ -1179,14 +1179,14 @@ pub fn handle_keys(app: &mut PhotocraftApp, ctx: &egui::Context) -> bool {
 }
 
 /// End the editing session. A new layer left empty is deleted; a new layer is named after its text.
-pub fn commit(app: &mut PhotocraftApp) {
+pub fn commit(app: &mut EvoPhotoApp) {
     commit_with(app, egui::Modifiers::NONE);
 }
 
 /// [`commit`] with the modifiers held while committing: a Type Mask adds its glyphs to the
 /// selection with ⇧, subtracts them with ⌥ and intersects with ⇧⌥ (Photoshop); with none it
 /// replaces the selection.
-pub fn commit_with(app: &mut PhotocraftApp, mods: egui::Modifiers) {
+pub fn commit_with(app: &mut EvoPhotoApp, mods: egui::Modifiers) {
     let current = app.session.active_index();
     let Some(home) = app.ui.text_edit.as_ref().map(|ed| edit_home(app, ed)) else {
         return commit_here(app, mods);
@@ -1212,7 +1212,7 @@ pub fn commit_with(app: &mut PhotocraftApp, mods: egui::Modifiers) {
 }
 
 /// Index of the document an edit belongs to; `None` once it is closed.
-fn edit_home(app: &PhotocraftApp, ed: &TextEdit) -> Option<usize> {
+fn edit_home(app: &EvoPhotoApp, ed: &TextEdit) -> Option<usize> {
     match ed.document {
         Some(d) => app.session.documents().iter().position(|st| st.doc.id.0 == d),
         None => app.session.active_index(),
@@ -1220,7 +1220,7 @@ fn edit_home(app: &PhotocraftApp, ed: &TextEdit) -> Option<usize> {
 }
 
 /// [`commit_with`] in the active document, which is the edit's own.
-fn commit_here(app: &mut PhotocraftApp, mods: egui::Modifiers) {
+fn commit_here(app: &mut EvoPhotoApp, mods: egui::Modifiers) {
     if app.ui.tool.is_type() {
         crate::type_transform::finish(app);
     }
@@ -1250,7 +1250,7 @@ fn commit_here(app: &mut PhotocraftApp, mods: egui::Modifiers) {
     if text.trim().is_empty() && ed.created {
         let _ = app.run("layer.delete", json!({"layer": ed.layer}));
     } else if ed.created {
-        let name = photocraft_engine::type_cmds::layer_name(&text);
+        let name = evophoto_engine::type_cmds::layer_name(&text);
         let _ = app.run("type.edit", json!({"layer": ed.layer, "name": name, "coalesce": ed.session}));
     }
 }
@@ -1259,7 +1259,7 @@ fn commit_here(app: &mut PhotocraftApp, mods: egui::Modifiers) {
 /// active (a Layers panel menu, the canvas layer picker, automation) or another document did (a
 /// tab, File ▸ New/Open). Photoshop commits then; left open, the session took single-key
 /// shortcuts as typing and typed into whichever document was active.
-pub fn end_if_left(app: &mut PhotocraftApp) {
+pub fn end_if_left(app: &mut EvoPhotoApp) {
     let Some(ed) = app.ui.text_edit.as_ref() else { return };
     let layer = LayerId(ed.layer);
     if edit_home(app, ed).is_none_or(|h| Some(h) != app.session.active_index()) {
@@ -1280,7 +1280,7 @@ pub fn end_if_left(app: &mut PhotocraftApp) {
 }
 
 /// Selection highlight, caret and text frame over the canvas.
-pub fn draw_overlay(app: &mut PhotocraftApp, painter: &egui::Painter, xf: &ViewXform) {
+pub fn draw_overlay(app: &mut EvoPhotoApp, painter: &egui::Painter, xf: &ViewXform) {
     let Some(ed) = app.ui.text_edit.clone() else { return };
     // Until it commits, an edit in a document no longer active draws nothing over this one.
     if edit_home(app, &ed) != app.session.active_index() {
@@ -1302,7 +1302,7 @@ pub fn draw_overlay(app: &mut PhotocraftApp, painter: &egui::Painter, xf: &ViewX
     };
     let shape = app.session.active().and_then(|s| text_layer(&s.doc, id).map(|t| t.shape.clone()));
     // Type on a path: the caret, selection and underline follow the curve the glyphs sit on.
-    let bend = shape.as_ref().and_then(photocraft_text::warp::Warp::on_path);
+    let bend = shape.as_ref().and_then(evophoto_text::warp::Warp::on_path);
     // Line space (lines, clusters, carets) → screen: vertical type turns it 90° clockwise.
     let scr = |x: f32, y: f32| -> Pos2 {
         let (x, y) = l.to_text(x, y);
@@ -1333,7 +1333,7 @@ pub fn draw_overlay(app: &mut PhotocraftApp, painter: &egui::Painter, xf: &ViewX
     let has_transform = crate::type_transform::draw(app, painter, xf, mods);
     let frame = Stroke::new(1.0, t.accent);
     match shape {
-        Some(photocraft_doc::text::TextShape::Box { x, y, width, height }) => {
+        Some(evophoto_doc::text::TextShape::Box { x, y, width, height }) => {
             if !has_transform {
                 let c = [scr_t(x, y), scr_t(x + width, y), scr_t(x + width, y + height), scr_t(x, y + height)];
                 painter.add(egui::Shape::closed_line(c.to_vec(), frame));
@@ -1346,9 +1346,9 @@ pub fn draw_overlay(app: &mut PhotocraftApp, painter: &egui::Painter, xf: &ViewX
             }
         }
         // Area type: the outline of the shape it wraps inside.
-        Some(photocraft_doc::text::TextShape::Area { path }) => {
+        Some(evophoto_doc::text::TextShape::Area { path }) => {
             if !has_transform {
-                for poly in photocraft_vector::flatten::flatten_path(&path, 0.5) {
+                for poly in evophoto_vector::flatten::flatten_path(&path, 0.5) {
                     let pts: Vec<Pos2> = poly.pts.iter().map(|&(x, y)| scr_t(x as f32, y as f32)).collect();
                     if pts.len() >= 2 {
                         painter.add(egui::Shape::closed_line(pts, frame));
@@ -1394,7 +1394,7 @@ pub fn draw_overlay(app: &mut PhotocraftApp, painter: &egui::Painter, xf: &ViewX
             if bend.is_some() {
                 // On a path each glyph turns on its own, so each gets its own highlight.
                 // Glyphs past the end of the path are not drawn, so neither is their highlight.
-                let shown = |p: f32, q: f32| bend.as_ref().is_some_and(|w| w.place_glyph(f64::from(p + q) / 2.0) != photocraft_text::warp::Placement::Hidden);
+                let shown = |p: f32, q: f32| bend.as_ref().is_some_and(|w| w.place_glyph(f64::from(p + q) / 2.0) != evophoto_text::warp::Placement::Hidden);
                 for (p, q) in xs.into_iter().filter(|&(p, q)| shown(p, q)) {
                     painter.add(egui::Shape::convex_polygon(vec![scr(p, top), scr(q, top), scr(q, bot), scr(p, bot)], fill, Stroke::NONE));
                 }
@@ -1423,7 +1423,7 @@ const CARET_STROKES: [Stroke; 2] = [Stroke { width: 3.0, color: Color32::WHITE }
 
 /// The Type Mask tools while typing: Quick Mask's colour over the canvas with the glyphs clear,
 /// as Photoshop shows the selection-to-be. The glyphs come from the hidden working layer's pixels.
-fn draw_mask_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform, id: LayerId) {
+fn draw_mask_overlay(app: &EvoPhotoApp, painter: &egui::Painter, xf: &ViewXform, id: LayerId) {
     let Some(st) = app.session.active() else { return };
     let canvas = st.doc.bounds();
     let opts = app.session.quick_mask_options;
@@ -1433,16 +1433,16 @@ fn draw_mask_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXfor
         let q = |v: f32| (v.clamp(0.0, 1.0) * a * 255.0 + 0.5) as u8;
         Color32::from_rgba_premultiplied(q(rgb[0]), q(rgb[1]), q(rgb[2]), (a * 255.0 + 0.5) as u8)
     };
-    let corners = |r: photocraft_geom::Rect| -> Vec<Pos2> {
+    let corners = |r: evophoto_geom::Rect| -> Vec<Pos2> {
         let (x0, y0, x1, y1) = (r.x0 as f32, r.y0 as f32, r.x1 as f32, r.y1 as f32);
         vec![xf.to_screen(x0, y0), xf.to_screen(x1, y0), xf.to_screen(x1, y1), xf.to_screen(x0, y1)]
     };
     let surface = text_layer(&st.doc, id).and_then(|t| t.cache.as_ref());
-    let area = surface.map(|s| s.content_bounds().intersect(&canvas)).unwrap_or(photocraft_geom::Rect::EMPTY);
+    let area = surface.map(|s| s.content_bounds().intersect(&canvas)).unwrap_or(evophoto_geom::Rect::EMPTY);
     // One unfeathered mesh, so the bands and the text's box meet without seams.
     let mut bands = egui::Mesh::default();
     let mut band = |x0: i32, y0: i32, x1: i32, y1: i32| {
-        let r = photocraft_geom::Rect { x0, y0, x1, y1 };
+        let r = evophoto_geom::Rect { x0, y0, x1, y1 };
         if !r.is_empty() {
             let base = bands.vertices.len() as u32;
             for p in corners(r) {
@@ -1473,7 +1473,7 @@ fn draw_mask_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXfor
         let mut row = vec![[0.0f32; 4]; area.width() as usize];
         let mut px = Vec::with_capacity(w * h);
         for y in (area.y0..area.y1).step_by(factor as usize) {
-            surface.read_rgba_into(photocraft_geom::Rect { x0: area.x0, y0: y, x1: area.x1, y1: y + 1 }, &mut row);
+            surface.read_rgba_into(evophoto_geom::Rect { x0: area.x0, y0: y, x1: area.x1, y1: y + 1 }, &mut row);
             px.extend(row.iter().step_by(factor as usize).take(w).map(|p| tint(1.0 - p[3])));
         }
         px.resize(w * h, tint(1.0));
@@ -1491,20 +1491,20 @@ fn draw_mask_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXfor
     painter.add(egui::Shape::mesh(mesh));
 }
 
-/// Font families: bundled, system, and those the host serves (`photocraft_text::served`, fetched
+/// Font families: bundled, system, and those the host serves (`evophoto_text::served`, fetched
 /// when picked). Cached until the shared engine registers fonts or the served catalog changes.
 pub fn families() -> Arc<Vec<String>> {
     type Cached = Option<((u64, u64), Arc<Vec<String>>)>;
     static FAMILIES: std::sync::Mutex<Cached> = std::sync::Mutex::new(None);
-    let key = (photocraft_text::fonts::shared_generation(), photocraft_text::served::generation());
+    let key = (evophoto_text::fonts::shared_generation(), evophoto_text::served::generation());
     let mut cached = FAMILIES.lock().unwrap_or_else(PoisonError::into_inner);
     if let Some((k, v)) = cached.as_ref()
         && *k == key
     {
         return v.clone();
     }
-    let mut v = photocraft_text::shared().lock().map(|mut e| e.fonts.families()).unwrap_or_default();
-    for f in photocraft_text::served::families() {
+    let mut v = evophoto_text::shared().lock().map(|mut e| e.fonts.families()).unwrap_or_default();
+    for f in evophoto_text::served::families() {
         if !v.contains(&f) {
             v.push(f);
         }
@@ -1517,7 +1517,7 @@ pub fn families() -> Arc<Vec<String>> {
 
 /// Where [`sync_font_names`] leaves the font menus' localized labels for this frame.
 fn font_labels_id() -> egui::Id {
-    egui::Id::new("photocraft-font-menu-localized-names")
+    egui::Id::new("evophoto-font-menu-localized-names")
 }
 
 /// Preferences ▸ Type ▸ Show Font Names in English: when off, font menus list a family that has a
@@ -1538,14 +1538,14 @@ pub fn sync_font_names(ctx: &egui::Context, show_in_english: bool) {
 fn localized_families() -> Arc<HashMap<String, String>> {
     type Cached = Option<(u64, Arc<HashMap<String, String>>)>;
     static LOCALIZED: std::sync::Mutex<Cached> = std::sync::Mutex::new(None);
-    let key = photocraft_text::fonts::shared_generation();
+    let key = evophoto_text::fonts::shared_generation();
     let mut cached = LOCALIZED.lock().unwrap_or_else(PoisonError::into_inner);
     if let Some((k, v)) = cached.as_ref()
         && *k == key
     {
         return v.clone();
     }
-    let v = Arc::new(photocraft_text::shared().lock().map(|mut e| e.fonts.localized_family_names()).unwrap_or_default());
+    let v = Arc::new(evophoto_text::shared().lock().map(|mut e| e.fonts.localized_family_names()).unwrap_or_default());
     *cached = Some((key, v.clone()));
     v
 }
@@ -1596,7 +1596,7 @@ fn weight_name(w: f32) -> &'static str {
 /// Style names available for a family: each face's actual OpenType subfamily (including numeric
 /// and nonstandard ones), plus the standard weights a variable face's `wght` axis covers.
 pub fn styles(family: &str) -> Vec<String> {
-    let faces = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner()).fonts.faces(family);
+    let faces = evophoto_text::shared().lock().unwrap_or_else(|e| e.into_inner()).fonts.faces(family);
     let v = style_names(&faces);
     if v.is_empty() { vec!["Regular".into()] } else { v }
 }
@@ -1604,7 +1604,7 @@ pub fn styles(family: &str) -> Vec<String> {
 /// [`styles`] of these faces, lightest first. A variable face reports only its default instance
 /// (Montserrat's is Thin), yet the layout draws any weight its `wght` axis covers, so the standard
 /// weights in that range are listed too.
-fn style_names(faces: &[photocraft_text::FaceInfo]) -> Vec<String> {
+fn style_names(faces: &[evophoto_text::FaceInfo]) -> Vec<String> {
     let label = |weight: f32, italic: bool| {
         let name = match (weight_name(weight), italic) {
             ("Regular", true) => "Italic".to_string(),
@@ -1629,12 +1629,12 @@ fn style_names(faces: &[photocraft_text::FaceInfo]) -> Vec<String> {
     names
 }
 
-/// A variable-font axis: (tag, min, default, max), as [`photocraft_text::FaceInfo::axes`].
+/// A variable-font axis: (tag, min, default, max), as [`evophoto_text::FaceInfo::axes`].
 pub(crate) type Axis = (String, f32, f32, f32);
 
 /// The axes the Character section shows as sliders (#2985): those of the faces matching the
 /// style's italic, else of any face. Optical size has none: it follows the type size.
-pub(crate) fn slider_axes(faces: &[photocraft_text::FaceInfo], italic: bool) -> Vec<Axis> {
+pub(crate) fn slider_axes(faces: &[evophoto_text::FaceInfo], italic: bool) -> Vec<Axis> {
     let pick = |want: Option<bool>| {
         let mut v: Vec<Axis> = Vec::new();
         for f in faces.iter().filter(|f| want.is_none_or(|w| f.italic == w)) {
@@ -1653,7 +1653,7 @@ pub(crate) fn slider_axes(faces: &[photocraft_text::FaceInfo], italic: bool) -> 
 
 /// The value an axis slider shows: the style's own value for the axis, else what the layout
 /// draws (the style's weight on `wght`, the axis default otherwise), within the axis range.
-pub(crate) fn axis_value(c: &photocraft_doc::text::CharStyle, (tag, min, default, max): &Axis) -> f32 {
+pub(crate) fn axis_value(c: &evophoto_doc::text::CharStyle, (tag, min, default, max): &Axis) -> f32 {
     let v = c.variations.iter().find(|v| &v.axis == tag).map(|v| v.value).unwrap_or_else(|| match tag.as_str() {
         "wght" => f32::from(c.weight),
         "ital" if c.italic => *max,
@@ -1676,9 +1676,9 @@ fn axis_label(tag: &str) -> String {
 }
 
 /// One slider row per variable-font axis of the style's font, below the font style (#2985).
-fn axis_sliders(app: &mut PhotocraftApp, ui: &mut egui::Ui, c: &photocraft_doc::text::CharStyle) {
+fn axis_sliders(app: &mut EvoPhotoApp, ui: &mut egui::Ui, c: &evophoto_doc::text::CharStyle) {
     // Drawn every frame: no sliders until the background font scan is done (#3021).
-    let Some(engine) = photocraft_text::try_shared() else { return };
+    let Some(engine) = evophoto_text::try_shared() else { return };
     let axes = {
         let faces = engine.lock().unwrap_or_else(PoisonError::into_inner).fonts.faces(&c.font_family);
         slider_axes(&faces, c.italic)
@@ -1709,10 +1709,10 @@ fn axis_sliders(app: &mut PhotocraftApp, ui: &mut egui::Ui, c: &photocraft_doc::
 }
 
 /// PSD text can identify a face only by its PostScript name. Show its real subfamily too.
-pub(crate) fn selected_style(style: &photocraft_doc::text::CharStyle) -> String {
+pub(crate) fn selected_style(style: &evophoto_doc::text::CharStyle) -> String {
     // Drawn every frame: while the font scan runs, the stored style name stands in.
     if let Some(ps) = &style.postscript_name
-        && let Some(engine) = photocraft_text::try_shared()
+        && let Some(engine) = evophoto_text::try_shared()
     {
         let faces = engine.lock().unwrap_or_else(|e| e.into_inner()).fonts.faces(&style.font_family);
         if let Some(face) = faces.into_iter().find(|f| f.postscript_name.as_ref() == Some(ps)) {
@@ -1732,15 +1732,15 @@ pub fn style_label(style: &str) -> String {
 /// Starts scanning the installed fonts on a background thread (desktop start-up), so choosing
 /// the Type tool doesn't stall the UI while they are read (#3021). Does nothing on the web.
 pub fn warm_fonts() {
-    photocraft_text::warm_shared();
+    evophoto_text::warm_shared();
 }
 
 /// Whether the font database is ready. The installed fonts are scanned on a background thread
-/// from launch (`photocraft_text::warm_shared`); until that finishes, font menus draw this
+/// from launch (`evophoto_text::warm_shared`); until that finishes, font menus draw this
 /// disabled "Loading fonts…" box `width` wide instead of blocking the UI, and a repaint picks the
 /// menus up once the scan is done.
 pub(crate) fn fonts_ready(ui: &mut egui::Ui, width: f32) -> bool {
-    if photocraft_text::try_shared().is_some() {
+    if evophoto_text::try_shared().is_some() {
         return true;
     }
     let label = tl!("Loading fonts…").to_string();
@@ -1750,7 +1750,7 @@ pub(crate) fn fonts_ready(ui: &mut egui::Ui, width: f32) -> bool {
 }
 
 /// Searchable font-family combo box.
-fn font_picker(ui: &mut egui::Ui, current: &mut String, width: f32, preview: photocraft_engine::prefs::FontPreview, recents: &[String]) -> bool {
+fn font_picker(ui: &mut egui::Ui, current: &mut String, width: f32, preview: evophoto_engine::prefs::FontPreview, recents: &[String]) -> bool {
     family_picker_in(ui, "type-font", current, width, &families(), preview, recents)
 }
 
@@ -1764,7 +1764,7 @@ fn font_picker_in(
     current: &mut String,
     width: f32,
     families: &[String],
-    preview: photocraft_engine::prefs::FontPreview,
+    preview: evophoto_engine::prefs::FontPreview,
     recents: &[String],
 ) -> bool {
     family_picker_in(ui, "type-font", current, width, families, preview, recents)
@@ -1778,7 +1778,7 @@ pub(crate) fn family_picker_in(
     current: &mut String,
     width: f32,
     families: &[String],
-    preview: photocraft_engine::prefs::FontPreview,
+    preview: evophoto_engine::prefs::FontPreview,
     recents: &[String],
 ) -> bool {
     let mut changed = false;
@@ -1850,7 +1850,7 @@ pub(crate) fn family_picker_in(
                 changed = **f != *current;
                 current.clone_from(f);
                 // A served family not fetched yet: start now, as a click does.
-                photocraft_text::served::request(f);
+                evophoto_text::served::request(f);
                 stepped = Some(next);
                 selected = Some(next);
                 ui.data_mut(|d| d.insert_temp(row_id, next));
@@ -1898,7 +1898,7 @@ pub(crate) fn family_picker_in(
                 if press.chosen(ui, &response) {
                     *current = f.clone();
                     // A served family not fetched yet: start now, before any text needs it.
-                    photocraft_text::served::request(f);
+                    evophoto_text::served::request(f);
                     changed = true;
                     picked = true;
                     ui.data_mut(|d| d.remove::<String>(search_id));
@@ -1957,7 +1957,7 @@ pub(crate) fn family_picker_in(
             && **f != *current
         {
             current.clone_from(f);
-            photocraft_text::served::request(f);
+            evophoto_text::served::request(f);
             changed = true;
         }
     }
@@ -1980,7 +1980,7 @@ pub(crate) fn family_picker_in(
             && **f != *current
         {
             current.clone_from(f);
-            photocraft_text::served::request(f);
+            evophoto_text::served::request(f);
             changed = true;
         }
     }
@@ -2011,7 +2011,7 @@ fn wheel_family_index(index: usize, len: usize, notches: f32) -> Option<usize> {
 }
 
 /// Representative for the displayed properties: the edit layer, else a selected type layer.
-pub(crate) fn target(app: &PhotocraftApp) -> Option<(u64, Option<[usize; 2]>)> {
+pub(crate) fn target(app: &EvoPhotoApp) -> Option<(u64, Option<[usize; 2]>)> {
     if let Some(ed) = &app.ui.text_edit {
         let (a, b) = (ed.caret.min(ed.anchor), ed.caret.max(ed.anchor));
         return Some((ed.layer, (a < b).then_some([a, b])));
@@ -2025,14 +2025,14 @@ pub(crate) fn target(app: &PhotocraftApp) -> Option<(u64, Option<[usize; 2]>)> {
 }
 
 /// The type layer whose properties the Type controls and dialogs show (see [`target`]).
-pub(crate) fn target_text(app: &PhotocraftApp) -> Option<&TextLayer> {
+pub(crate) fn target_text(app: &EvoPhotoApp) -> Option<&TextLayer> {
     let (id, _) = target(app)?;
     text_layer(&app.session.active()?.doc, LayerId(id))
 }
 
 /// Snapshot the mutation scope separately from the representative used to display properties.
 /// An inline edit remains on its layer/range; layer selection formats every selected type layer.
-pub(crate) fn formatting_params(app: &PhotocraftApp) -> Option<serde_json::Value> {
+pub(crate) fn formatting_params(app: &EvoPhotoApp) -> Option<serde_json::Value> {
     if let Some(ed) = &app.ui.text_edit {
         let mut params = json!({"layer": ed.layer, "coalesce": ed.session});
         let (a, b) = (ed.caret.min(ed.anchor), ed.caret.max(ed.anchor));
@@ -2048,7 +2048,7 @@ pub(crate) fn formatting_params(app: &PhotocraftApp) -> Option<serde_json::Value
 
 /// Scale of the target layer's transform. Like Photoshop, sizes show and edit as the layer
 /// appears: a 12 pt layer scaled 200% (common in PSDs) reads 24 pt.
-fn shown_scale(app: &PhotocraftApp) -> f32 {
+fn shown_scale(app: &EvoPhotoApp) -> f32 {
     let Some((id, _)) = target(app) else { return 1.0 };
     let Some(t) = app.session.active().and_then(|st| text_layer(&st.doc, LayerId(id))) else { return 1.0 };
     let m = t.transform.m;
@@ -2058,12 +2058,12 @@ fn shown_scale(app: &PhotocraftApp) -> f32 {
 
 /// The display unit for type metrics (Preferences ▸ Units & Rulers ▸ Type): the multiplier from
 /// the model's points to the unit, and its label. Pixels follow the document's resolution.
-pub(crate) fn type_unit(app: &PhotocraftApp) -> (f32, &'static str) {
+pub(crate) fn type_unit(app: &EvoPhotoApp) -> (f32, &'static str) {
     let dpi = app.session.active().map_or(72.0, |d| d.doc.resolution_dpi.max(1.0));
     match app.session.prefs().units_and_rulers.type_units {
-        photocraft_engine::prefs::TypeUnit::Points => (1.0, "pt"),
-        photocraft_engine::prefs::TypeUnit::Pixels => (dpi / 72.0, "px"),
-        photocraft_engine::prefs::TypeUnit::Millimeters => (25.4 / 72.0, "mm"),
+        evophoto_engine::prefs::TypeUnit::Points => (1.0, "pt"),
+        evophoto_engine::prefs::TypeUnit::Pixels => (dpi / 72.0, "px"),
+        evophoto_engine::prefs::TypeUnit::Millimeters => (25.4 / 72.0, "mm"),
     }
 }
 
@@ -2078,12 +2078,12 @@ fn drag_key(ctx: &egui::Context) -> Option<String> {
 /// The styles a new Type-tool layer will receive. Use the same command parameters for the
 /// panels and creation so defaults also survive action recording/replay. The older options-bar
 /// fields remain authoritative, and text colour continues to follow the foreground colour.
-fn default_style_params(app: &PhotocraftApp) -> serde_json::Value {
+fn default_style_params(app: &EvoPhotoApp) -> serde_json::Value {
     let o = &app.ui.tool_options;
     let mut p = json!({});
     // Settings are editable JSON: only recognized formatting keys may reach type.create.
     // In particular a stray `text`, `box`, or `coalesce` key must not become a create parameter.
-    let (mut c, mut para) = (photocraft_doc::text::CharStyle::default(), photocraft_doc::text::ParagraphStyle::default());
+    let (mut c, mut para) = (evophoto_doc::text::CharStyle::default(), evophoto_doc::text::ParagraphStyle::default());
     for (key, value) in &o.type_style_defaults {
         // These belong to the existing options-bar fields. Apart from being redundant,
         // parsing a saved font key here would wait for the background font scan.
@@ -2092,12 +2092,12 @@ fn default_style_params(app: &PhotocraftApp) -> serde_json::Value {
         }
         let one = json!({ (key): value });
         if !finite_style_value(value)
-            || photocraft_engine::type_cmds::check_size_tracking(&one).is_err()
-            || photocraft_engine::type_cmds::check_kerning(&one).is_err()
+            || evophoto_engine::type_cmds::check_size_tracking(&one).is_err()
+            || evophoto_engine::type_cmds::check_kerning(&one).is_err()
         {
             continue;
         }
-        if photocraft_engine::type_cmds::apply_char_props(&mut c, &one) | photocraft_engine::type_cmds::apply_para_props(&mut para, &one) {
+        if evophoto_engine::type_cmds::apply_char_props(&mut c, &one) | evophoto_engine::type_cmds::apply_para_props(&mut para, &one) {
             p[key] = value.clone();
         }
     }
@@ -2126,13 +2126,13 @@ fn finite_style_value(value: &serde_json::Value) -> bool {
     }
 }
 
-fn default_styles(app: &PhotocraftApp) -> (photocraft_doc::text::CharStyle, photocraft_doc::text::ParagraphStyle) {
+fn default_styles(app: &EvoPhotoApp) -> (evophoto_doc::text::CharStyle, evophoto_doc::text::ParagraphStyle) {
     let (mut c, mut para) = app.session.type_defaults.clone().unwrap_or_default();
     let mut p = default_style_params(app);
     // The saved panels can appear on the very first frame. Style parsing resolves the named
     // font through shared(), which waits for the font scan; display the saved names meanwhile,
     // and let fonts_ready/axis_sliders expose the font controls when try_shared is ready.
-    if photocraft_text::try_shared().is_none() {
+    if evophoto_text::try_shared().is_none() {
         c.font_family = app.ui.tool_options.type_font.clone();
         c.font_style = app.ui.tool_options.type_style.clone();
         c.postscript_name = None;
@@ -2141,14 +2141,14 @@ fn default_styles(app: &PhotocraftApp) -> (photocraft_doc::text::CharStyle, phot
             p.remove("fontStyle");
         }
     }
-    photocraft_engine::type_cmds::apply_char_props(&mut c, &p);
-    photocraft_engine::type_cmds::apply_para_props(&mut para, &p);
+    evophoto_engine::type_cmds::apply_char_props(&mut c, &p);
+    evophoto_engine::type_cmds::apply_para_props(&mut para, &p);
     (c, para)
 }
 
 /// Change tool defaults without creating a document edit. The engine owns the style schema;
 /// keep its property names rather than maintaining another style parser in the shell.
-fn apply_defaults(app: &mut PhotocraftApp, props: &serde_json::Value) {
+fn apply_defaults(app: &mut EvoPhotoApp, props: &serde_json::Value) {
     let Some(props) = props.as_object() else { return };
     let o = &mut app.ui.tool_options;
     for (key, value) in props {
@@ -2203,7 +2203,7 @@ fn apply_defaults(app: &mut PhotocraftApp, props: &serde_json::Value) {
 
 /// Apply only the supplied properties to the text-edit scope or selected type layers; without
 /// a type target, prepare the defaults for the next layer instead.
-fn apply(app: &mut PhotocraftApp, ctx: &egui::Context, props: serde_json::Value) {
+fn apply(app: &mut EvoPhotoApp, ctx: &egui::Context, props: serde_json::Value) {
     let Some(mut p) = formatting_params(app) else {
         apply_defaults(app, &props);
         return;
@@ -2221,7 +2221,7 @@ fn apply(app: &mut PhotocraftApp, ctx: &egui::Context, props: serde_json::Value)
 
 /// `props` aimed at the type target: its layer, the selected characters while typing, and the
 /// typing session's undo step. `None` without a type target.
-pub(crate) fn with_target(app: &PhotocraftApp, mut props: serde_json::Value) -> Option<serde_json::Value> {
+pub(crate) fn with_target(app: &EvoPhotoApp, mut props: serde_json::Value) -> Option<serde_json::Value> {
     let (layer, range) = target(app)?;
     props["layer"] = json!(layer);
     if let Some(r) = range {
@@ -2235,7 +2235,7 @@ pub(crate) fn with_target(app: &PhotocraftApp, mut props: serde_json::Value) -> 
 
 /// Open the shared Color Picker with a snapshot of the text target. Sampling or cancelling
 /// the dialog never changes the text selection, tool colours, or document history.
-pub fn open_color_picker(app: &mut PhotocraftApp, rgb: [f32; 3]) -> u64 {
+pub fn open_color_picker(app: &mut EvoPhotoApp, rgb: [f32; 3]) -> u64 {
     if let Some(params) = formatting_params(app) {
         crate::color_picker_ui::open_for_command(app, "Color Picker (Text Color)", rgb, "type.setStyle", params)
     } else {
@@ -2245,7 +2245,7 @@ pub fn open_color_picker(app: &mut PhotocraftApp, rgb: [f32; 3]) -> u64 {
 
 /// While characters are selected in a type layer, a new foreground colour (Color and Swatches
 /// panels, the Color Picker) recolours them, in the editing session's history step.
-pub fn foreground_changed(app: &mut PhotocraftApp) {
+pub fn foreground_changed(app: &mut EvoPhotoApp) {
     let Some((layer, Some(range))) = target(app) else { return };
     let Some(ed) = app.ui.text_edit.as_ref() else { return };
     let p = json!({"layer": layer, "range": range, "color": hex(app.session.tools.foreground), "coalesce": ed.session});
@@ -2253,7 +2253,7 @@ pub fn foreground_changed(app: &mut PhotocraftApp) {
 }
 
 /// Photoshop's Type options bar.
-pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn options_bar(app: &mut EvoPhotoApp, ui: &mut egui::Ui) {
     let t = crate::theme::Tokens::get(ui.ctx());
     // Show the target layer's (first-run) style, else the tool defaults.
     let shown = target(app).and_then(|(id, _)| {
@@ -2310,7 +2310,7 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     }
     let mut aa = target(app)
         .and_then(|(id, _)| app.session.active().and_then(|st| text_layer(&st.doc, LayerId(id))))
-        .map(|t| photocraft_engine::type_extra_cmds::aa_name(t.antialias).to_string())
+        .map(|t| evophoto_engine::type_extra_cmds::aa_name(t.antialias).to_string())
         .unwrap_or_else(|| o.type_aa.clone());
     let aa_opts = [
         ("none".to_string(), tl!("None")),
@@ -2394,7 +2394,7 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 }
 
 /// Character and paragraph style at the target (selection start, else the layer's first run).
-pub(crate) fn styles_at(app: &PhotocraftApp) -> Option<(photocraft_doc::text::CharStyle, photocraft_doc::text::ParagraphStyle)> {
+pub(crate) fn styles_at(app: &EvoPhotoApp) -> Option<(evophoto_doc::text::CharStyle, evophoto_doc::text::ParagraphStyle)> {
     let (layer, range) = target(app)?;
     let st = app.session.active()?;
     let t = text_layer(&st.doc, LayerId(layer))?;
@@ -2418,7 +2418,7 @@ pub(crate) fn styles_at(app: &PhotocraftApp) -> Option<(photocraft_doc::text::Ch
 
 /// Kerning shown for the target: at a collapsed caret, the pair before it (Photoshop's
 /// Character panel); else the style at the selection.
-fn kerning_at(app: &PhotocraftApp) -> Option<(photocraft_doc::text::Kerning, f32)> {
+fn kerning_at(app: &EvoPhotoApp) -> Option<(evophoto_doc::text::Kerning, f32)> {
     let ed = app.ui.text_edit.as_ref().filter(|e| e.caret == e.anchor && e.caret > 0)?;
     let st = app.session.active()?;
     let t = text_layer(&st.doc, LayerId(ed.layer))?;
@@ -2434,8 +2434,8 @@ fn kerning_at(app: &PhotocraftApp) -> Option<(photocraft_doc::text::Kerning, f32
 }
 
 /// The Character panel's kerning text: "Metrics", "Optical" or the manual value.
-pub(crate) fn kerning_label((mode, kern): (photocraft_doc::text::Kerning, f32)) -> String {
-    use photocraft_doc::text::Kerning;
+pub(crate) fn kerning_label((mode, kern): (evophoto_doc::text::Kerning, f32)) -> String {
+    use evophoto_doc::text::Kerning;
     match mode {
         _ if kern != 0.0 && kern.is_finite() => format!("{}", kern.round() as i64),
         Kerning::Metrics => "Metrics".into(),
@@ -2494,7 +2494,7 @@ fn kerning_field(ui: &mut egui::Ui, shown: &str, width: f32) -> Option<serde_jso
 
 /// Applies a kerning value: at a collapsed caret to the pair before it, else to the selection
 /// (or the whole layer).
-fn apply_kerning(app: &mut PhotocraftApp, ctx: &egui::Context, v: serde_json::Value) {
+fn apply_kerning(app: &mut EvoPhotoApp, ctx: &egui::Context, v: serde_json::Value) {
     match app.ui.text_edit.clone().filter(|e| e.caret == e.anchor) {
         Some(ed) if ed.caret > 0 => {
             let _ = app.run("type.edit", json!({"layer": ed.layer, "range": [ed.caret - 1, ed.caret], "kerning": v}));
@@ -2537,8 +2537,8 @@ fn num_field(ui: &mut egui::Ui, label: &str, tip: &str, v: f32, range: std::ops:
 
 /// Photoshop's paragraph alignment glyphs: four text lines whose widths/offsets show the mode
 /// (justify variants run full width, with the last line placed left/centre/right).
-fn align_glyph(p: &egui::Painter, r: egui::Rect, a: photocraft_doc::text::TextAlign, c: Color32) {
-    use photocraft_doc::text::TextAlign as A;
+fn align_glyph(p: &egui::Painter, r: egui::Rect, a: evophoto_doc::text::TextAlign, c: Color32) {
+    use evophoto_doc::text::TextAlign as A;
     let widths = [1.0, 0.62, 1.0, 0.62];
     for (i, w) in widths.iter().enumerate() {
         let y = r.top() + i as f32 * r.height() / 3.0;
@@ -2559,8 +2559,8 @@ fn align_glyph(p: &egui::Painter, r: egui::Rect, a: photocraft_doc::text::TextAl
 
 /// Paragraph direction choices for the Paragraph panel and the options bar (TYPE-218-2): the
 /// `direction` value `type.setStyle` takes, the tooltip, and the direction it sets.
-fn direction_items() -> [(&'static str, &'static str, photocraft_doc::text::TextDirection); 3] {
-    use photocraft_doc::text::TextDirection as D;
+fn direction_items() -> [(&'static str, &'static str, evophoto_doc::text::TextDirection); 3] {
+    use evophoto_doc::text::TextDirection as D;
     [
         ("auto", tl!("Automatic paragraph direction"), D::Auto),
         ("ltr", tl!("Left-to-right paragraph direction"), D::Ltr),
@@ -2569,8 +2569,8 @@ fn direction_items() -> [(&'static str, &'static str, photocraft_doc::text::Text
 }
 
 /// A pilcrow over an arrow pointing the way the paragraph runs; Auto points both ways.
-fn direction_glyph(p: &egui::Painter, r: egui::Rect, d: photocraft_doc::text::TextDirection, c: Color32) {
-    use photocraft_doc::text::TextDirection as D;
+fn direction_glyph(p: &egui::Painter, r: egui::Rect, d: evophoto_doc::text::TextDirection, c: Color32) {
+    use evophoto_doc::text::TextDirection as D;
     let g = p.layout_no_wrap("¶".to_string(), egui::FontId::proportional(11.0), c);
     p.galley(egui::pos2(r.center().x - g.size().x / 2.0, r.top() - 2.0), g, c);
     let (y, s) = (r.bottom() - 1.5, Stroke::new(1.3, c));
@@ -2589,7 +2589,7 @@ fn direction_glyph(p: &egui::Painter, r: egui::Rect, d: photocraft_doc::text::Te
 }
 
 /// The options bar's 24 px square button for one paragraph direction, styled like its icon buttons.
-fn direction_button(ui: &mut egui::Ui, d: photocraft_doc::text::TextDirection, selected: bool, tip: &str) -> egui::Response {
+fn direction_button(ui: &mut egui::Ui, d: evophoto_doc::text::TextDirection, selected: bool, tip: &str) -> egui::Response {
     let (r, resp) = ui.allocate_exact_size(egui::vec2(24.0, 24.0), egui::Sense::click());
     let tint = crate::icons::button_chrome(ui, r, selected, resp.hovered());
     direction_glyph(ui.painter(), egui::Rect::from_center_size(r.center(), egui::vec2(14.0, 16.0)), d, tint);
@@ -2646,13 +2646,13 @@ pub(crate) const OPENTYPE_BUTTONS: [(&str, &str, &str); 8] = [
 /// Photoshop's OpenType button row: each shows pressed while its feature is on at the type
 /// target (the selection start, else the layer) and toggles it through the Type › OpenType
 /// command, on the same scope as the other Character controls.
-fn opentype_row(app: &mut PhotocraftApp, ui: &mut egui::Ui, c: &photocraft_doc::text::CharStyle, full: f32) {
+fn opentype_row(app: &mut EvoPhotoApp, ui: &mut egui::Ui, c: &evophoto_doc::text::CharStyle, full: f32) {
     let cw = cell_width(full, OPENTYPE_BUTTONS.len());
     let mut clicked = None;
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 2.0;
         for (tag, id, tip) in OPENTYPE_BUTTONS {
-            let on = photocraft_engine::type_extra_cmds::feature_on(c, tag);
+            let on = evophoto_engine::type_extra_cmds::feature_on(c, tag);
             if toggle_cell(ui, cw, on, tip, |ui, r, col| opentype_glyph(ui.painter(), r, tag, col)) {
                 clicked = Some((id, on));
             }
@@ -2666,7 +2666,7 @@ fn opentype_row(app: &mut PhotocraftApp, ui: &mut egui::Ui, c: &photocraft_doc::
 /// Runs an OpenType toggle command on the Character panel's scope: the edited layer's selected
 /// characters (or its whole text) while typing, else every selected type layer. The new state
 /// is explicit, so it follows the button the user saw rather than the layer's first run.
-pub(crate) fn toggle_opentype(app: &mut PhotocraftApp, id: &str, shown_on: bool) {
+pub(crate) fn toggle_opentype(app: &mut EvoPhotoApp, id: &str, shown_on: bool) {
     let Some(mut p) = formatting_params(app) else {
         if let Some((tag, _, _)) = OPENTYPE_BUTTONS.iter().find(|(_, command, _)| *command == id) {
             let props = match *tag {
@@ -2743,20 +2743,20 @@ fn cell_width(avail: f32, n: usize) -> f32 {
 }
 
 /// Properties panel sections for a type layer: Character, Paragraph and Type Options (#155).
-pub fn type_properties(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn type_properties(app: &mut EvoPhotoApp, ui: &mut egui::Ui) {
     type_sections(app, ui, true, true, false);
     type_options(app, ui);
 }
 
 /// Window › Character / Paragraph (#150): the same controls as Properties, in their own dock
 /// group. Without a type target they edit the defaults for the next Type-tool layer.
-pub fn character_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui, paragraph: bool) {
+pub fn character_panel(app: &mut EvoPhotoApp, ui: &mut egui::Ui, paragraph: bool) {
     type_sections(app, ui, !paragraph, paragraph, true);
 }
 
 /// The Character and/or Paragraph sections, with the shared collapsible headers and fields that
 /// fill the panel width (#155).
-fn type_sections(app: &mut PhotocraftApp, ui: &mut egui::Ui, character: bool, paragraph: bool, show_defaults: bool) {
+fn type_sections(app: &mut EvoPhotoApp, ui: &mut egui::Ui, character: bool, paragraph: bool, show_defaults: bool) {
     use crate::props_layout::{COL_GAP, LABEL_GAP, LABEL_W, field_width, section};
     use crate::theme::ROW_GAP;
     let Some((c, para)) = styles_at(app).or_else(|| show_defaults.then(|| default_styles(app))) else { return };
@@ -2863,14 +2863,14 @@ fn type_sections(app: &mut PhotocraftApp, ui: &mut egui::Ui, character: bool, pa
             (
                 "TT",
                 "All Caps",
-                caps == photocraft_doc::text::Caps::AllCaps,
-                json!({"caps": if caps == photocraft_doc::text::Caps::AllCaps { "normal" } else { "allCaps" }}),
+                caps == evophoto_doc::text::Caps::AllCaps,
+                json!({"caps": if caps == evophoto_doc::text::Caps::AllCaps { "normal" } else { "allCaps" }}),
             ),
             (
                 "Tᴛ",
                 "Small Caps",
-                caps == photocraft_doc::text::Caps::SmallCaps,
-                json!({"caps": if caps == photocraft_doc::text::Caps::SmallCaps { "normal" } else { "smallCaps" }}),
+                caps == evophoto_doc::text::Caps::SmallCaps,
+                json!({"caps": if caps == evophoto_doc::text::Caps::SmallCaps { "normal" } else { "smallCaps" }}),
             ),
             ("T", "Underline", c.underline, json!({"underline": !c.underline})),
             ("T", "Strikethrough", c.strikethrough, json!({"strikethrough": !c.strikethrough})),
@@ -2911,7 +2911,7 @@ fn type_sections(app: &mut PhotocraftApp, ui: &mut egui::Ui, character: bool, pa
         ui.add_space(ROW_GAP);
     }
     if paragraph && section(ui, "paragraph", tl!("Paragraph")) {
-        use photocraft_doc::text::TextAlign as A;
+        use evophoto_doc::text::TextAlign as A;
         let full = ui.available_width();
         let w = field_width(full, 2, LABEL_W);
         let items = [
@@ -2937,7 +2937,7 @@ fn type_sections(app: &mut PhotocraftApp, ui: &mut egui::Ui, character: bool, pa
         .into_iter()
         .any(|layer| {
             let shape = app.session.active().and_then(|s| text_layer(&s.doc, LayerId(layer)).map(|t| t.shape.clone()));
-            !matches!(shape, Some(photocraft_doc::text::TextShape::Box { .. } | photocraft_doc::text::TextShape::Area { .. }))
+            !matches!(shape, Some(evophoto_doc::text::TextShape::Box { .. } | evophoto_doc::text::TextShape::Area { .. }))
         });
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
@@ -2999,14 +2999,14 @@ fn type_sections(app: &mut PhotocraftApp, ui: &mut egui::Ui, character: bool, pa
 }
 
 /// Type Options: anti-aliasing and orientation of the whole layer (the Type menu's commands).
-fn type_options(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn type_options(app: &mut EvoPhotoApp, ui: &mut egui::Ui) {
     use crate::props_layout::{COL_GAP, LABEL_GAP};
     let Some((layer, _)) = target(app) else { return };
     let Some((aa, vertical)) = app
         .session
         .active()
         .and_then(|st| text_layer(&st.doc, LayerId(layer)))
-        .map(|t| (photocraft_engine::type_extra_cmds::aa_name(t.antialias).to_string(), t.orientation == photocraft_doc::text::Orientation::Vertical))
+        .map(|t| (evophoto_engine::type_extra_cmds::aa_name(t.antialias).to_string(), t.orientation == evophoto_doc::text::Orientation::Vertical))
     else {
         return;
     };
@@ -3029,7 +3029,7 @@ fn type_options(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
             let mut cur = aa.clone();
             let opts: Vec<(String, &str)> = ["none", "sharp", "crisp", "strong", "smooth", "windowsLcd", "windows"]
                 .into_iter()
-                .filter_map(|k| photocraft_engine::commands::find(&format!("type.antiAlias.{k}")).map(|c| (k.to_string(), c.label)))
+                .filter_map(|k| evophoto_engine::commands::find(&format!("type.antiAlias.{k}")).map(|c| (k.to_string(), c.label)))
                 .collect();
             if crate::widgets::dropdown(ui, "props-type-aa", &mut cur, &opts, dd_w) {
                 run = Some(format!("type.antiAlias.{cur}"));
@@ -3066,7 +3066,7 @@ fn type_options(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 }
 
 /// Cancel the editing session: undo it back to where it started (removes a new layer).
-pub fn cancel(app: &mut PhotocraftApp) {
+pub fn cancel(app: &mut EvoPhotoApp) {
     crate::type_transform::reset(app);
     let Some(ed) = app.ui.text_edit.take() else { return };
     if let Some(tool) = app.ui.text_edit_return_tool.take()
@@ -3078,7 +3078,7 @@ pub fn cancel(app: &mut PhotocraftApp) {
 }
 
 /// Undo the session's history step, if it is still the latest.
-fn undo_session(app: &mut PhotocraftApp, ed: &TextEdit) {
+fn undo_session(app: &mut EvoPhotoApp, ed: &TextEdit) {
     let coalesced = app.session.active().is_some_and(|s| s.coalesce.as_deref() == Some(ed.session.as_str()));
     if coalesced {
         let _ = app.run("edit.undo", json!({}));
@@ -3097,8 +3097,8 @@ mod font_picker_tests;
 mod tests {
     use super::*;
 
-    fn app() -> PhotocraftApp {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    fn app() -> EvoPhotoApp {
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 400, "height": 200})).unwrap();
         app.sync_views();
         app.ui.tool = crate::state::Tool::Type;
@@ -3140,13 +3140,13 @@ mod tests {
         assert!(app.ui.recent_fonts.is_empty(), "0 clears the list");
     }
 
-    fn layer_text(app: &PhotocraftApp) -> String {
+    fn layer_text(app: &EvoPhotoApp) -> String {
         let ed = app.ui.text_edit.as_ref().unwrap();
         current_text(app, LayerId(ed.layer)).unwrap()
     }
 
     /// A committed type layer reading `s` at the same spot as the others (stacked variants, #4320).
-    fn stacked_variant(app: &mut PhotocraftApp, s: &str) -> LayerId {
+    fn stacked_variant(app: &mut EvoPhotoApp, s: &str) -> LayerId {
         app.ui.text_edit = None;
         pointer_up(app, [50.0, 100.0], [50.0, 100.0]);
         insert(app, s);
@@ -3154,12 +3154,12 @@ mod tests {
         app.session.active().unwrap().active_layer.unwrap()
     }
 
-    fn hide(app: &mut PhotocraftApp, id: LayerId) {
+    fn hide(app: &mut EvoPhotoApp, id: LayerId) {
         app.run("layer.setProps", json!({"layer": id.0, "visible": false})).unwrap();
     }
 
     /// Wraps `id` in a new group and returns the group.
-    fn group_of(app: &mut PhotocraftApp, id: LayerId) -> LayerId {
+    fn group_of(app: &mut EvoPhotoApp, id: LayerId) -> LayerId {
         app.run("layer.select", json!({"layer": id.0, "mode": "replace"})).unwrap();
         app.run("layer.groupLayers", json!({})).unwrap();
         let doc = &app.session.active().unwrap().doc;
@@ -3168,7 +3168,7 @@ mod tests {
     }
 
     /// Three type variants at one spot, bottom to top: A, B, C.
-    fn variants() -> (PhotocraftApp, [LayerId; 3]) {
+    fn variants() -> (EvoPhotoApp, [LayerId; 3]) {
         let mut app = app();
         let ids = ["Variant A", "Variant B", "Variant C"].map(|s| stacked_variant(&mut app, s));
         (app, ids)
@@ -3264,11 +3264,11 @@ mod tests {
     /// clicked, in one history step with the placeholder selected; a click off it is point text.
     #[test]
     fn click_on_a_path_starts_type_on_the_path() {
-        use photocraft_doc::text::TextShape;
+        use evophoto_doc::text::TextShape;
         let mut app = app();
         app.session
             .edit("path", |doc, _| {
-                doc.work_path = Some(photocraft_doc::vector::Path::new(vec![photocraft_doc::vector::Subpath::polyline(&[(20.0, 100.0), (380.0, 100.0)])]));
+                doc.work_path = Some(evophoto_doc::vector::Path::new(vec![evophoto_doc::vector::Subpath::polyline(&[(20.0, 100.0), (380.0, 100.0)])]));
                 Ok(())
             })
             .unwrap();
@@ -3301,14 +3301,14 @@ mod tests {
         let mut app = app();
         app.session
             .edit("path", |doc, _| {
-                doc.work_path = Some(photocraft_doc::vector::Path::new(vec![photocraft_doc::vector::Subpath::polyline(&[(300.0, 10.0), (300.0, 195.0)])]));
+                doc.work_path = Some(evophoto_doc::vector::Path::new(vec![evophoto_doc::vector::Subpath::polyline(&[(300.0, 10.0), (300.0, 195.0)])]));
                 Ok(())
             })
             .unwrap();
         pointer_up(&mut app, [300.0, 20.0], [300.0, 20.0]);
         insert(&mut app, "ABCDEFGH");
         let id = LayerId(app.ui.text_edit.as_ref().unwrap().layer);
-        assert!(matches!(text_layer(&app.session.active().unwrap().doc, id).unwrap().shape, photocraft_doc::text::TextShape::Path { .. }));
+        assert!(matches!(text_layer(&app.session.active().unwrap().doc, id).unwrap().shape, evophoto_doc::text::TextShape::Path { .. }));
         // The type runs down the path: near its start the caret is at the beginning, far down at the end.
         assert_eq!(offset_at(&mut app, id, 300.0, 18.0), 0);
         // (The straight line would put both of these at the start: they are left of its first glyph.)
@@ -3376,7 +3376,7 @@ mod tests {
         insert(&mut app, "\n\nTitle");
         let id = app.ui.text_edit.as_ref().unwrap().layer;
         commit(&mut app);
-        let name = |app: &PhotocraftApp| app.session.active().unwrap().doc.layers.last().unwrap().name.clone();
+        let name = |app: &EvoPhotoApp| app.session.active().unwrap().doc.layers.last().unwrap().name.clone();
         assert_eq!(name(&app), "Title");
         // Edited later, outside the session that created it (#483).
         app.run("type.edit", json!({"layer": id, "text": "\nSubtitle"})).unwrap();
@@ -3471,7 +3471,7 @@ mod tests {
         app.ui.caret_blink_time = 0.0;
         let ctx = egui::Context::default();
 
-        let has_caret = |app: &mut PhotocraftApp, ctx: &egui::Context, time: f64| -> bool {
+        let has_caret = |app: &mut EvoPhotoApp, ctx: &egui::Context, time: f64| -> bool {
             let mut out = ctx.run_ui(egui::RawInput { time: Some(time), ..Default::default() }, |ui| {
                 let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400.0, 400.0));
                 let painter = ui.ctx().layer_painter(egui::LayerId::background()).with_clip_rect(rect);

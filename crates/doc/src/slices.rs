@@ -6,7 +6,7 @@
 //! rectangles that fill the rest of the canvas, recomputed whenever they are needed, exactly like
 //! Photoshop regenerates them after every slice edit.
 
-use photocraft_geom::Rect;
+use evophoto_geom::Rect;
 use serde::{Deserialize, Serialize};
 
 use crate::{Document, LayerId};
@@ -209,7 +209,7 @@ pub fn auto_slices(canvas: Rect, taken: &[Rect]) -> Vec<Rect> {
     let x_cell = |x: i32| xs.partition_point(|&e| e <= x).saturating_sub(1);
     // Horizontal runs per row band. For each band, mark covered x-cells in a single pass over
     // the rects intersecting that band, instead of scanning every rect for every cell (which
-    // was cubic in the slice count and let a crafted document stall canvas drawing).
+    // was cubic in the slice count and let a built document stall canvas drawing).
     let ncells = xs.len().saturating_sub(1);
     let mut runs: Vec<Rect> = Vec::new();
     for yw in ys.windows(2) {

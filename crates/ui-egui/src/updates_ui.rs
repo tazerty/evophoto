@@ -1,9 +1,9 @@
 //! One background check at startup and a non-modal window for release information.
 
-use photocraft_engine::updates_cmds::Status;
+use evophoto_engine::updates_cmds::Status;
 use serde_json::Value;
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 
 #[derive(Default)]
 pub(crate) struct Runtime {
@@ -11,7 +11,7 @@ pub(crate) struct Runtime {
     notified_version: Option<String>,
 }
 
-pub(crate) fn check(app: &mut PhotocraftApp, _ctx: &egui::Context, params: Value) -> Result<Value, String> {
+pub(crate) fn check(app: &mut EvoPhotoApp, _ctx: &egui::Context, params: Value) -> Result<Value, String> {
     let before = app.session.updates.status.clone();
     let result = app.run("help.checkForUpdates", params);
     // A check that fails to start still shows its failure and Check Again; the command error
@@ -28,7 +28,7 @@ pub(crate) fn check(app: &mut PhotocraftApp, _ctx: &egui::Context, params: Value
     result
 }
 
-pub(crate) fn tick(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub(crate) fn tick(app: &mut EvoPhotoApp, ctx: &egui::Context) {
     // `updates.status` also polls (automation may consume the result before this frame).
     app.session.updates.poll();
     if let Status::Available { release } = &app.session.updates.status
@@ -51,7 +51,7 @@ pub(crate) fn tick(app: &mut PhotocraftApp, ctx: &egui::Context) {
     }
 }
 
-pub(crate) fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub(crate) fn show(app: &mut EvoPhotoApp, ctx: &egui::Context) {
     if !app.ui.updates_open {
         return;
     }
@@ -60,14 +60,14 @@ pub(crate) fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
     let mut retry = false;
     let mut download = None;
     egui::Window::new(tl!("Lumbra Updates"))
-        .id(egui::Id::new("photocraft_updates"))
+        .id(egui::Id::new("evophoto_updates"))
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
         .default_width(380.0)
         .show(ctx, |ui| {
             let t = crate::theme::Tokens::get(ctx);
-            ui.label(crate::i18n::fmt(crate::i18n::t("Installed version: {version}"), &[("version", photocraft_engine::build_info::VERSION)]));
+            ui.label(crate::i18n::fmt(crate::i18n::t("Installed version: {version}"), &[("version", evophoto_engine::build_info::VERSION)]));
             ui.add_space(8.0);
             match &status {
                 Status::Checking => {
@@ -111,17 +111,17 @@ pub(crate) fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
 mod tests {
     use super::*;
     use crate::{Services, menus};
-    use photocraft_engine::{Session, updates_cmds::Release};
+    use evophoto_engine::{Session, updates_cmds::Release};
     use std::sync::{Arc, Mutex, mpsc};
 
-    type Sender = Arc<Mutex<Option<mpsc::Sender<photocraft_engine::updates_cmds::CheckResult>>>>;
+    type Sender = Arc<Mutex<Option<mpsc::Sender<evophoto_engine::updates_cmds::CheckResult>>>>;
 
-    fn app() -> (PhotocraftApp, Arc<Mutex<u32>>, Sender) {
+    fn app() -> (EvoPhotoApp, Arc<Mutex<u32>>, Sender) {
         let calls = Arc::new(Mutex::new(0));
         let count = calls.clone();
         let sender = Arc::new(Mutex::new(None));
         let tx = sender.clone();
-        let app = PhotocraftApp::new(
+        let app = EvoPhotoApp::new(
             Session::new(),
             Services {
                 check_updates: Some(Box::new(move || {
@@ -136,7 +136,7 @@ mod tests {
         (app, calls, sender)
     }
 
-    fn at(app: &mut PhotocraftApp, ctx: &egui::Context, time: f64) {
+    fn at(app: &mut EvoPhotoApp, ctx: &egui::Context, time: f64) {
         let mut output = ctx.run_ui(egui::RawInput { time: Some(time), ..Default::default() }, |ui| tick(app, ui.ctx()));
         output.textures_delta.clear();
     }
@@ -194,7 +194,7 @@ mod tests {
         sender.lock().unwrap().as_ref().unwrap().send(Err("offline".into())).unwrap();
         at(&mut app, &ctx, 1.0);
         assert!(matches!(app.session.updates.status, Status::Failed { .. }));
-        let mut web = PhotocraftApp::new(Session::new(), Services::default());
+        let mut web = EvoPhotoApp::new(Session::new(), Services::default());
         assert!(!menus::is_enabled(&web, "help.checkForUpdates"));
         at(&mut web, &ctx, 2.0);
         assert_eq!(web.session.updates.status, Status::Idle);
@@ -210,7 +210,7 @@ mod tests {
             .unwrap()
             .as_ref()
             .unwrap()
-            .send(Ok(Some(Release { version: "99.0.0".into(), url: "https://github.com/storytold/photocraft/releases/tag/v99.0.0".into() })))
+            .send(Ok(Some(Release { version: "99.0.0".into(), url: "https://github.com/tazerty/evophoto/releases/tag/v99.0.0".into() })))
             .unwrap();
         app.run("updates.status", serde_json::json!({})).unwrap();
         at(&mut app, &ctx, 1.0);
@@ -223,7 +223,7 @@ mod tests {
     #[test]
     fn a_manual_check_that_fails_to_start_opens_the_status_window() {
         let mut app =
-            PhotocraftApp::new(Session::new(), Services { check_updates: Some(Box::new(|| Err("Could not start worker".into()))), ..Default::default() });
+            EvoPhotoApp::new(Session::new(), Services { check_updates: Some(Box::new(|| Err("Could not start worker".into()))), ..Default::default() });
         let ctx = egui::Context::default();
         let error = menus::invoke(&mut app, &ctx, "help.checkForUpdates", serde_json::json!({})).unwrap_err();
         assert!(error.contains("Could not start worker"), "{error}");
@@ -248,7 +248,7 @@ mod tests {
     fn update_window_is_drivable_and_bad_state_changes_are_atomic() {
         let (mut app, _, _) = app();
         let ctx = egui::Context::default();
-        let call = |app: &mut PhotocraftApp, method: &str, params: Value| {
+        let call = |app: &mut EvoPhotoApp, method: &str, params: Value| {
             let (req, _) = crate::control::ControlRequest::new(method, params);
             match crate::control::handle(app, &ctx, &req) {
                 crate::control::Outcome::Done(value) => value,

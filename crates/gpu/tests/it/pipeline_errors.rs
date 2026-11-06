@@ -4,10 +4,10 @@
 
 use std::sync::Arc;
 
-use photocraft_color::{Color, ColorMode, SampleType};
-use photocraft_doc::Document;
-use photocraft_geom::Size;
-use photocraft_gpu::{Compositor, render_to_vec};
+use evophoto_color::{Color, ColorMode, SampleType};
+use evophoto_doc::Document;
+use evophoto_geom::Size;
+use evophoto_gpu::{Compositor, render_to_vec};
 
 use crate::GPU_LOCK;
 

@@ -1,12 +1,12 @@
 //! Edit › Free Transform / Transform: projective transforms of layers (and the selection).
 
-use photocraft_algo::transform::{Homography, Interp, WARP_REACH, warp_output_clipped, warp_output_size, warp_surface, warp_surface_with};
-use photocraft_color::PixelFormat;
+use evophoto_algo::transform::{Homography, Interp, WARP_REACH, warp_output_clipped, warp_output_size, warp_surface, warp_surface_with};
+use evophoto_color::PixelFormat;
 #[cfg(test)]
-use photocraft_color::{ColorMode, SampleType};
-use photocraft_doc::{Document, Layer, LayerContent, LayerId, Locks};
-use photocraft_geom::{Affine, Rect};
-use photocraft_raster::{Interrupt, Surface};
+use evophoto_color::{ColorMode, SampleType};
+use evophoto_doc::{Document, Layer, LayerContent, LayerId, Locks};
+use evophoto_geom::{Affine, Rect};
+use evophoto_raster::{Interrupt, Surface};
 use serde_json::{Value, json};
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -62,10 +62,10 @@ pub(crate) fn whole_layer_bounds(doc: &Document, layer: &Layer) -> Rect {
         LayerContent::Group(g) => g.children.iter().map(|c| whole_layer_bounds(doc, c)).fold(Rect::EMPTY, |a, b| a.union(&b)),
         // A soft shape (Density below 100 % or a Feather) renders past its path, over the whole
         // canvas below 100 %: its frame follows the path and stroke, as in Photoshop (#5846).
-        LayerContent::Shape(sh) if sh.has_soft_mask() => photocraft_compose::soft_shape_frame(sh, doc.pixel_format(), doc.bounds()).unwrap_or(Rect::EMPTY),
-        _ => layer.surface().map_or(Rect::EMPTY, photocraft_compose::bounds::content_bounds),
+        LayerContent::Shape(sh) if sh.has_soft_mask() => evophoto_compose::soft_shape_frame(sh, doc.pixel_format(), doc.bounds()).unwrap_or(Rect::EMPTY),
+        _ => layer.surface().map_or(Rect::EMPTY, evophoto_compose::bounds::content_bounds),
     };
-    if content.is_empty() { layer.mask.as_ref().map_or(Rect::EMPTY, |m| photocraft_compose::bounds::content_bounds(&m.surface)) } else { content }
+    if content.is_empty() { layer.mask.as_ref().map_or(Rect::EMPTY, |m| evophoto_compose::bounds::content_bounds(&m.surface)) } else { content }
 }
 
 /// Warp a surface whose pixels outside the content read as `default` (masks, selections):
@@ -557,9 +557,9 @@ pub(crate) fn refresh_text(doc: &Document, l: &mut Layer) {
 /// `Arc<Tile>` directly with `dst`, and opaque/transparent pixels on border tiles copy encoded
 /// bytes without a whole-region `f32` round trip.
 pub(crate) fn composite_over(dst: &mut Surface, top: &Surface) {
-    use photocraft_color::{SampleType, read_sample};
-    use photocraft_geom::TileCoord;
-    use photocraft_raster::Tile;
+    use evophoto_color::{SampleType, read_sample};
+    use evophoto_geom::TileCoord;
+    use evophoto_raster::Tile;
     use rayon::prelude::*;
     use std::sync::Arc;
 
@@ -659,7 +659,7 @@ pub(crate) fn composite_over(dst: &mut Surface, top: &Surface) {
                         }
                     }
                     dp[a] = oa;
-                    photocraft_raster::encode_pixel(&fmt, &dp[..n], out_px);
+                    evophoto_raster::encode_pixel(&fmt, &dp[..n], out_px);
                 }
                 Some((tc, Arc::new(out_tile)))
             })
@@ -1224,11 +1224,11 @@ mod tests {
             let (fmt, canvas) = (doc.pixel_format(), doc.bounds());
             let l = doc.layer_mut(active.unwrap()).unwrap();
             let LayerContent::Fill(f) = &l.content else { panic!("a fill layer") };
-            let buf = photocraft_compose::render_fill_content(l, f, canvas, &[]);
+            let buf = evophoto_compose::render_fill_content(l, f, canvas, &[]);
             let mut surface = Surface::new(fmt);
-            let vals: Vec<f32> = buf.px.iter().flat_map(|p| photocraft_raster::from_rgba(&fmt, *p)).collect();
+            let vals: Vec<f32> = buf.px.iter().flat_map(|p| evophoto_raster::from_rgba(&fmt, *p)).collect();
             surface.write_region(canvas, &vals);
-            l.fill_cache = Some(photocraft_doc::FillCache { fill: f.clone(), surface });
+            l.fill_cache = Some(evophoto_doc::FillCache { fill: f.clone(), surface });
             Ok(())
         })
         .unwrap();
@@ -1241,7 +1241,7 @@ mod tests {
         let st = s.active().unwrap();
         let mut fresh: Document = (*st.doc).clone();
         fresh.layer_mut(st.active_layer.unwrap()).unwrap().fill_cache = None;
-        let (a, b) = (photocraft_compose::render(&st.doc, st.doc.bounds()).px, photocraft_compose::render(&fresh, fresh.bounds()).px);
+        let (a, b) = (evophoto_compose::render(&st.doc, st.doc.bounds()).px, evophoto_compose::render(&fresh, fresh.bounds()).px);
         a.iter().zip(&b).flat_map(|(p, q)| p.iter().zip(q).map(|(x, y)| (x - y).abs())).fold(0.0, f32::max)
     }
 
@@ -1725,7 +1725,7 @@ mod tests {
         let mut s = Session::new();
         s.execute("file.new", json!({"width": 200, "height": 200})).unwrap();
         let id = s.execute("shape.create", json!({"kind": "rect", "rect": [20, 30, 60, 40], "fill": "#000000"})).unwrap()["layer"].as_u64().unwrap();
-        let id = photocraft_doc::LayerId(id);
+        let id = evophoto_doc::LayerId(id);
         let boxes = |s: &Session| {
             let st = s.active().unwrap();
             let l = st.doc.layer(id).unwrap();
@@ -1737,7 +1737,7 @@ mod tests {
         {
             let st = s.active().unwrap();
             let LayerContent::Shape(sh) = &st.doc.layer(id).unwrap().content else { panic!("a shape") };
-            let painted = photocraft_compose::bounds::content_bounds(sh.cache.as_ref().unwrap());
+            let painted = evophoto_compose::bounds::content_bounds(sh.cache.as_ref().unwrap());
             assert_eq!(painted, st.doc.bounds(), "the soft fill renders over the whole canvas");
         }
         let soft = boxes(&s);
@@ -1767,7 +1767,7 @@ mod tests {
             let id = s.execute("shape.create", json!({"kind": "rect", "rect": [x, 50, 60, 40], "fill": "#000000", "stroke": stroke})).unwrap()["layer"]
                 .as_u64()
                 .unwrap();
-            let id = photocraft_doc::LayerId(id);
+            let id = evophoto_doc::LayerId(id);
             let boxes = |s: &Session| {
                 let st = s.active().unwrap();
                 let l = st.doc.layer(id).unwrap();

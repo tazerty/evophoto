@@ -9,7 +9,7 @@
 # Clean-room: every entry was written from the plain meaning of the English label using ordinary
 # Indonesian computing vocabulary (layer, kuas, seleksi, kanvas ...). No proprietary localisation
 # resource, string table or product UI was consulted or copied; add entries the same way.
-# Product and technology names (PhotoCraft, OpenType, CMYK, Lab ...) stay in Latin
+# Product and technology names (EvoPhoto, OpenType, CMYK, Lab ...) stay in Latin
 # letters; the trailing "…" of dialog commands is kept.
 
 # Layer Mask Display Options (the layer mask rubylith's colour and opacity)
@@ -1345,7 +1345,7 @@
 	Lumbra	Lumbra
 	Lumbra Manages Colors	Lumbra Mengelola Warna
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — editor gambar native open-source yang ditulis dengan Rust.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	Berbasis PhotoCraft, perangkat lunak open-source (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Berbasis EvoPhoto, perangkat lunak open-source (MIT OR Apache-2.0).
 	Pin Depth:	Kedalaman Pin:
 	Pixel Length:	Panjang Piksel:
 	Pixels/Centimeter	Piksel/Sentimeter
@@ -2772,7 +2772,7 @@ cameraRaw	Blending	Pembauran
 	Use tablet pressure to change pen width	Gunakan tekanan tablet untuk mengubah lebar pena
 
 
-# About ▸ Contributors / Models (credits, craftrules standards/contributors.md)
+# About ▸ Contributors / Models (credits, evorules standards/contributors.md)
 	About	Tentang
 	Contributors	Kontributor
 	Models	Model
@@ -3246,7 +3246,7 @@ curves	Smooth	Haluskan
 	Sent to {printer}	Dikirim ke {printer}
 	set in Print Settings…	diatur di Pengaturan Cetak…
 	ICO is limited to 256 × 256 pixels	ICO dibatasi hingga 256 × 256 piksel
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	Periksa Pembaruan…
 	Lumbra Updates	Pembaruan Lumbra
 	Checking for updates…	Memeriksa pembaruan…

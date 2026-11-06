@@ -20,17 +20,17 @@
 //!
 //! What the workspace holds is plain data (the sampling option, brush strokes, lasso edits and
 //! fill settings); OK and Apply run `edit.contentAwareFill` with it, and the preview runs the same
-//! plan ([`photocraft_engine::edit_menu_cmds::content_aware_plan`]), so the preview is exactly
+//! plan ([`evophoto_engine::edit_menu_cmds::content_aware_plan`]), so the preview is exactly
 //! what gets written. The settings are remembered for the next time (`prefs.dialogs`).
 
 use egui::{Align2, Color32, FontId, Pos2, Rect as ERect, Sense, Stroke, TextureHandle, pos2, vec2};
-use photocraft_algo::content_aware::{SamplingStroke, paint_strokes};
-use photocraft_doc::LayerId;
-use photocraft_engine::edit_menu_cmds::{MAX_CAF_EDITS, MAX_CAF_POINTS};
-use photocraft_geom::Rect;
+use evophoto_algo::content_aware::{SamplingStroke, paint_strokes};
+use evophoto_doc::LayerId;
+use evophoto_engine::edit_menu_cmds::{MAX_CAF_EDITS, MAX_CAF_POINTS};
+use evophoto_geom::Rect;
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::canvas::ToolEvent;
 use crate::theme::Tokens;
 use crate::widgets;
@@ -230,7 +230,7 @@ struct Preview {
     /// Bumped whenever the state changes; a result for an older generation is dropped.
     want: u64,
     #[cfg(not(target_arch = "wasm32"))]
-    running: Option<(u64, std::sync::mpsc::Receiver<PreviewResult>, photocraft_engine::jobs::JobCtx)>,
+    running: Option<(u64, std::sync::mpsc::Receiver<PreviewResult>, evophoto_engine::jobs::JobCtx)>,
     shown: u64,
     /// A finished preview waiting to be uploaded (on the UI thread, which has the context).
     pending_image: Option<(Rect, egui::ColorImage)>,
@@ -476,14 +476,14 @@ fn points_limit() -> String {
 
 /// The plan without strokes: the window, fill area and the option's area. Custom starts empty
 /// (the window and fill area are those of Rectangular).
-fn compute_base(app: &PhotocraftApp, w: &CafWorkspace) -> Result<Base, String> {
+fn compute_base(app: &EvoPhotoApp, w: &CafWorkspace) -> Result<Base, String> {
     let st = app.session.active().ok_or("no document")?;
     let mut p = plan_params(w, false);
     let custom = w.opts.sampling == "custom";
     if custom {
         p["sampling"] = json!("rectangular");
     }
-    let plan = photocraft_engine::edit_menu_cmds::content_aware_plan(&st.doc, w.layer, &p, CMD).map_err(|e| e.to_string())?;
+    let plan = evophoto_engine::edit_menu_cmds::content_aware_plan(&st.doc, w.layer, &p, CMD).map_err(|e| e.to_string())?;
     let base = if custom { vec![false; plan.base.len()] } else { plan.base };
     Ok(Base { window: plan.window, rect: plan.rect, hole: plan.hole, base })
 }
@@ -521,7 +521,7 @@ fn outline(b: &Base) -> Option<Vec<[[f32; 2]; 2]>> {
 }
 
 /// Recompute the base after a change of the fill area, the sampling option or the document.
-fn rebase(app: &mut PhotocraftApp) {
+fn rebase(app: &mut EvoPhotoApp) {
     let Some(w) = app.distort.caf.as_ref() else { return };
     let r = compute_base(app, w);
     let Some(w) = app.distort.caf.as_mut() else { return };
@@ -539,7 +539,7 @@ fn rebase(app: &mut PhotocraftApp) {
 }
 
 /// Opens the workspace on the active layer and its selection.
-pub fn open(app: &mut PhotocraftApp) -> Result<(), String> {
+pub fn open(app: &mut EvoPhotoApp) -> Result<(), String> {
     if !app.session.is_enabled(CMD) {
         return Err("Content-Aware Fill needs a selection on a pixel layer".into());
     }
@@ -592,7 +592,7 @@ pub fn open(app: &mut PhotocraftApp) -> Result<(), String> {
     };
     w.brush_add = w.opts.sampling == "custom";
     let base = compute_base(app, &w)?;
-    w.brush_size = photocraft_algo::content_aware::default_brush_size(bounds(&base));
+    w.brush_size = evophoto_algo::content_aware::default_brush_size(bounds(&base));
     w.set_base(base);
     w.stale();
     app.distort.caf = Some(w);
@@ -608,13 +608,13 @@ fn bounds(b: &Base) -> Rect {
     })
 }
 
-fn remember(app: &mut PhotocraftApp, opts: &CafOpts) {
+fn remember(app: &mut EvoPhotoApp, opts: &CafOpts) {
     let v = opts.to_json();
     app.session.prefs.edit(|p| p.dialogs.insert(REMEMBERED.into(), v));
 }
 
 /// Apply: fill with the current state (one history step); the workspace stays open.
-pub fn apply(app: &mut PhotocraftApp) -> Result<Value, String> {
+pub fn apply(app: &mut EvoPhotoApp) -> Result<Value, String> {
     let Some(w) = app.distort.caf.as_mut() else { return Err("Content-Aware Fill is not open".into()) };
     w.end_stroke();
     let p = plan_params(w, true);
@@ -630,7 +630,7 @@ pub fn apply(app: &mut PhotocraftApp) -> Result<Value, String> {
 /// OK: fill and close. A fill that fails (nothing to sample from, a fill area too large, …)
 /// leaves the workspace open with the error in its panel, so the areas can be fixed and OK
 /// pressed again instead of the work being thrown away.
-pub fn commit(app: &mut PhotocraftApp) {
+pub fn commit(app: &mut EvoPhotoApp) {
     match apply(app) {
         Ok(_) => close(app),
         Err(e) => report(app, e),
@@ -638,7 +638,7 @@ pub fn commit(app: &mut PhotocraftApp) {
 }
 
 /// An Apply or OK that failed: the error in the panel and the status bar.
-fn report(app: &mut PhotocraftApp, e: String) {
+fn report(app: &mut EvoPhotoApp, e: String) {
     if let Some(w) = app.distort.caf.as_mut() {
         w.error = Some(e.clone());
     }
@@ -647,7 +647,7 @@ fn report(app: &mut PhotocraftApp, e: String) {
 }
 
 /// Cancel (button, Esc): closes; what was applied stays. The settings are kept.
-pub fn cancel(app: &mut PhotocraftApp) {
+pub fn cancel(app: &mut EvoPhotoApp) {
     if let Some(w) = app.distort.caf.as_ref() {
         let opts = w.opts.clone();
         remember(app, &opts);
@@ -655,7 +655,7 @@ pub fn cancel(app: &mut PhotocraftApp) {
     close(app);
 }
 
-fn close(app: &mut PhotocraftApp) {
+fn close(app: &mut EvoPhotoApp) {
     if let Some(w) = app.distort.caf.take() {
         cancel_preview(w);
     }
@@ -672,7 +672,7 @@ fn cancel_preview(w: CafWorkspace) {
 fn cancel_preview(_: CafWorkspace) {}
 
 /// The document changed under the workspace (an Apply): new textures, a new base.
-fn refresh(app: &mut PhotocraftApp) {
+fn refresh(app: &mut EvoPhotoApp) {
     let rev = app.session.active().map(|s| s.revision);
     if let Some(w) = app.distort.caf.as_mut() {
         w.image_tex = None;
@@ -681,7 +681,7 @@ fn refresh(app: &mut PhotocraftApp) {
     rebase(app);
 }
 
-fn undo(app: &mut PhotocraftApp) {
+fn undo(app: &mut EvoPhotoApp) {
     let Some(w) = app.distort.caf.as_mut() else { return };
     w.end_stroke();
     let Some(step) = w.undo.pop() else { return };
@@ -716,7 +716,7 @@ fn undo(app: &mut PhotocraftApp) {
     }
 }
 
-fn redo(app: &mut PhotocraftApp) {
+fn redo(app: &mut EvoPhotoApp) {
     let Some(w) = app.distort.caf.as_mut() else { return };
     w.end_stroke();
     let Some(step) = w.redo.pop() else { return };
@@ -750,7 +750,7 @@ fn redo(app: &mut PhotocraftApp) {
 }
 
 /// A lasso edit of the fill area (or Expand / Contract), undoable.
-fn fill_edit(app: &mut PhotocraftApp, edit: Value) {
+fn fill_edit(app: &mut EvoPhotoApp, edit: Value) {
     let Some(w) = app.distort.caf.as_mut() else { return };
     w.end_stroke();
     // The engine's limits, kept here (see `begin_stroke`).
@@ -778,7 +778,7 @@ fn fill_edit(app: &mut PhotocraftApp, edit: Value) {
 
 /// A new sampling option (Auto, Rectangular, Custom): the brush strokes start over and the brush
 /// takes the option's mode (Custom adds, the others subtract).
-fn set_sampling(app: &mut PhotocraftApp, sampling: &str) {
+fn set_sampling(app: &mut EvoPhotoApp, sampling: &str) {
     let Some(w) = app.distort.caf.as_mut() else { return };
     if w.opts.sampling == sampling && w.strokes.is_empty() {
         return;
@@ -792,7 +792,7 @@ fn set_sampling(app: &mut PhotocraftApp, sampling: &str) {
 }
 
 /// Reset buttons: the sampling options, the fill settings, or everything.
-fn reset(app: &mut PhotocraftApp, what: &str) {
+fn reset(app: &mut EvoPhotoApp, what: &str) {
     let Some(w) = app.distort.caf.as_mut() else { return };
     let d = CafOpts::default();
     match what {
@@ -826,7 +826,7 @@ fn reset(app: &mut PhotocraftApp, what: &str) {
 }
 
 /// Control channel: `edit.contentAwareFill {"ui": {...}}` while the workspace is open.
-pub fn control(app: &mut PhotocraftApp, ui: &Value) -> Result<Value, String> {
+pub fn control(app: &mut EvoPhotoApp, ui: &Value) -> Result<Value, String> {
     let flag = |k: &str| ui.get(k).and_then(Value::as_bool) == Some(true);
     if flag("cancel") {
         cancel(app);
@@ -926,13 +926,13 @@ pub fn control(app: &mut PhotocraftApp, ui: &Value) -> Result<Value, String> {
 }
 
 /// Computes the preview now, on this thread (tests and the control channel).
-fn wait_preview(app: &mut PhotocraftApp) -> Result<(), String> {
+fn wait_preview(app: &mut EvoPhotoApp) -> Result<(), String> {
     let (doc, layer, p, want, limit) = {
         let w = app.distort.caf.as_ref().ok_or("Content-Aware Fill is not open")?;
         let st = app.session.active().ok_or("no document")?;
         (st.doc.clone(), w.layer, plan_params(w, true), w.preview.want, w.texture_limit)
     };
-    let r = compute_preview(&doc, layer, &p, &photocraft_raster::Interrupt::NONE, limit);
+    let r = compute_preview(&doc, layer, &p, &evophoto_raster::Interrupt::NONE, limit);
     let w = app.distort.caf.as_mut().ok_or("Content-Aware Fill is not open")?;
     let err = r.as_ref().err().cloned();
     w.preview.finish(want, r);
@@ -943,14 +943,14 @@ fn wait_preview(app: &mut PhotocraftApp) -> Result<(), String> {
 /// `max_side`: past the device's limit it is box-averaged to fit (the rectangle it is drawn over
 /// stays the plan's).
 fn compute_preview(
-    doc: &photocraft_doc::Document,
+    doc: &evophoto_doc::Document,
     layer: LayerId,
     p: &Value,
-    ctl: &photocraft_raster::Interrupt,
+    ctl: &evophoto_raster::Interrupt,
     max_side: usize,
 ) -> Result<(Rect, egui::ColorImage), String> {
-    let plan = photocraft_engine::edit_menu_cmds::content_aware_plan_with(doc, layer, p, CMD, ctl).map_err(|e| match e {
-        photocraft_engine::EngineError::Cancelled => "cancelled".to_string(),
+    let plan = evophoto_engine::edit_menu_cmds::content_aware_plan_with(doc, layer, p, CMD, ctl).map_err(|e| match e {
+        evophoto_engine::EngineError::Cancelled => "cancelled".to_string(),
         e => e.to_string(),
     })?;
     // Patches come only from the sampling area outside the fill area. With none (the Sampling
@@ -962,16 +962,16 @@ fn compute_preview(
     let (w, h) = (plan.rect.width() as usize, plan.rect.height() as usize);
     let n = plan.fmt.channels();
     let filled =
-        photocraft_algo::content_aware::fill_with(w, h, n, &plan.img, &plan.hole, &plan.source, &plan.opts, ctl).map_err(|_| "cancelled".to_string())?;
+        evophoto_algo::content_aware::fill_with(w, h, n, &plan.img, &plan.hole, &plan.source, &plan.opts, ctl).map_err(|_| "cancelled".to_string())?;
     let own = plan.layer_pixels();
     // Pixel `i`: the fill over the fill area (a partly selected pixel by its coverage), the
     // layer's own pixels elsewhere.
     let pixel = |i: usize| -> [f32; 4] {
         let src = if plan.hole[i] { &filled[i * n..(i + 1) * n] } else { &own[i * n..(i + 1) * n] };
-        let mut c = photocraft_raster::to_rgba(&plan.fmt, src);
+        let mut c = evophoto_raster::to_rgba(&plan.fmt, src);
         if plan.hole[i] {
             let k = plan.cover[i];
-            let under = photocraft_raster::to_rgba(&plan.fmt, &own[i * n..(i + 1) * n]);
+            let under = evophoto_raster::to_rgba(&plan.fmt, &own[i * n..(i + 1) * n]);
             for j in 0..4 {
                 c[j] = under[j] + (c[j] - under[j]) * k;
             }
@@ -1011,7 +1011,7 @@ fn compute_preview(
 /// Starts a background preview when the shown one is out of date (and the pointer is up), and
 /// collects a finished one.
 #[cfg(not(target_arch = "wasm32"))]
-fn drive_preview(app: &mut PhotocraftApp, ctx: &egui::Context, dragging: bool) {
+fn drive_preview(app: &mut EvoPhotoApp, ctx: &egui::Context, dragging: bool) {
     let doc = app.session.active().map(|s| s.doc.clone());
     let Some(w) = app.distort.caf.as_mut() else { return };
     let pv = &mut w.preview;
@@ -1046,7 +1046,7 @@ fn drive_preview(app: &mut PhotocraftApp, ctx: &egui::Context, dragging: bool) {
     let Some(doc) = doc else { return };
     let (layer, p, generation, limit) = (w.layer, plan_params(w, true), w.preview.want, w.texture_limit);
     let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    let job = photocraft_engine::jobs::JobCtx::new();
+    let job = evophoto_engine::jobs::JobCtx::new();
     let work = job.clone();
     let repaint = ctx.clone();
     let spawned = std::thread::Builder::new().name("caf-preview".into()).spawn(move || {
@@ -1063,7 +1063,7 @@ fn drive_preview(app: &mut PhotocraftApp, ctx: &egui::Context, dragging: bool) {
 
 /// The web build has no threads: the preview is computed when the pointer comes up.
 #[cfg(target_arch = "wasm32")]
-fn drive_preview(app: &mut PhotocraftApp, _ctx: &egui::Context, dragging: bool) {
+fn drive_preview(app: &mut EvoPhotoApp, _ctx: &egui::Context, dragging: bool) {
     let stale = app.distort.caf.as_ref().is_some_and(|w| w.preview.shown != w.preview.want);
     if stale && !dragging {
         let _ = wait_preview(app);
@@ -1071,7 +1071,7 @@ fn drive_preview(app: &mut PhotocraftApp, _ctx: &egui::Context, dragging: bool) 
 }
 
 /// Pointer in document coordinates (from the view or the control channel).
-pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers) {
+pub fn pointer(app: &mut EvoPhotoApp, ev: ToolEvent, mods: egui::Modifiers) {
     let Some(w) = app.distort.caf.as_mut() else { return };
     match (w.tool, ev) {
         (CafTool::Brush, ToolEvent::Down { x, y, .. }) => w.begin_stroke([x, y], mods.alt),
@@ -1116,7 +1116,7 @@ pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers) {
     }
 }
 
-pub fn keys(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn keys(app: &mut EvoPhotoApp, ctx: &egui::Context) {
     let cmd_shift = egui::Modifiers::COMMAND | egui::Modifiers::SHIFT;
     if ctx.input_mut(|i| i.consume_key(cmd_shift, egui::Key::Z)) {
         redo(app);
@@ -1186,7 +1186,7 @@ impl View {
 }
 
 /// Upload what changed: the document proxy, the overlay, a finished preview.
-fn upload(app: &mut PhotocraftApp, ctx: &egui::Context) {
+fn upload(app: &mut EvoPhotoApp, ctx: &egui::Context) {
     let need_image = app.distort.caf.as_ref().is_some_and(|w| w.image_tex.is_none());
     if need_image {
         let img = view_image(app);
@@ -1217,16 +1217,16 @@ fn upload(app: &mut PhotocraftApp, ctx: &egui::Context) {
 
 /// The document as the view shows it: the visible layers composited, as on the canvas (so an
 /// Apply to a new layer shows), reduced to the proxy.
-fn view_image(app: &PhotocraftApp) -> Option<egui::ColorImage> {
+fn view_image(app: &EvoPhotoApp) -> Option<egui::ColorImage> {
     let w = app.distort.caf.as_ref()?;
     let st = app.session.active()?;
-    let buf = photocraft_compose::render_reduced(&st.doc, w.pw as u32, w.ph as u32);
+    let buf = evophoto_compose::render_reduced(&st.doc, w.pw as u32, w.ph as u32);
     let (display, _) = crate::canvas::canvas_display(app, &st.doc, None);
     Some(crate::canvas::display_image(display.as_deref(), &buf))
 }
 
 /// Draws the workspace (a full-window layer over the app).
-pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut EvoPhotoApp, ctx: &egui::Context) {
     // An Apply (or anything else) changed the document: refresh.
     let rev = app.session.active().map(|s| s.revision);
     if app.distort.caf.as_ref().is_some_and(|w| Some(w.revision) != rev) {
@@ -1605,8 +1605,8 @@ mod tests {
     use super::*;
 
     /// A textured layer (a checker of two colours over a gradient) with a 20 px square selected.
-    fn app_with_selection() -> PhotocraftApp {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+    fn app_with_selection() -> EvoPhotoApp {
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
         app.session.execute("file.new", json!({"width": 200, "height": 160, "depth": 8})).unwrap();
         app.session.execute("layer.new.layer", json!({})).unwrap();
         app.session
@@ -1632,11 +1632,11 @@ mod tests {
         app
     }
 
-    fn px(app: &PhotocraftApp, layer: LayerId, x: i32, y: i32) -> Vec<f32> {
+    fn px(app: &EvoPhotoApp, layer: LayerId, x: i32, y: i32) -> Vec<f32> {
         app.session.active().unwrap().doc.layer(layer).unwrap().surface().unwrap().pixel(x, y)
     }
 
-    fn ws(app: &PhotocraftApp) -> &CafWorkspace {
+    fn ws(app: &EvoPhotoApp) -> &CafWorkspace {
         app.distort.caf.as_ref().unwrap()
     }
 
@@ -1840,10 +1840,10 @@ mod tests {
 
     /// The engine's sampling area over the plan's rectangle (what the fill samples) and its fill
     /// area.
-    fn engine_source(app: &PhotocraftApp) -> (Rect, Vec<bool>, Vec<bool>) {
+    fn engine_source(app: &EvoPhotoApp) -> (Rect, Vec<bool>, Vec<bool>) {
         let w = ws(app);
         let st = app.session.active().unwrap();
-        let plan = photocraft_engine::edit_menu_cmds::content_aware_plan(&st.doc, w.layer, &plan_params(w, true), CMD).unwrap();
+        let plan = evophoto_engine::edit_menu_cmds::content_aware_plan(&st.doc, w.layer, &plan_params(w, true), CMD).unwrap();
         (plan.rect, plan.source, plan.hole)
     }
 
@@ -1905,7 +1905,7 @@ mod tests {
             open(&mut app).unwrap();
             control(&mut app, &json!({"tool": tool, "sampling": "rectangular"})).unwrap();
             let mut h = egui_kittest::Harness::builder().with_size(vec2(1600.0, 1000.0)).build_ui_state(
-                |ui, app: &mut PhotocraftApp| {
+                |ui, app: &mut EvoPhotoApp| {
                     let ctx = ui.ctx().clone();
                     if !ctx.fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                         return;
@@ -1914,14 +1914,14 @@ mod tests {
                 },
                 app,
             );
-            PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+            EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
             h.run_steps(4);
             // The document view sits between the tool strip and the Preview panel, under the
             // title and the options bar; its centre shows the document's centre.
             let view = ERect::from_min_max(pos2(LEFT_W, 30.0 + BAR_H), pos2(1600.0 - PANEL_W - PREVIEW_W, 1000.0));
             let c = view.center();
             let at = |dx: f32, dy: f32| pos2(c.x + dx, c.y + dy);
-            let press = |h: &mut egui_kittest::Harness<'_, PhotocraftApp>, down: bool, p: Pos2| {
+            let press = |h: &mut egui_kittest::Harness<'_, EvoPhotoApp>, down: bool, p: Pos2| {
                 h.event(egui::Event::PointerButton { pos: p, button: PointerButton::Primary, pressed: down, modifiers: Modifiers::NONE });
                 h.run_steps(1);
             };
@@ -1959,7 +1959,7 @@ mod tests {
     /// box-averaged to fit, and is still drawn over the plan's rectangle.
     #[test]
     fn the_preview_texture_respects_the_device_limit() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
         app.session.execute("file.new", json!({"width": 2200, "height": 40, "depth": 8})).unwrap();
         app.session.execute("layer.new.layer", json!({})).unwrap();
         app.session

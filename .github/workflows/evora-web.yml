@@ -1,15 +1,15 @@
-# Evora web : CI du fork tazerty/photocraft, futur moteur d'Evora Lumbra.
+# Evora web : CI du fork tazerty/evophoto, futur moteur d'Evora Lumbra.
 #
 # Écrite par Evora à partir de packaging/web/package.sh, packaging/env.sh et de la section
 # « Web build » de docs/development.md (code du dépôt, MIT OR Apache-2.0). Rien n'est repris de
-# storytold/craft-common-actions. Aucune action tierce : seules actions/checkout, actions/cache et
+# amont/evo-common-actions. Aucune action tierce : seules actions/checkout, actions/cache et
 # actions/upload-artifact, épinglées par SHA complet. Les outils (Trunk, wasm-bindgen, wasm-opt,
 # cargo-deny, cargo-about) sont téléchargés depuis leurs releases officielles à une version fixe et
 # vérifiés par SHA-256 ; Trunk tourne hors ligne, il ne peut donc rien télécharger d'autre.
 #
 # Portes bloquantes (EVORA-LUM-NN CI, après E1) : cargo-deny (licences, advisories, sources,
-# doublons en avertissement), cargo-about (LICENSES/THIRD-PARTY-RUST.html), marques ArtCraft,
-# fichiers d'hébergement, LICENSES/ complet, émojis des catalogues affichés (résolus dans la pile de
+# doublons en avertissement), cargo-about (LICENSES/THIRD-PARTY-RUST.html), marques (nom et site amont),
+# zéro terme (le nom amont retiré absent du site et des polices, binaires compris), fichiers d'hébergement, LICENSES/ complet, émojis des catalogues affichés (résolus dans la pile de
 # polices d'egui), précompression .br/.gz et empreintes CSP, test de fumée Chrome sans interface en
 # origine différente (evora/ci/), hors pont puis avec le pont hôte EHP v1 (E4, scénario « pont-ehp »)
 # et le pont muet (evora-host.json de l'artefact, vide), le scénario « pont-documents » (E5 pour
@@ -69,9 +69,9 @@ env:
   CARGO_DENY_SHA256: 9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f
   CARGO_ABOUT_VERSION: 0.9.2
   CARGO_ABOUT_SHA256: 9099a59e820c38a68b9d65f300662a567d56562f9a10f6aa4c7e86c17c2566af
-  # Polices servies à part (E6) : craft-fonts épinglé par révision (celle que cite pdfcraft).
-  CRAFT_FONTS_REPO: https://github.com/storytold/craft-fonts
-  CRAFT_FONTS_REF: 3d9ab3a132ed0eff457e424226a435a901da30d3
+  # Polices servies à part (E6) : tazerty/evo-fonts épinglé par révision (mêmes polices et mêmes empreintes que l'origine).
+  EVO_FONTS_REPO: https://github.com/tazerty/evo-fonts
+  EVO_FONTS_REF: 2a8ebd4f51de7b0532e5e0f9eadb2e9185eaa6ab
   # Portes à mesure tant que le patch correspondant n'est pas posé (report), bloquantes ensuite (block).
   EVORA_GATE_TERMS: block
   EVORA_GATE_CODE_EMOJI: block
@@ -209,7 +209,7 @@ jobs:
           cargo fetch --locked
           # Features du build web, telles qu'index.html les impose à Trunk (data-cargo-features) :
           # cargo-deny et cargo-about auditent exactement ce graphe.
-          features=$(sed -n 's/.*data-cargo-features="\([^"]*\)".*/\1/p' apps/photocraft-web/index.html | head -n 1)
+          features=$(sed -n 's/.*data-cargo-features="\([^"]*\)".*/\1/p' apps/evophoto-web/index.html | head -n 1)
           echo "EVORA_FEATURES=$features" >> "$GITHUB_ENV"
           echo "Features du build web : ${features:-(aucune)}"
 
@@ -220,7 +220,7 @@ jobs:
           feat=()
           [ -n "$EVORA_FEATURES" ] && feat=(--features "$EVORA_FEATURES")
           set +e
-          cargo deny --manifest-path apps/photocraft-web/Cargo.toml --config evora/deny.toml \
+          cargo deny --manifest-path apps/evophoto-web/Cargo.toml --config evora/deny.toml \
             --target wasm32-unknown-unknown --exclude-dev --locked "${feat[@]}" \
             check --show-stats > "$RUNNER_TEMP/cargo-deny.log" 2>&1
           status=$?
@@ -231,7 +231,7 @@ jobs:
           {
             echo "### Porte cargo-deny (bloquante)"
             echo
-            echo "Graphe : apps/photocraft-web, wasm32-unknown-unknown, features \`${EVORA_FEATURES:-aucune}\`, sans dépendances de développement. Code de sortie : $status ; lignes error : $errors ; lignes warning : $warnings."
+            echo "Graphe : apps/evophoto-web, wasm32-unknown-unknown, features \`${EVORA_FEATURES:-aucune}\`, sans dépendances de développement. Code de sortie : $status ; lignes error : $errors ; lignes warning : $warnings."
             echo
             echo '```'
             grep -E '^ *(advisories|bans|licenses|sources) ' "$RUNNER_TEMP/cargo-deny.log" | tail -n 8 || true
@@ -241,10 +241,10 @@ jobs:
           exit "$status"
 
       - name: Build web release (Trunk, hors ligne)
-        working-directory: apps/photocraft-web
+        working-directory: apps/evophoto-web
         run: |
-          export PHOTOCRAFT_BUILD_SHA="$GITHUB_SHA"
-          export PHOTOCRAFT_BUILD_DATE="$(date -u +%Y-%m-%d)"
+          export EVOPHOTO_BUILD_SHA="$GITHUB_SHA"
+          export EVOPHOTO_BUILD_DATE="$(date -u +%Y-%m-%d)"
           # index.html choisit le profil wasm-release, les features et wasm-opt -Oz.
           # --offline accepte une valeur facultative : sans « =true », il avalerait « build ».
           trunk --offline=true build --release --locked
@@ -260,7 +260,7 @@ jobs:
           feat=()
           [ -n "$EVORA_FEATURES" ] && feat=(--features "$EVORA_FEATURES")
           set +e
-          cargo about generate --locked --fail --manifest-path apps/photocraft-web/Cargo.toml \
+          cargo about generate --locked --fail --manifest-path apps/evophoto-web/Cargo.toml \
             -c evora/about.toml "${feat[@]}" -o "$about/THIRD-PARTY-RUST.html" \
             evora/about.hbs > "$RUNNER_TEMP/cargo-about.log" 2>&1
           status=$?
@@ -299,7 +299,7 @@ jobs:
             crates/algo/data/LICENSE-*.txt \
             crates/ui-egui/src/i18n/LICENSE-translations.txt \
             "$work/$name/LICENSES/"
-          # Patch E1 : la seule mention ArtCraft conservée, en texte simple, vit dans les mentions.
+          # Patch E1 : la seule mention du nom amont conservée, en texte simple, vit dans les mentions.
           cp evora/MENTIONS.txt "$work/$name/LICENSES/MENTIONS.txt"
           # Patch E4 : origines parentes admises par le pont EHP (?host=evora). Vide dans l'artefact :
           # le provisionnement d'Evora l'écrit (HOST-PROTOCOL §2.3) ; vide, le pont reste muet.
@@ -312,7 +312,7 @@ jobs:
           python3 -I evora/ci/csp_hashes.py "$work/$name/index.html" "$work/$name/csp-hashes.txt"
           {
             echo "product: Evora Lumbra (moteur web)"
-            echo "upstream: storytold/photocraft ${UPSTREAM_TAG} (${UPSTREAM_COMMIT})"
+            echo "upstream: tag ${UPSTREAM_TAG} (${UPSTREAM_COMMIT}), voir LICENSES/MENTIONS.txt"
             echo "fork: ${GITHUB_REPOSITORY} ${GITHUB_REF_NAME} (${GITHUB_SHA})"
             echo "run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo "rustc: ${RUSTC_VERSION}"
@@ -344,7 +344,7 @@ jobs:
             echo
             echo "| Élément | Valeur |"
             echo "| --- | --- |"
-            echo "| Amont | storytold/photocraft \`${UPSTREAM_TAG}\` (\`${UPSTREAM_COMMIT}\`) |"
+            echo "| Amont | tag \`${UPSTREAM_TAG}\` (\`${UPSTREAM_COMMIT}\`) |"
             echo "| Branche | \`${GITHUB_REF_NAME}\` (\`${GITHUB_SHA}\`) |"
             echo "| Toolchain | ${RUSTC_VERSION} ; Trunk ${TRUNK_VERSION} ; wasm-bindgen ${WASM_BINDGEN_VERSION} ; wasm-opt ${BINARYEN_VERSION} |"
             echo "| Archive | \`${name}.zip\`, $(wc -c < "$out/${name}.zip" | tr -d ' ') octets |"
@@ -352,21 +352,21 @@ jobs:
             echo
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Polices servies à part (E6, craft-fonts épinglé)
+      - name: Polices servies à part (E6, evo-fonts épinglé)
         run: |
-          # craft-fonts à la révision épinglée (CRAFT_FONTS_REF), récupérée par son SHA ; chaque
+          # evo-fonts à la révision épinglée (EVO_FONTS_REF), récupérée par son SHA ; chaque
           # police est vérifiée contre l'empreinte SHA-256 de son manifeste (evora/ci/fonts.py).
-          src=$(mktemp -d "$RUNNER_TEMP/craft-fonts.XXXXXX")
+          src=$(mktemp -d "$RUNNER_TEMP/evo-fonts.XXXXXX")
           git -C "$src" init -q
-          git -C "$src" fetch -q --depth 1 "$CRAFT_FONTS_REPO" "$CRAFT_FONTS_REF"
+          git -C "$src" fetch -q --depth 1 "$EVO_FONTS_REPO" "$EVO_FONTS_REF"
           git -C "$src" -c advice.detachedHead=false checkout -q FETCH_HEAD
-          [ "$(git -C "$src" rev-parse HEAD)" = "$CRAFT_FONTS_REF" ] \
-            || { echo "::error::craft-fonts n'est pas à la révision épinglée $CRAFT_FONTS_REF"; exit 1; }
+          [ "$(git -C "$src" rev-parse HEAD)" = "$EVO_FONTS_REF" ] \
+            || { echo "::error::evo-fonts n'est pas à la révision épinglée $EVO_FONTS_REF"; exit 1; }
           fname="evora-lumbra-fonts-${UPSTREAM_TAG}"
           fwork=$(mktemp -d "$RUNNER_TEMP/evora-fonts.XXXXXX")
           python3 -I evora/ci/fonts.py "$src" "$fwork/$fname"
           {
-            echo "craft-fonts: ${CRAFT_FONTS_REPO} ${CRAFT_FONTS_REF}"
+            echo "evo-fonts: ${EVO_FONTS_REPO} ${EVO_FONTS_REF}"
             echo "fork: ${GITHUB_REPOSITORY} ${GITHUB_REF_NAME} (${GITHUB_SHA})"
             echo "run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo "usage: copier fonts/ à côté de index.html ; le moteur lit fonts/manifest.txt et télécharge chaque police à la demande (intégrité SRI)"
@@ -382,7 +382,7 @@ jobs:
           {
             echo "### Polices servies à part (E6)"
             echo
-            echo "craft-fonts \`${CRAFT_FONTS_REF}\` ; archive \`${fname}.zip\`, $(wc -c < "$EVORA_OUT_DIR/$fname.zip" | tr -d ' ') octets ; $(grep -cvE '^[[:space:]]*(#|$)' "$fwork/$fname/fonts/manifest.txt") lignes de manifeste ; polices hors du wasm, téléchargées à la demande."
+            echo "evo-fonts \`${EVO_FONTS_REF}\` ; archive \`${fname}.zip\`, $(wc -c < "$EVORA_OUT_DIR/$fname.zip" | tr -d ' ') octets ; $(grep -cvE '^[[:space:]]*(#|$)' "$fwork/$fname/fonts/manifest.txt") lignes de manifeste ; polices hors du wasm, téléchargées à la demande."
             echo
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -394,6 +394,15 @@ jobs:
           # plafond de l'amont (UPSTREAM_WASM_LIMIT_BYTES).
           EVORA_WASM_BUDGET_BYTES: ${{ vars.EVORA_WASM_BUDGET_BYTES }}
         run: python3 -I evora/ci/gates.py "$EVORA_PKG_DIR" "$RUNNER_TEMP/evora-gates.json"
+
+      - name: Porte zéro terme (le nom amont retiré absent du site et des polices, hors LICENSES/)
+        id: g_term
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python3 -I evora/ci/zero-terme.py selftest
+          python3 -I evora/ci/zero-terme.py check "$EVORA_PKG_DIR"
+          python3 -I evora/ci/zero-terme.py check "$EVORA_FONTS_DIR"
 
       - name: Test de fumée (Chrome sans interface, origine différente)
         id: smoke
@@ -506,7 +515,7 @@ jobs:
           # le build servi (cache cargo partagé), sans wasm-opt.
           smoke_dir="$RUNNER_TEMP/evora-web-smoke"
           (
-            cd apps/photocraft-web
+            cd apps/evophoto-web
             sed 's/data-wasm-opt="z"/data-wasm-opt="0" data-cargo-features="evora-smoke"/' index.html > "$RUNNER_TEMP/index-smoke.html"
             grep -q 'data-cargo-features="evora-smoke"' "$RUNNER_TEMP/index-smoke.html"
             cp "$RUNNER_TEMP/index-smoke.html" index-smoke.html
@@ -551,6 +560,7 @@ jobs:
           DENY: ${{ steps.deny.outcome }}
           ABOUT: ${{ steps.about.outcome }}
           GATES: ${{ steps.gates.outcome }}
+          ZERO_TERM: ${{ steps.g_term.outcome }}
           SMOKE: ${{ steps.smoke.outcome }}
           PANIC: ${{ steps.panic.outcome }}
         run: |
@@ -562,11 +572,12 @@ jobs:
             echo "| cargo-deny | $DENY |"
             echo "| cargo-about | $ABOUT |"
             echo "| Portes Evora | $GATES |"
+            echo "| Zéro terme | $ZERO_TERM |"
             echo "| Test de fumée | $SMOKE |"
             echo "| Fumée du build evora-smoke (panique, politique de localisation) | $PANIC |"
           } >> "$GITHUB_STEP_SUMMARY"
-          for o in "$DENY" "$ABOUT" "$GATES" "$SMOKE" "$PANIC"; do
-            [ "$o" = "success" ] || { echo "::error::une porte bloquante a échoué (deny=$DENY about=$ABOUT gates=$GATES smoke=$SMOKE panic=$PANIC)"; exit 1; }
+          for o in "$DENY" "$ABOUT" "$GATES" "$ZERO_TERM" "$SMOKE" "$PANIC"; do
+            [ "$o" = "success" ] || { echo "::error::une porte bloquante a échoué (deny=$DENY about=$ABOUT gates=$GATES zero-terme=$ZERO_TERM smoke=$SMOKE panic=$PANIC)"; exit 1; }
           done
 
       - name: Artefact

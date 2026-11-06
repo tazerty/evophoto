@@ -2,16 +2,16 @@
 
 use std::sync::Arc;
 
-use photocraft_color::{BlendMode, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::{
+use evophoto_color::{BlendMode, ColorMode, PixelFormat, SampleType};
+use evophoto_doc::{
     AlphaChannel, Document, Effects, FillCache, Group, Layer, LayerContent, LayerMask, ShapeLayer, SmartContentsId, SmartObject, SmartSource, TextLayer,
 };
-use photocraft_geom::{Rect, Size, TILE_SIZE};
-use photocraft_psd::layer::{CHANNEL_REAL_USER_MASK, CHANNEL_TRANSPARENCY, CHANNEL_USER_MASK};
-use photocraft_psd::resources::ids;
-use photocraft_psd::tagged::BlockData;
-use photocraft_psd::{ColorMode as PsdMode, LayerNode, LayerRecord, PsdFile, TaggedBlock};
-use photocraft_raster::Surface;
+use evophoto_geom::{Rect, Size, TILE_SIZE};
+use evophoto_psd::layer::{CHANNEL_REAL_USER_MASK, CHANNEL_TRANSPARENCY, CHANNEL_USER_MASK};
+use evophoto_psd::resources::ids;
+use evophoto_psd::tagged::BlockData;
+use evophoto_psd::{ColorMode as PsdMode, LayerNode, LayerRecord, PsdFile, TaggedBlock};
+use evophoto_raster::Surface;
 
 use crate::adjust_map::{self, ADJUSTMENT_KEYS};
 use crate::blocks;
@@ -56,9 +56,9 @@ pub(crate) struct Ctx<'a> {
     /// Document resolution (type sizes are converted to points with it).
     pub dpi: f32,
     /// The parsed `Txt2` block (type settings EngineData lacks, e.g. optical kerning).
-    pub txt2: Option<photocraft_text::engine_data::Value>,
+    pub txt2: Option<evophoto_text::engine_data::Value>,
     /// Smart-filter caches from the global `FEid`/`FXid` blocks (filter masks, by placed id).
-    pub filter_effects: Vec<photocraft_psd::filter_effects::FilterEffectsItem>,
+    pub filter_effects: Vec<evophoto_psd::filter_effects::FilterEffectsItem>,
     /// Filter masks already decoded, by placed id: every layer of a source reads the same item, and
     /// a surface clones by sharing its tiles.
     pub filter_masks: std::collections::HashMap<String, Option<LayerMask>>,
@@ -71,7 +71,7 @@ pub(crate) struct Ctx<'a> {
     /// Source sizes of `PlLd`-only placed layers, by source id (read once per embedded file).
     pub plld_sizes: std::collections::HashMap<String, Option<(f64, f64)>>,
     /// Cancellation and progress for background opens (checked per layer record).
-    pub ctl: photocraft_raster::Interrupt<'a>,
+    pub ctl: evophoto_raster::Interrupt<'a>,
     /// Layer records decoded so far, out of `total` (progress).
     pub done: usize,
     pub total: usize,
@@ -92,7 +92,7 @@ fn doc_mode(m: PsdMode) -> Option<ColorMode> {
 }
 
 // Real-mask metadata without a -3 channel still selects the synthetic -2 mask.
-fn selected_real_mask(rec: &LayerRecord) -> Option<photocraft_psd::RealMask> {
+fn selected_real_mask(rec: &LayerRecord) -> Option<evophoto_psd::RealMask> {
     rec.channel(CHANNEL_REAL_USER_MASK)?;
     rec.layer_mask()?.real
 }
@@ -110,7 +110,7 @@ fn shape_mask_params(rec: &LayerRecord) -> (f32, f32) {
 /// with a vector mask: when it fills with a pattern, which the shape renderer can't draw (`.1`
 /// true when its vector mask is also soft: a density below 100 % or a feather). Other soft
 /// shapes stay shapes with that density and feather.
-fn soft_shape_fill(rec: &LayerRecord, has_vector: bool, fill_key: Option<&[u8; 4]>) -> Option<(photocraft_doc::Fill, bool)> {
+fn soft_shape_fill(rec: &LayerRecord, has_vector: bool, fill_key: Option<&[u8; 4]>) -> Option<(evophoto_doc::Fill, bool)> {
     if !has_vector || rec.block(b"vstk").is_some() || rec.block(b"vscg").is_some() {
         return None;
     }
@@ -122,7 +122,7 @@ fn soft_shape_fill(rec: &LayerRecord, has_vector: bool, fill_key: Option<&[u8; 4
     // document's patterns for fill layers), and its stored pixels may be the unclipped fill
     // (our own export writes fill layers so, #1907): it is a pattern fill layer seen through
     // its vector mask.
-    let pattern = matches!(fill, photocraft_doc::Fill::Pattern { .. });
+    let pattern = matches!(fill, evophoto_doc::Fill::Pattern { .. });
     pattern.then_some((fill, soft))
 }
 
@@ -131,9 +131,9 @@ fn soft_shape_fill(rec: &LayerRecord, has_vector: bool, fill_key: Option<&[u8; 4
 #[derive(Default)]
 struct Placement {
     id: String,
-    transform: photocraft_geom::Affine,
+    transform: evophoto_geom::Affine,
     perspective: Option<[f64; 9]>,
-    warp: Option<photocraft_geom::warp::Warp>,
+    warp: Option<evophoto_geom::warp::Warp>,
 }
 
 impl Ctx<'_> {
@@ -300,7 +300,7 @@ impl Ctx<'_> {
         mask
     }
 
-    fn apply_common(&mut self, l: &mut Layer, rec: &LayerRecord, blend_override: Option<photocraft_psd::BlendMode>) {
+    fn apply_common(&mut self, l: &mut Layer, rec: &LayerRecord, blend_override: Option<evophoto_psd::BlendMode>) {
         l.visible = rec.is_visible();
         l.opacity = f32::from(rec.opacity) / 255.0;
         l.fill_opacity = f32::from(rec.fill_opacity()) / 255.0;
@@ -359,7 +359,7 @@ impl Ctx<'_> {
         // The layer's XMP packet (`shmd` › `cust` › `layerXMP`) becomes the field; the rest of
         // `shmd` stays in `psd_blocks`, where export puts the packet back.
         if let Some(i) = l.psd_blocks.iter().position(|(k, _)| k == b"shmd")
-            && let Some((xmp, rest)) = photocraft_psd::metadata::take_layer_xmp(&l.psd_blocks[i].1)
+            && let Some((xmp, rest)) = evophoto_psd::metadata::take_layer_xmp(&l.psd_blocks[i].1)
         {
             l.xmp = Some(Arc::from(xmp));
             match rest {
@@ -402,7 +402,7 @@ impl Ctx<'_> {
             );
             // Kept verbatim for saving, but it renders as nothing: say so rather than open the
             // layer silently without its effect (#1763).
-            if matches!(adj, photocraft_doc::Adjustment::Unsupported { .. }) {
+            if matches!(adj, evophoto_doc::Adjustment::Unsupported { .. }) {
                 // Photoshop 2026's Light adjustment shares the Brightness/Contrast key (#6542).
                 let light = k == b"brit" && adjust_map::is_extended_brit(cged);
                 let why = if light {
@@ -423,21 +423,21 @@ impl Ctx<'_> {
             // text), so its TySh is saved back verbatim instead of being dropped with the raster.
             let parsed = (!block.is_foreign_order())
                 .then(|| {
-                    photocraft_text::psd::text_layer_from_tysh(&block.data, self.dpi).or_else(|| {
+                    evophoto_text::psd::text_layer_from_tysh(&block.data, self.dpi).or_else(|| {
                         let (text, transform) = blocks::parse_tysh(&block.data).unwrap_or_default();
-                        photocraft_text::psd::transform_is_safe(&transform).then(|| TextLayer { text, transform, ..Default::default() })
+                        evophoto_text::psd::transform_is_safe(&transform).then(|| TextLayer { text, transform, ..Default::default() })
                     })
                 })
                 .flatten();
             if let Some(mut t) = parsed {
                 if let Some(txt2) = &self.txt2 {
-                    photocraft_text::psd::apply_txt2(&mut t, &block.data, txt2);
-                    photocraft_text::psd::apply_txt2_frame(&mut t, &block.data, txt2);
+                    evophoto_text::psd::apply_txt2(&mut t, &block.data, txt2);
+                    evophoto_text::psd::apply_txt2_frame(&mut t, &block.data, txt2);
                 }
                 // Photoshop's pixels stay until edited. Writers without type pixels are
                 // rendered by text_import::prepare instead of retaining an empty cache.
                 let cache = self.record_surface(rec, &name);
-                let drawn = !cache.content_bounds().is_empty() || photocraft_text::psd::engine_text_is_blank(&block.data);
+                let drawn = !cache.content_bounds().is_empty() || evophoto_text::psd::engine_text_is_blank(&block.data);
                 t.cache = drawn.then_some(cache);
                 t.psd_raw = principal(b"TySh");
                 LayerContent::Text(t)
@@ -490,7 +490,7 @@ impl Ctx<'_> {
                         }
                     };
                     match unfiltered {
-                        Some(u) => photocraft_compose::filter_mask::mix(&u, &stored, m),
+                        Some(u) => evophoto_compose::filter_mask::mix(&u, &stored, m),
                         None => stored,
                     }
                 }
@@ -513,7 +513,7 @@ impl Ctx<'_> {
             // A pattern-filled shape is a pattern fill layer seen through its vector mask (soft
             // or not). Unless that mask is soft, the stored pixels stay its rendering (a soft
             // mask's pixels lack the fill beyond the path).
-            if !soft && matches!(f, photocraft_doc::Fill::Pattern { .. }) && !rec.rect.is_empty() {
+            if !soft && matches!(f, evophoto_doc::Fill::Pattern { .. }) && !rec.rect.is_empty() {
                 fill_cache = Some(FillCache { fill: f.clone(), surface: self.record_surface(rec, &name) });
             }
             LayerContent::Fill(f)
@@ -530,7 +530,7 @@ impl Ctx<'_> {
             let soft = sh.has_soft_mask() && sh.fill.is_some();
             if soft || ((rec.rect.is_empty() || rec.rect.size().is_err()) && (!sh.path.subpaths.is_empty() || sh.path.inverted)) {
                 let canvas = Rect::new(0, 0, self.file.header.width as i32, self.file.header.height as i32);
-                sh.cache = Some(photocraft_vector::render_shape(&sh, self.fmt, canvas));
+                sh.cache = Some(evophoto_vector::render_shape(&sh, self.fmt, canvas));
             }
             LayerContent::Shape(sh)
         } else if let Some(k) = fill_key {
@@ -555,7 +555,7 @@ impl Ctx<'_> {
                 "layer \"{name}\": its adjustment settings could not be read (unknown adjustment type \"{key}\"); the layer is kept as saved but has no effect"
             ));
             let raw = rec.block(&k).map(|b| b.data.as_slice()).unwrap_or_default().into();
-            LayerContent::Adjustment(photocraft_doc::Adjustment::Unsupported { psd_key: key, raw })
+            LayerContent::Adjustment(evophoto_doc::Adjustment::Unsupported { psd_key: key, raw })
         } else {
             LayerContent::Raster(self.record_surface(rec, &name))
         };
@@ -613,18 +613,18 @@ impl Ctx<'_> {
                     let rec = &layers[*index];
                     // The recursion here (and in every later consumer of the tree) is bounded by
                     // the document model's nesting cap; a deeper subtree is not imported.
-                    let children = if depth >= photocraft_doc::MAX_GROUP_DEPTH {
+                    let children = if depth >= evophoto_doc::MAX_GROUP_DEPTH {
                         self.warn(format!(
                             "group `{}` nests deeper than {} groups; its contents were not imported",
                             rec.name(),
-                            photocraft_doc::MAX_GROUP_DEPTH
+                            evophoto_doc::MAX_GROUP_DEPTH
                         ));
                         Vec::new()
                     } else {
                         self.build(children, depth + 1)
                     };
                     let sd = rec.section_divider();
-                    let expanded = sd.is_none_or(|s| s.kind != photocraft_psd::SectionType::ClosedFolder);
+                    let expanded = sd.is_none_or(|s| s.kind != evophoto_psd::SectionType::ClosedFolder);
                     let artboard = crate::comps_map::ARTBOARD_KEYS.iter().find_map(|k| rec.block(k)).and_then(|b| crate::comps_map::parse_artboard(&b.data));
                     let mut l = Layer::new(rec.name(), LayerContent::Group(Group { children, expanded, artboard }));
                     l.psd_blocks = preserved_blocks(rec);
@@ -645,7 +645,7 @@ fn apply_link_groups(nodes: &[LayerNode], layers: &mut [Layer], ids: &[u16]) {
                 LayerNode::Layer { index } => *index,
                 LayerNode::Group { index, children, .. } => {
                     // Matches the importer's nesting cap: deeper children were not imported.
-                    if depth < photocraft_doc::MAX_GROUP_DEPTH
+                    if depth < evophoto_doc::MAX_GROUP_DEPTH
                         && let LayerContent::Group(g) = &mut l.content
                     {
                         rec(children, &mut g.children, ids, depth + 1);
@@ -660,10 +660,10 @@ fn apply_link_groups(nodes: &[LayerNode], layers: &mut [Layer], ids: &[u16]) {
 }
 
 /// Rejects a file whose groups nest deeper than the document model's cap, with the actionable
-/// limit error. Nesting past the cap could never be saved (.pcraft refuses it).
+/// limit error. Nesting past the cap could never be saved (.evophoto refuses it).
 pub(crate) fn check_group_depth(file: &PsdFile) -> Result<(), crate::IoError> {
-    if group_depth(file) > photocraft_doc::MAX_GROUP_DEPTH {
-        return Err(crate::IoError::Unsupported(format!("layer groups nested deeper than {}", photocraft_doc::MAX_GROUP_DEPTH)));
+    if group_depth(file) > evophoto_doc::MAX_GROUP_DEPTH {
+        return Err(crate::IoError::Unsupported(format!("layer groups nested deeper than {}", evophoto_doc::MAX_GROUP_DEPTH)));
     }
     Ok(())
 }
@@ -671,7 +671,7 @@ pub(crate) fn check_group_depth(file: &PsdFile) -> Result<(), crate::IoError> {
 /// Deepest group nesting of the file's layer records (a layer inside this many groups is the
 /// deepest), computed like `layer_tree`'s stack — iteratively, so no file can make it recurse.
 pub(crate) fn group_depth(file: &PsdFile) -> usize {
-    use photocraft_psd::tagged::SectionType;
+    use evophoto_psd::tagged::SectionType;
     let (mut open, mut depth) = (0usize, 0usize);
     for rec in file.layers() {
         match rec.section_type() {
@@ -699,7 +699,7 @@ const LAYER_INFO_KEYS: [&[u8; 4]; 50] = [
 ];
 
 /// The key of an adjustment layer whose type no mapper knows (#6575), e.g. Photoshop 4's
-/// `hue ` or a type newer than PhotoCraft. Photoshop writes every adjustment layer without
+/// `hue ` or a type newer than EvoPhoto. Photoshop writes every adjustment layer without
 /// pixels and with "pixel data irrelevant" set (every one in the corpus; pixel, type and smart
 /// layers never have it). Such a record that is not a group and carries exactly one block that
 /// is neither a known layer-information key nor a known adjustment is that adjustment. More than
@@ -751,10 +751,10 @@ fn merged_plane(all: &[u8], i: usize, plane: usize) -> Option<&[u8]> {
 /// RGB. An output over `cap` bytes is refused, never allocated (#5200).
 fn flat_composite(
     file: &PsdFile,
-    merged: Option<&Result<Vec<u8>, photocraft_psd::PsdError>>,
+    merged: Option<&Result<Vec<u8>, evophoto_psd::PsdError>>,
     cap: u64,
-) -> Result<photocraft_psd::RgbaImage, photocraft_psd::PsdError> {
-    use photocraft_psd::PsdError;
+) -> Result<evophoto_psd::RgbaImage, evophoto_psd::PsdError> {
+    use evophoto_psd::PsdError;
     match file.composite_rgba8() {
         Ok(img) => return Ok(img),
         // Over the output budget: the fallback below would make the same allocation.
@@ -779,12 +779,12 @@ fn flat_composite(
     data.resize(len, 255u8);
     for c in 0..3.min(usize::from(h.channels)) {
         let bytes = merged_plane(all, c, plane).ok_or_else(|| PsdError::Invalid("channel size mismatch".into()))?;
-        let p = photocraft_psd::pixels::plane_to_u8(bytes, h.depth, w, hh)?;
+        let p = evophoto_psd::pixels::plane_to_u8(bytes, h.depth, w, hh)?;
         for (px, v) in data.as_chunks_mut::<4>().0.iter_mut().zip(&p) {
             px[c] = *v;
         }
     }
-    Ok(photocraft_psd::RgbaImage { left: 0, top: 0, width: h.width, height: h.height, data })
+    Ok(evophoto_psd::RgbaImage { left: 0, top: 0, width: h.width, height: h.height, data })
 }
 
 /// Writes RGBA8 `data` covering `canvas` into `s`, a band of tile rows at a time (no full-size
@@ -800,7 +800,7 @@ fn write_rgba8(s: &mut Surface, canvas: Rect, data: &[u8]) {
         let Some(rows) = data.get(start..start.saturating_add((band.height() as usize).saturating_mul(row))) else { break };
         vals.clear();
         for p in rows.as_chunks::<4>().0 {
-            vals.extend(photocraft_raster::from_rgba(&fmt, p.map(|x| f32::from(x) / 255.0)));
+            vals.extend(evophoto_raster::from_rgba(&fmt, p.map(|x| f32::from(x) / 255.0)));
         }
         s.write_region(band, &vals);
         y = band.y1;
@@ -866,13 +866,13 @@ fn mark_background(file: &PsdFile, layers: &mut [Layer]) {
 /// Converts a parsed PSD into a document, preserving best-effort recovery warnings.
 pub fn psd_to_document(file: &PsdFile) -> (Document, Vec<String>) {
     // Never cancelled, so always `Some`; the fallback is unreachable.
-    psd_to_document_with(file, &photocraft_raster::Interrupt::NONE)
+    psd_to_document_with(file, &evophoto_raster::Interrupt::NONE)
         .unwrap_or_else(|| (Document::new("Untitled", Size::new(1, 1), ColorMode::Rgb, SampleType::U8), Vec::new()))
 }
 
 /// [`psd_to_document`] for a background open: checks `ctl` per layer record and reports
 /// progress. `None` when cancelled.
-pub fn psd_to_document_with(file: &PsdFile, ctl: &photocraft_raster::Interrupt) -> Option<(Document, Vec<String>)> {
+pub fn psd_to_document_with(file: &PsdFile, ctl: &evophoto_raster::Interrupt) -> Option<(Document, Vec<String>)> {
     psd_to_document_decoded(file, ctl, None)
 }
 
@@ -896,8 +896,8 @@ pub(crate) fn can_recover_layers(file: &PsdFile) -> bool {
 /// [`PsdFile::from_bytes_and_merged`] with [`merged_needed`]), so it is not decoded again.
 pub(crate) fn psd_to_document_decoded(
     file: &PsdFile,
-    ctl: &photocraft_raster::Interrupt,
-    decoded: Option<photocraft_psd::Result<Vec<u8>>>,
+    ctl: &evophoto_raster::Interrupt,
+    decoded: Option<evophoto_psd::Result<Vec<u8>>>,
 ) -> Option<(Document, Vec<String>)> {
     psd_to_document_decoded_integrity(file, ctl, decoded).map(|(document, warnings, _)| (document, warnings))
 }
@@ -907,8 +907,8 @@ pub(crate) fn psd_to_document_decoded(
 /// the low-level conversion API retain their existing best-effort behaviour.
 pub(crate) fn psd_to_document_decoded_integrity(
     file: &PsdFile,
-    ctl: &photocraft_raster::Interrupt,
-    decoded: Option<photocraft_psd::Result<Vec<u8>>>,
+    ctl: &evophoto_raster::Interrupt,
+    decoded: Option<evophoto_psd::Result<Vec<u8>>>,
 ) -> Option<(Document, Vec<String>, bool)> {
     let h = &file.header;
     let mut warnings = Vec::new();
@@ -925,7 +925,7 @@ pub(crate) fn psd_to_document_decoded_integrity(
     for r in &file.resources {
         match r.id {
             ids::RESOLUTION_INFO => {
-                if let Ok(ri) = photocraft_psd::ResolutionInfo::from_bytes(&r.data) {
+                if let Ok(ri) = evophoto_psd::ResolutionInfo::from_bytes(&r.data) {
                     // Fixed 16.16 hRes/vRes are pixels per inch. The unit shorts only
                     // say how to show that number (1 = px/in, 2 = px/cm).
                     let (x, y) = (ri.h_res(), ri.v_res());
@@ -948,7 +948,7 @@ pub(crate) fn psd_to_document_decoded_integrity(
                 }
             }
             id if crate::vector_map::SAVED_PATHS.contains(&id) => match crate::vector_map::path_from_resource(&r.data, h.width, h.height) {
-                Some(path) => doc.paths.push(photocraft_doc::NamedPath {
+                Some(path) => doc.paths.push(evophoto_doc::NamedPath {
                     name: String::from_utf8_lossy(&r.name).into_owned(),
                     path,
                     psd_raw: Some(Arc::new(r.data.clone())),
@@ -962,7 +962,7 @@ pub(crate) fn psd_to_document_decoded_integrity(
                 // Kept raw (layout beyond the name is not modelled); the name is exposed.
                 let n = usize::from(r.data.first().copied().unwrap_or(0));
                 let name = r.data.get(1..1 + n).map(|b| String::from_utf8_lossy(b).into_owned()).unwrap_or_default();
-                doc.clipping_path = Some(photocraft_doc::ClippingPath { name, flatness: 0.0 });
+                doc.clipping_path = Some(evophoto_doc::ClippingPath { name, flatness: 0.0 });
                 doc.metadata.psd_resources.push((r.id, String::from_utf8_lossy(&r.name).into_owned(), Arc::new(r.data.clone())));
             }
             id if MAPPED_RESOURCES.contains(&id) => {}
@@ -1005,7 +1005,7 @@ pub(crate) fn psd_to_document_decoded_integrity(
         warnings,
         damaged,
         dpi: doc.resolution_dpi,
-        txt2: file.global_blocks.iter().find(|b| &b.key == b"Txt2").and_then(|b| photocraft_text::psd::parse_txt2(&b.data)),
+        txt2: file.global_blocks.iter().find(|b| &b.key == b"Txt2").and_then(|b| evophoto_text::psd::parse_txt2(&b.data)),
         filter_effects: Vec::new(),
         filter_masks: Default::default(),
         unfiltered: Default::default(),
@@ -1021,7 +1021,7 @@ pub(crate) fn psd_to_document_decoded_integrity(
         if ctl.cancelled() {
             return None;
         }
-        match photocraft_psd::filter_effects::FilterEffects::parse(&b.data) {
+        match evophoto_psd::filter_effects::FilterEffects::parse(&b.data) {
             Ok(fx) => cx.filter_effects.extend(fx.items),
             Err(e) => cx.warn(format!("smart filter masks ({}) could not be read: {e}", b.key_str())),
         }
@@ -1071,18 +1071,18 @@ pub(crate) fn psd_to_document_decoded_integrity(
     } else if layered {
         // Capped like `build` (#2940): a group past the document's nesting cap keeps no children,
         // so no file can make this tree, or anything walking or dropping it, recurse deeper.
-        let tree = file.layer_tree_max_depth(photocraft_doc::MAX_GROUP_DEPTH);
+        let tree = file.layer_tree_max_depth(evophoto_doc::MAX_GROUP_DEPTH);
         // Colours stored in the document's CMYK space (Gradient Map stops…) convert through
         // its own profile, as the compositor and the PSD writer read them.
-        let space = photocraft_compose::cmyk_space(&doc);
-        doc.layers = photocraft_color::convert::with_cmyk_space(space.as_ref(), || cx.build(&tree, 0));
+        let space = evophoto_compose::cmyk_space(&doc);
+        doc.layers = evophoto_color::convert::with_cmyk_space(space.as_ref(), || cx.build(&tree, 0));
         // Photoshop's Background: the bottom record stored without a transparency channel (-1),
         // locked whatever its (localized) name and whether or not the file carries an `lspf`
         // block. Its name is kept.
         mark_background(file, &mut doc.layers);
         // Layer › Link Layers: resource 1026 holds one group id per layer record (0 = unlinked).
-        if let Some(Ok(photocraft_psd::resources::ResourceData::LayerGroupInfo(groups))) =
-            file.resources.iter().find(|r| r.id == ids::LAYER_GROUP_INFO).and_then(photocraft_psd::resources::ImageResource::parsed)
+        if let Some(Ok(evophoto_psd::resources::ResourceData::LayerGroupInfo(groups))) =
+            file.resources.iter().find(|r| r.id == ids::LAYER_GROUP_INFO).and_then(evophoto_psd::resources::ImageResource::parsed)
         {
             apply_link_groups(&tree, &mut doc.layers, &groups);
         }
@@ -1107,7 +1107,7 @@ pub(crate) fn psd_to_document_decoded_integrity(
             if alpha_idx.is_some() {
                 // Undo Photoshop's white matting of the merged image.
                 // A band of tile rows at a time (no full-size float copy of the image).
-                let white = photocraft_raster::from_rgba(&fmt, [1.0, 1.0, 1.0, 1.0]);
+                let white = evophoto_raster::from_rgba(&fmt, [1.0, 1.0, 1.0, 1.0]);
                 let mut vals = Vec::new();
                 let mut y = canvas.y0;
                 while y < canvas.y1 {
@@ -1145,7 +1145,7 @@ pub(crate) fn psd_to_document_decoded_integrity(
             let count = u16_of(crate::palette_map::COLOR_TABLE_COUNT).map_or(256, usize::from).clamp(1, 256);
             let colors = (0..count).map(|i| [m[i], m[256 + i], m[512 + i]]).collect();
             let transparent = u16_of(crate::palette_map::TRANSPARENCY_INDEX).filter(|&i| usize::from(i) < count).map(|i| i as u8);
-            doc.color_table = Some(photocraft_doc::ColorTable { colors, transparent });
+            doc.color_table = Some(evophoto_doc::ColorTable { colors, transparent });
         } else if h.color_mode == PsdMode::Duotone && !file.color_mode_data.is_empty() {
             // The inks (`duotone_map`); the block is also kept raw, written back while they stay
             // unedited. An ink whose colour is unknown (a colour book without its Lab equivalent)
@@ -1156,12 +1156,12 @@ pub(crate) fn psd_to_document_decoded_integrity(
             if inks.is_none() {
                 cx.warn("duotone inks are not interpreted (shown as grayscale)");
             }
-            let inks = inks.unwrap_or_else(|| vec![photocraft_doc::DuotoneInk::new("Black", [0.0; 3])]);
-            doc.duotone = Some(photocraft_doc::Duotone { inks, psd_raw: Some(file.color_mode_data.as_slice().into()) });
+            let inks = inks.unwrap_or_else(|| vec![evophoto_doc::DuotoneInk::new("Black", [0.0; 3])]);
+            doc.duotone = Some(evophoto_doc::Duotone { inks, psd_raw: Some(file.color_mode_data.as_slice().into()) });
         } else if !file.color_mode_data.is_empty() {
             cx.warn("color mode data is not preserved");
         }
-        match flat_composite(file, merged.as_ref(), photocraft_psd::compression::MAX_DECODED_BYTES) {
+        match flat_composite(file, merged.as_ref(), evophoto_psd::compression::MAX_DECODED_BYTES) {
             Ok(mut img) => {
                 // Resource 1047: pixels of the transparent entry are transparent.
                 if h.color_mode == PsdMode::Indexed
@@ -1245,7 +1245,7 @@ pub(crate) fn psd_to_document_decoded_integrity(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_psd::{Compression, PsdError, Version, testgen};
+    use evophoto_psd::{Compression, PsdError, Version, testgen};
 
     /// #5200: the Multichannel fallback checks its RGBA output against the budget before
     /// allocating it (here a 2x2 image, 16 bytes, against caps of 15 and 16 bytes).
@@ -1270,7 +1270,7 @@ mod tests {
         file.header.width = 60_000;
         file.header.height = 60_000;
         let merged = Ok(vec![0u8; 16]);
-        let cap = photocraft_psd::compression::MAX_DECODED_BYTES;
+        let cap = evophoto_psd::compression::MAX_DECODED_BYTES;
         assert!(matches!(flat_composite(&file, Some(&merged), cap), Err(PsdError::LimitExceeded(_))));
     }
 
@@ -1292,7 +1292,7 @@ mod tests {
         channel.data.clear();
         assert!(file.layers()[0].decode_channel(0, file.header.depth, file.header.version).is_err());
 
-        let (_, warnings, damaged) = psd_to_document_decoded_integrity(&file, &photocraft_raster::Interrupt::NONE, None).unwrap();
+        let (_, warnings, damaged) = psd_to_document_decoded_integrity(&file, &evophoto_raster::Interrupt::NONE, None).unwrap();
         assert!(damaged);
         assert!(warnings.iter().any(|w| w.contains("could not be decoded")));
     }
@@ -1304,7 +1304,7 @@ mod tests {
         let channel = file.layers_mut()[0].channels.iter_mut().find(|c| c.id == CHANNEL_USER_MASK).unwrap();
         channel.data.clear();
 
-        let (_, warnings, damaged) = psd_to_document_decoded_integrity(&file, &photocraft_raster::Interrupt::NONE, None).unwrap();
+        let (_, warnings, damaged) = psd_to_document_decoded_integrity(&file, &evophoto_raster::Interrupt::NONE, None).unwrap();
         assert!(damaged);
         assert!(warnings.iter().any(|w| w.contains("could not be decoded")));
     }
@@ -1316,7 +1316,7 @@ mod tests {
         let mut file = testgen::small(Version::Psd, Compression::Raw);
         file.layers_mut()[0].channels.retain(|c| c.id == CHANNEL_USER_MASK);
 
-        let (_, warnings, damaged) = psd_to_document_decoded_integrity(&file, &photocraft_raster::Interrupt::NONE, None).unwrap();
+        let (_, warnings, damaged) = psd_to_document_decoded_integrity(&file, &evophoto_raster::Interrupt::NONE, None).unwrap();
         assert!(damaged);
         assert!(warnings.iter().any(|w| w.contains("no channel data")));
     }
@@ -1330,7 +1330,7 @@ mod tests {
         file.layers_mut()[0].channels.retain(|c| c.id == CHANNEL_USER_MASK);
         file.layers_mut()[0].rect = Default::default();
 
-        let (_, warnings, damaged) = psd_to_document_decoded_integrity(&file, &photocraft_raster::Interrupt::NONE, None).unwrap();
+        let (_, warnings, damaged) = psd_to_document_decoded_integrity(&file, &evophoto_raster::Interrupt::NONE, None).unwrap();
         assert!(!damaged, "an empty layer marked the PSD damaged: {warnings:?}");
     }
 
@@ -1338,7 +1338,7 @@ mod tests {
     #[test]
     fn valid_layer_channels_keep_conversion_editable() {
         let file = testgen::small(Version::Psd, Compression::Raw);
-        let (_, warnings, damaged) = psd_to_document_decoded_integrity(&file, &photocraft_raster::Interrupt::NONE, None).unwrap();
+        let (_, warnings, damaged) = psd_to_document_decoded_integrity(&file, &evophoto_raster::Interrupt::NONE, None).unwrap();
         assert!(!damaged, "unexpectedly marked good PSD damaged: {warnings:?}");
     }
 

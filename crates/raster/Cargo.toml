@@ -1,5 +1,5 @@
 [package]
-name = "photocraft-raster"
+name = "evophoto-raster"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,8 +8,8 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-photocraft-geom = { workspace = true }
-photocraft-color = { workspace = true }
+evophoto-geom = { workspace = true }
+evophoto-color = { workspace = true }
 serde = { workspace = true }
 
 # Native only: converting a region's tiles is independent per tile, so it runs on all cores.

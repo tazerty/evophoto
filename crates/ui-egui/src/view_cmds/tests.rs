@@ -1,8 +1,8 @@
 use super::*;
 use crate::menus::{invoke as menu, is_live, menu_items};
 
-fn app_with(n: usize) -> (PhotocraftApp, egui::Context) {
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+fn app_with(n: usize) -> (EvoPhotoApp, egui::Context) {
+    let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
     for i in 0..n {
         app.run("file.new", json!({"width": 100 + i as u32 * 10, "height": 80})).unwrap();
     }
@@ -10,7 +10,7 @@ fn app_with(n: usize) -> (PhotocraftApp, egui::Context) {
     (app, egui::Context::default())
 }
 
-fn checked(app: &PhotocraftApp, id: &str) -> Option<bool> {
+fn checked(app: &EvoPhotoApp, id: &str) -> Option<bool> {
     menu_items(app).into_iter().find(|i| i.id == id).and_then(|i| i.checked)
 }
 
@@ -187,7 +187,7 @@ fn arrange_layouts_floating_windows_and_matching() {
 /// below the zoom at which its shorter side is 2 px, even when the source view is lower.
 #[test]
 fn match_zoom_clamps_to_each_documents_zoom_range() {
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({"width": 10, "height": 10})).unwrap();
     app.run("file.new", json!({"width": 2000, "height": 2000})).unwrap();
     app.sync_views();
@@ -326,7 +326,7 @@ fn apply_image_dialog_offers_source_layer_scale_and_offset() {
     app.run("edit.fill", json!({"color": "#406080"})).unwrap();
     app.sync_views();
     let background = app.session.active().unwrap().doc.walk()[0].2.name.clone();
-    let open = |app: &mut PhotocraftApp| menu(app, &ctx, "image.applyImage", json!({})).unwrap()["dialog"].as_u64().unwrap();
+    let open = |app: &mut EvoPhotoApp| menu(app, &ctx, "image.applyImage", json!({})).unwrap()["dialog"].as_u64().unwrap();
     let d = open(&mut app);
     let fields = &app.ui.dialog_mut(d).unwrap().fields;
     assert_eq!(fields["sourceLayer"], "merged");
@@ -426,12 +426,12 @@ fn lookup_export_dialog_uses_the_current_adjustment_selection() {
 #[test]
 fn batch_dialogs_include_all_subfolders() {
     let (mut app, ctx) = app_with(1);
-    let dir = std::env::temp_dir().join(format!("photocraft-ui-batch-subfolders-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("evophoto-ui-batch-subfolders-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("in/sub")).unwrap();
     let input = dir.join("in").to_string_lossy().into_owned();
     app.run("file.saveACopy", json!({"path": dir.join("in/sub/a.png").to_string_lossy()})).unwrap();
-    app.session.actions.list.push(photocraft_engine::actions_cmds::Action::new("Invert", vec![("image.adjustments.invert".into(), json!({}))]));
+    app.session.actions.list.push(evophoto_engine::actions_cmds::Action::new("Invert", vec![("image.adjustments.invert".into(), json!({}))]));
     for (id, out) in [("file.automate.batch", "batch"), ("file.scripts.imageProcessor", "processed")] {
         let d = menu(&mut app, &ctx, id, json!({})).unwrap()["dialog"].as_u64().unwrap();
         let fields = &mut app.ui.dialog_mut(d).unwrap().fields;
@@ -544,7 +544,7 @@ fn video_menu_commands_open_pickers_and_dialogs() {
 }
 
 /// One frame of the shortcut handler with a plain Esc press.
-fn press_esc(app: &mut PhotocraftApp, ctx: &egui::Context) {
+fn press_esc(app: &mut EvoPhotoApp, ctx: &egui::Context) {
     let key = egui::Key::Escape;
     let input = egui::RawInput {
         focused: true,
@@ -708,7 +708,7 @@ fn arranged_documents_keep_their_tiles() {
     }
     app.ui.view.arrange = "twoUpVertical".into();
     // As `documents` draws them: the shown run is kept from frame to frame.
-    let docs = |app: &mut PhotocraftApp, active: usize| {
+    let docs = |app: &mut EvoPhotoApp, active: usize| {
         app.session.set_active(active);
         let shown: Vec<usize> = crate::canvas::arranged_cells(app, rect).unwrap().iter().map(|(d, _)| *d).collect();
         app.arrange_start = shown[0];
@@ -730,7 +730,7 @@ fn every_arranged_tile_has_rulers() {
     app.ui.view.arrange = "tileAllVertically".into();
     app.ui.extras.rulers = true;
     let mut h = Harness::builder().with_size(egui::vec2(1000.0, 600.0)).build_ui_state(
-        |ui, app: &mut PhotocraftApp| {
+        |ui, app: &mut EvoPhotoApp| {
             if !ui.ctx().fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                 return;
             }
@@ -738,7 +738,7 @@ fn every_arranged_tile_has_rulers() {
         },
         app,
     );
-    PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+    EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
     h.run_steps(4);
     let right = h.state().last_canvas_rect.center().x;
     // Ruler labels are 9 pt text: some lie in each half of the document area.

@@ -6,7 +6,7 @@
 
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 
 /// Help-menu link commands: (id, url). Empty in the Evora build (patch E1).
 pub const COMMANDS: &[(&str, &str)] = &[];
@@ -17,7 +17,7 @@ pub fn url_for(id: &str) -> Option<&'static str> {
 
 /// Open `url` in the system browser (a new tab on the web) and note it in the status bar. Prefers
 /// the platform `open_url` service (reliable on Windows/macOS/Linux); falls back to `ctx.open_url`.
-pub fn open(app: &mut PhotocraftApp, ctx: &egui::Context, url: &str) -> Value {
+pub fn open(app: &mut EvoPhotoApp, ctx: &egui::Context, url: &str) -> Value {
     let opened = app.services.open_url.as_ref().map(|f| f(url).is_ok()).unwrap_or(false);
     if !opened {
         ctx.open_url(egui::OpenUrl::new_tab(url));
@@ -43,7 +43,7 @@ mod tests {
             })),
             ..Default::default()
         };
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), services);
         let ctx = egui::Context::default();
         open(&mut app, &ctx, "https://example.org/");
         assert_eq!(opened.lock().unwrap().last().map(String::as_str), Some("https://example.org/"));
@@ -51,7 +51,7 @@ mod tests {
 
     #[test]
     fn help_menu_has_no_external_links() {
-        let app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
         let help: Vec<String> = crate::menus::menu_items(&app).into_iter().filter(|i| i.path == ["Help"]).map(|i| i.id).collect();
         assert_eq!(help, ["help.checkForUpdates", "---", "help.systemInfo", "help.about"]);
         assert!(COMMANDS.is_empty());

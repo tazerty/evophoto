@@ -1,6 +1,6 @@
-use photocraft_doc::{LayerContent, LayerId};
-use photocraft_engine::{Session, smart_cmds};
-use photocraft_raster::Surface;
+use evophoto_doc::{LayerContent, LayerId};
+use evophoto_engine::{Session, smart_cmds};
+use evophoto_raster::Surface;
 use serde_json::json;
 
 fn mean_difference(a: &Surface, b: &Surface) -> f64 {

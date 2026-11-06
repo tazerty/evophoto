@@ -10,14 +10,14 @@
 //! action or agent can replay it exactly.
 
 use egui::{Color32, Pos2, Stroke, TextureHandle, pos2};
-use photocraft_algo::transform::Homography;
-use photocraft_algo::vanishing::{PlaneCheck, Scene, VpPlane};
-use photocraft_doc::{DocId, LayerContent, LayerId};
-use photocraft_engine::vp_cmds::VP;
-use photocraft_geom::Rect;
+use evophoto_algo::transform::Homography;
+use evophoto_algo::vanishing::{PlaneCheck, Scene, VpPlane};
+use evophoto_doc::{DocId, LayerContent, LayerId};
+use evophoto_engine::vp_cmds::VP;
+use evophoto_geom::Rect;
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::canvas::{ToolEvent, ViewXform};
 use crate::edit_history::{EditHistory, Step};
 
@@ -291,7 +291,7 @@ fn slid_quad(h: &Homography, u0: f64, v0: f64, u1: f64, v1: f64) -> Option<[[f64
 }
 
 /// Starts Vanishing Point on the active pixel layer.
-pub fn begin(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String> {
+pub fn begin(app: &mut EvoPhotoApp, ctx: &egui::Context) -> Result<(), String> {
     if app.ui.transform.is_some() {
         return Err("finish Free Transform first".into());
     }
@@ -335,7 +335,7 @@ pub fn begin(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String>
 
 /// OK: runs `filter.vanishingPoint` with the planes (and the paste). An invalid plane keeps the
 /// mode open; with nothing to paste the mode just closes.
-pub fn commit(app: &mut PhotocraftApp) -> Result<Value, String> {
+pub fn commit(app: &mut EvoPhotoApp) -> Result<Value, String> {
     let Some(s) = app.distort.vanishing.as_ref() else { return Ok(Value::Null) };
     let center = s.center();
     if s.planes.iter().any(|p| p.check(center) == PlaneCheck::Invalid) {
@@ -352,7 +352,7 @@ pub fn commit(app: &mut PhotocraftApp) -> Result<Value, String> {
 }
 
 /// Control channel: `filter.vanishingPoint {"ui": {...}}` while the mode is active.
-pub fn control(app: &mut PhotocraftApp, ui: &Value) -> Result<Value, String> {
+pub fn control(app: &mut EvoPhotoApp, ui: &Value) -> Result<Value, String> {
     if ui.get("commit").and_then(Value::as_bool) == Some(true) {
         return commit(app);
     }
@@ -401,7 +401,7 @@ pub fn control(app: &mut PhotocraftApp, ui: &Value) -> Result<Value, String> {
     Ok(s.describe())
 }
 
-pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, _mods: egui::Modifiers) {
+pub fn pointer(app: &mut EvoPhotoApp, ev: ToolEvent, _mods: egui::Modifiers) {
     let tol = crate::distort_ui::tolerance(app);
     let Some(s) = app.distort.vanishing.as_mut() else { return };
     match ev {
@@ -416,7 +416,7 @@ pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, _mods: egui::Modifiers) {
 }
 
 /// Keys while the mode is active (↩ and Esc are handled by `distort_ui::keys`).
-pub fn keys(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn keys(app: &mut EvoPhotoApp, ctx: &egui::Context) {
     use egui::{Key, Modifiers};
     if ctx.memory(|m| m.focused().is_some()) {
         return;
@@ -435,7 +435,7 @@ pub fn keys(app: &mut PhotocraftApp, ctx: &egui::Context) {
 }
 
 /// Esc: drops a half-clicked plane first, then leaves the mode.
-pub fn escape(app: &mut PhotocraftApp) {
+pub fn escape(app: &mut EvoPhotoApp) {
     match app.distort.vanishing.as_mut() {
         Some(s) if !s.pending.is_empty() => s.pending.clear(),
         _ => app.distort.vanishing = None,
@@ -551,7 +551,7 @@ fn draw_paste(painter: &egui::Painter, scr: &dyn Fn([f64; 2]) -> Pos2, h: &Homog
     painter.add(mesh);
 }
 
-pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn options_bar(app: &mut EvoPhotoApp, ui: &mut egui::Ui) {
     let Some(s) = app.distort.vanishing.as_mut() else { return };
     if crate::widgets::pill_tab(ui, tl!("Edit Plane"), s.tool == VpTool::EditPlane).on_hover_text("V").clicked() {
         s.tool = VpTool::EditPlane;
@@ -597,9 +597,9 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 mod tests {
     use super::*;
 
-    fn app_with_layer() -> (egui::Context, PhotocraftApp) {
+    fn app_with_layer() -> (egui::Context, EvoPhotoApp) {
         let ctx = egui::Context::default();
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
         app.session.execute("file.new", json!({"width": 240, "height": 160, "depth": 16})).unwrap();
         app.session.execute("layer.new.layer", json!({})).unwrap();
         app.session.execute("edit.fill", json!({"color": "#4080c0"})).unwrap();
@@ -616,7 +616,7 @@ mod tests {
         app.session.execute("edit.copy", json!({})).unwrap();
         app.session.execute("select.deselect", json!({})).unwrap();
         crate::distort_ui::menu(&mut app, &ctx, VP, &json!({})).unwrap().unwrap();
-        let click = |app: &mut PhotocraftApp, x: f64, y: f64| {
+        let click = |app: &mut EvoPhotoApp, x: f64, y: f64| {
             crate::distort_ui::pointer(app, ToolEvent::Down { x, y, pressure: 1.0 }, egui::Modifiers::NONE);
             crate::distort_ui::pointer(app, ToolEvent::Up { x, y }, egui::Modifiers::NONE);
         };

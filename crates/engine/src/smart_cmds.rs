@@ -16,21 +16,21 @@
 //! The placed stage and the result after each filter are cached too (`stack_cache`), so a
 //! re-render starts from the deepest stage it shares with an earlier one.
 //!
-//! Converting a layer embeds it as an in-memory `.pcraft` bundle of a nested document (exactly
+//! Converting a layer embeds it as an in-memory `.evophoto` bundle of a nested document (exactly
 //! lossless, layered, any depth/model). PSD placed layers keep their source in the preserved
 //! global `lnk2` block (found by uuid), and keep Photoshop's rendering until something changes,
-//! so an unedited PSD still round-trips byte for byte. PSD export (`photocraft_io::smart_map`)
-//! writes every smart object back as one: its source embedded in `lnk2` (a `.pcraft` source as a
+//! so an unedited PSD still round-trips byte for byte. PSD export (`evophoto_io::smart_map`)
+//! writes every smart object back as one: its source embedded in `lnk2` (a `.evophoto` source as a
 //! PSB), its smart filters in `filterFX` and its filter mask in `FEid`.
 
 use std::sync::{Arc, Mutex};
 
-use photocraft_algo::resample::translate_surface;
-use photocraft_algo::transform::Homography;
-use photocraft_color::{BlendMode, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::{DocId, Document, Layer, LayerContent, LayerId, LayerMask, Metadata, SmartContentsId, SmartFilter, SmartObject, SmartSource};
-use photocraft_geom::{Affine, Rect, Size};
-use photocraft_raster::Surface;
+use evophoto_algo::resample::translate_surface;
+use evophoto_algo::transform::Homography;
+use evophoto_color::{BlendMode, ColorMode, PixelFormat, SampleType};
+use evophoto_doc::{DocId, Document, Layer, LayerContent, LayerId, LayerMask, Metadata, SmartContentsId, SmartFilter, SmartObject, SmartSource};
+use evophoto_geom::{Affine, Rect, Size};
+use evophoto_raster::Surface;
 use serde_json::{Value, json};
 use stack_cache::{Stage, StageKey};
 
@@ -50,8 +50,8 @@ pub struct SmartLink {
 /// PSD placed-layer keys that describe the smart object's source; stale once we change it.
 const PLACED_KEYS: [&[u8; 4]; 3] = [b"SoLd", b"PlLd", b"SoLE"];
 
-/// Command id of a Photoshop smart filter PhotoCraft does not implement (kept verbatim from PSD).
-pub use photocraft_io::smart_map::UNSUPPORTED_FILTER;
+/// Command id of a Photoshop smart filter EvoPhoto does not implement (kept verbatim from PSD).
+pub use evophoto_io::smart_map::UNSUPPORTED_FILTER;
 
 fn other(msg: impl Into<String>) -> EngineError {
     EngineError::Other(msg.into())
@@ -63,12 +63,12 @@ fn bad(cmd: &str, msg: impl Into<String>) -> EngineError {
 
 // ---------- source encoding / decoding ----------
 
-/// Encodes a document as embedded smart-object contents: an in-memory `.pcraft` bundle.
+/// Encodes a document as embedded smart-object contents: an in-memory `.evophoto` bundle.
 pub fn encode_source(doc: &Document) -> Result<Vec<u8>> {
-    photocraft_format::save_to_bytes(doc, &Default::default()).map_err(|e| other(format!("can't encode smart object contents: {e}")))
+    evophoto_format::save_to_bytes(doc, &Default::default()).map_err(|e| other(format!("can't encode smart object contents: {e}")))
 }
 
-/// Decodes smart-object contents (a `.pcraft` bundle, PSD/PSB, or any flat image format).
+/// Decodes smart-object contents (a `.evophoto` bundle, PSD/PSB, or any flat image format).
 pub fn decode_source(file_name: &str, bytes: &[u8]) -> Result<Document> {
     crate::file_cmds::import(file_name, bytes).map_err(|e| other(format!("can't read smart object contents \"{file_name}\": {e}")))
 }
@@ -89,7 +89,7 @@ fn read_file(path: &str) -> Option<Vec<u8>> {
         return None;
     }
     crate::jobs::authorize_render_command("layer.smartObjects.updateModifiedContent", &json!({"path": path})).ok()?;
-    photocraft_format::read_file(&crate::doc_path::resolve(path).ok()?).ok()
+    evophoto_format::read_file(&crate::doc_path::resolve(path).ok()?).ok()
 }
 
 /// The source file of a smart object: embedded bytes, the PSD's embedded linked-layer data (PSD
@@ -105,7 +105,7 @@ pub fn source_bytes(meta: &Metadata, src: &SmartSource) -> Option<(String, Arc<V
 fn embedded_source_bytes(meta: &Metadata, src: &SmartSource) -> Option<(String, Arc<Vec<u8>>)> {
     match src {
         SmartSource::Embedded { file_name, bytes } => Some((file_name.clone(), bytes.clone())),
-        SmartSource::Linked { path } => photocraft_io::linked::find_linked_file(meta, path).map(|f| (f.file_name, Arc::new(f.bytes))),
+        SmartSource::Linked { path } => evophoto_io::linked::find_linked_file(meta, path).map(|f| (f.file_name, Arc::new(f.bytes))),
     }
 }
 
@@ -213,11 +213,11 @@ pub(crate) fn restore_unrendered<E>(
     Ok(())
 }
 
-fn buffer_to_surface(buf: &photocraft_compose::Buffer, fmt: PixelFormat) -> Surface {
+fn buffer_to_surface(buf: &evophoto_compose::Buffer, fmt: PixelFormat) -> Surface {
     let n = fmt.channels();
     let mut data = vec![0.0f32; buf.px.len() * n];
     for (p, out) in buf.px.iter().zip(data.chunks_exact_mut(n)) {
-        photocraft_raster::from_rgba_into(&fmt, *p, out);
+        evophoto_raster::from_rgba_into(&fmt, *p, out);
     }
     let mut s = Surface::new(fmt);
     if !buf.rect.is_empty() {
@@ -227,7 +227,7 @@ fn buffer_to_surface(buf: &photocraft_compose::Buffer, fmt: PixelFormat) -> Surf
     s
 }
 
-fn source_surface(src: &Document, buf: &photocraft_compose::Buffer, fmt: PixelFormat) -> Result<Surface> {
+fn source_surface(src: &Document, buf: &evophoto_compose::Buffer, fmt: PixelFormat) -> Result<Surface> {
     let gray = fmt.mode == ColorMode::Grayscale && src.pixel_format().mode != ColorMode::Grayscale;
     let linear = fmt.sample == SampleType::F32 && src.depth != SampleType::F32;
     if !gray && !linear {
@@ -238,7 +238,7 @@ fn source_surface(src: &Document, buf: &photocraft_compose::Buffer, fmt: PixelFo
     doc.layers = vec![Layer::new("source", LayerContent::Raster(buffer_to_surface(buf, src.pixel_format())))];
     if gray {
         let gray_profile = crate::color_cmds::working_profile(ColorMode::Grayscale);
-        crate::color_cmds::convert_document(&mut doc, &gray_profile, photocraft_cms::Intent::RelativeColorimetric, true)?;
+        crate::color_cmds::convert_document(&mut doc, &gray_profile, evophoto_cms::Intent::RelativeColorimetric, true)?;
     }
     if linear {
         crate::image_cmds::change_depth(&mut doc, SampleType::F32);
@@ -261,7 +261,7 @@ pub fn svg_source_image(bytes: &[u8], fmt: PixelFormat, scale: f64) -> Result<So
     if let Some(img) = cache_get(&key) {
         return Ok(img);
     }
-    let buf = photocraft_io::svg::rasterize(bytes, scale as f32).map_err(|e| other(format!("can't render the SVG smart object: {e}")))?;
+    let buf = evophoto_io::svg::rasterize(bytes, scale as f32).map_err(|e| other(format!("can't render the SVG smart object: {e}")))?;
     let img = SourceImage { surface: Arc::new(buffer_to_surface(&buf, fmt)), bounds: buf.rect };
     cache_put(key, img.clone());
     Ok(img)
@@ -285,7 +285,7 @@ pub fn source_image(file_name: &str, bytes: &[u8], fmt: PixelFormat) -> Result<S
         return Ok(img);
     }
     let doc = decode_source(file_name, bytes)?;
-    let buf = photocraft_compose::flatten(&doc);
+    let buf = evophoto_compose::flatten(&doc);
     let img = SourceImage { surface: Arc::new(source_surface(&doc, &buf, fmt)?), bounds: doc.bounds() };
     cache_put(key, img.clone());
     Ok(img)
@@ -293,8 +293,8 @@ pub fn source_image(file_name: &str, bytes: &[u8], fmt: PixelFormat) -> Result<S
 
 /// Layer › Smart Objects › Stack Mode: the source's layers (or, when it holds a single group, the
 /// group's layers) combined per pixel with `mode`. Cached like [`source_image`], keyed by mode.
-pub fn stack_image(file_name: &str, bytes: &[u8], fmt: PixelFormat, mode: photocraft_doc::StackMode) -> Result<SourceImage> {
-    use photocraft_algo::stack::Stat;
+pub fn stack_image(file_name: &str, bytes: &[u8], fmt: PixelFormat, mode: evophoto_doc::StackMode) -> Result<SourceImage> {
+    use evophoto_algo::stack::Stat;
     let mut key = cache_key(bytes, fmt);
     key.0 = *blake3::hash(&[&key.0[..], b"stack:", mode.id().as_bytes()].concat()).as_bytes();
     if let Some(img) = cache_get(&key) {
@@ -313,26 +313,26 @@ pub fn stack_image(file_name: &str, bytes: &[u8], fmt: PixelFormat, mode: photoc
             let mut one = l.clone();
             one.blend = BlendMode::Normal;
             one.clipped = false;
-            photocraft_compose::render_layer(&one, bounds).px
+            evophoto_compose::render_layer(&one, bounds).px
         })
         .collect();
     if frames.is_empty() {
         return Err(EngineError::Other("the smart object's contents have no visible layers".into()));
     }
     let stat = match mode {
-        photocraft_doc::StackMode::Entropy => Stat::Entropy,
-        photocraft_doc::StackMode::Kurtosis => Stat::Kurtosis,
-        photocraft_doc::StackMode::Maximum => Stat::Maximum,
-        photocraft_doc::StackMode::Mean => Stat::Mean,
-        photocraft_doc::StackMode::Median => Stat::Median,
-        photocraft_doc::StackMode::Minimum => Stat::Minimum,
-        photocraft_doc::StackMode::Range => Stat::Range,
-        photocraft_doc::StackMode::Skewness => Stat::Skewness,
-        photocraft_doc::StackMode::StandardDeviation => Stat::StandardDeviation,
-        photocraft_doc::StackMode::Summation => Stat::Summation,
-        photocraft_doc::StackMode::Variance => Stat::Variance,
+        evophoto_doc::StackMode::Entropy => Stat::Entropy,
+        evophoto_doc::StackMode::Kurtosis => Stat::Kurtosis,
+        evophoto_doc::StackMode::Maximum => Stat::Maximum,
+        evophoto_doc::StackMode::Mean => Stat::Mean,
+        evophoto_doc::StackMode::Median => Stat::Median,
+        evophoto_doc::StackMode::Minimum => Stat::Minimum,
+        evophoto_doc::StackMode::Range => Stat::Range,
+        evophoto_doc::StackMode::Skewness => Stat::Skewness,
+        evophoto_doc::StackMode::StandardDeviation => Stat::StandardDeviation,
+        evophoto_doc::StackMode::Summation => Stat::Summation,
+        evophoto_doc::StackMode::Variance => Stat::Variance,
     };
-    let buf = photocraft_compose::Buffer { rect: bounds, px: photocraft_algo::stack::combine(&frames, stat) };
+    let buf = evophoto_compose::Buffer { rect: bounds, px: evophoto_algo::stack::combine(&frames, stat) };
     let img = SourceImage { surface: Arc::new(source_surface(&doc, &buf, fmt)?), bounds };
     cache_put(key, img.clone());
     Ok(img)
@@ -361,19 +361,19 @@ fn blend_surfaces(base: &Surface, top: &Surface, mode: BlendMode, opacity: f32) 
     let composite_coverage = mode != BlendMode::Normal && fmt.alpha && b.chunks_exact(n).zip(t.chunks_exact(n)).any(|(bp, tp)| bp.last() != tp.last());
     let mut o = vec![0.0f32; b.len()];
     for ((bp, tp), op) in b.chunks_exact(n).zip(t.chunks_exact(n)).zip(o.chunks_exact_mut(n)) {
-        let b = photocraft_raster::to_rgba(&fmt, bp);
-        let t = photocraft_raster::to_rgba(&fmt, tp);
+        let b = evophoto_raster::to_rgba(&fmt, bp);
+        let t = evophoto_raster::to_rgba(&fmt, tp);
         if composite_coverage {
-            let rgba = photocraft_color::blend::composite(mode, b, t, opacity);
-            photocraft_raster::from_rgba_into(&fmt, rgba, op);
+            let rgba = evophoto_color::blend::composite(mode, b, t, opacity);
+            evophoto_raster::from_rgba_into(&fmt, rgba, op);
             continue;
         }
         let cb = [b[0], b[1], b[2]];
         let ct = [t[0], t[1], t[2]];
-        let color = if fmt.sample == photocraft_color::SampleType::F32 {
-            photocraft_color::blend::blend_rgb_hdr(mode, cb, ct)
+        let color = if fmt.sample == evophoto_color::SampleType::F32 {
+            evophoto_color::blend::blend_rgb_hdr(mode, cb, ct)
         } else {
-            photocraft_color::blend::blend_rgb(mode, cb, ct)
+            evophoto_color::blend::blend_rgb(mode, cb, ct)
         };
         // A filter edits this surface, rather than adding a second source-over layer. Mix
         // premultiplied results so alpha-preserving filters keep coverage at every opacity,
@@ -385,7 +385,7 @@ fn blend_surfaces(base: &Surface, top: &Surface, mode: BlendMode, opacity: f32) 
                 rgba[c] = (cb[c] * b[3] * (1.0 - opacity) + color[c] * t[3] * opacity) / a;
             }
         }
-        photocraft_raster::from_rgba_into(&fmt, rgba, op);
+        evophoto_raster::from_rgba_into(&fmt, rgba, op);
     }
     out.write_region(area, &o);
     out.prune();
@@ -406,7 +406,7 @@ pub fn apply_smart_filters(placed: &Surface, sm: &SmartObject, canvas: Rect) -> 
         cur = apply_smart_filter(f, &cur, filter_bounds(f, placed, canvas), extent)?;
     }
     Ok(match sm.filter_mask.as_ref().filter(|m| m.enabled) {
-        Some(m) => photocraft_compose::filter_mask::mix(placed, &cur, m),
+        Some(m) => evophoto_compose::filter_mask::mix(placed, &cur, m),
         None => cur,
     })
 }
@@ -442,19 +442,19 @@ fn apply_smart_filter(f: &SmartFilter, cur: &Surface, canvas: Rect, extent: Rect
 fn place(name: &str, bytes: &[u8], fmt: PixelFormat, sm: &SmartObject) -> Result<Surface> {
     // A vector source is rendered at the placement's scale, and the placement is divided by
     // that scale so the rendered pixels land where the source units would.
-    if sm.stack_mode.is_none() && sm.warp.is_none() && photocraft_io::svg::is_svg(bytes) {
+    if sm.stack_mode.is_none() && sm.warp.is_none() && evophoto_io::svg::is_svg(bytes) {
         let k = vector_scale(sm);
         let img = svg_source_image(bytes, fmt, k)?;
         return Ok(match &sm.perspective {
             Some(p) => {
                 let [h0, h1, h2, h3, h4, h5, h6, h7, h8] = *p;
                 let h = Homography([h0 / k, h1 / k, h2, h3 / k, h4 / k, h5, h6 / k, h7 / k, h8]);
-                photocraft_algo::warp::place_source_projective(&img.surface, img.bounds, &h, None)?
+                evophoto_algo::warp::place_source_projective(&img.surface, img.bounds, &h, None)?
             }
             None => {
                 let [a, b, c, d, e, f] = sm.transform.m;
                 let t = Affine { m: [a / k, b / k, c / k, d / k, e, f] };
-                photocraft_algo::warp::place_source(&img.surface, img.bounds, &t, None)?
+                evophoto_algo::warp::place_source(&img.surface, img.bounds, &t, None)?
             }
         });
     }
@@ -464,8 +464,8 @@ fn place(name: &str, bytes: &[u8], fmt: PixelFormat, sm: &SmartObject) -> Result
     };
     // Through the warp (source space) and the transform in one pass; whole-pixel moves are exact.
     Ok(match &sm.perspective {
-        Some(p) => photocraft_algo::warp::place_source_projective(&img.surface, img.bounds, &Homography(*p), sm.warp.as_ref())?,
-        None => photocraft_algo::warp::place_source(&img.surface, img.bounds, &sm.transform, sm.warp.as_ref())?,
+        Some(p) => evophoto_algo::warp::place_source_projective(&img.surface, img.bounds, &Homography(*p), sm.warp.as_ref())?,
+        None => evophoto_algo::warp::place_source(&img.surface, img.bounds, &sm.transform, sm.warp.as_ref())?,
     })
 }
 
@@ -544,7 +544,7 @@ fn render_in(doc: &Document, sm: &SmartObject, ctx: &JobCtx) -> Result<Option<Su
     }
     ctx.progress(1.0, "");
     Ok(Some(match sm.filter_mask.as_ref().filter(|m| m.enabled) {
-        Some(m) => photocraft_compose::filter_mask::mix(&placed()?.surface, &cur.surface, m),
+        Some(m) => evophoto_compose::filter_mask::mix(&placed()?.surface, &cur.surface, m),
         None => cur.surface,
     }))
 }
@@ -651,7 +651,7 @@ fn mask_from_selection(sel: &Surface) -> LayerMask {
 /// Appends a smart filter (from a `filter.*` command) and re-renders. A selection becomes the
 /// filter mask, as in Photoshop. Without a renderable source the filter is applied to the cached
 /// pixels (and still recorded).
-pub(crate) fn add_smart_filter(doc: &mut Document, id: LayerId, sf: photocraft_doc::SmartFilter, selection: Option<&Surface>) -> Result<()> {
+pub(crate) fn add_smart_filter(doc: &mut Document, id: LayerId, sf: evophoto_doc::SmartFilter, selection: Option<&Surface>) -> Result<()> {
     let canvas = doc.bounds();
     let renderable = source_bytes(&doc.metadata, &smart(doc, id)?.source).is_some();
     let sm = smart_mut(doc, id)?;
@@ -823,7 +823,7 @@ pub fn layer_to_smart(doc: &Document, l: &Layer) -> Result<Layer> {
 /// same as the layers inside a pass-through group). The smart layer is visible, opaque and Normal.
 pub fn layers_to_smart(doc: &Document, name: &str, layers: Vec<Layer>) -> Result<Layer> {
     let canvas = doc.bounds();
-    let mut sub = Document::new(format!("{name}.pcraft"), doc.size, doc.mode, doc.depth);
+    let mut sub = Document::new(format!("{name}.evophoto"), doc.size, doc.mode, doc.depth);
     sub.resolution_dpi = doc.resolution_dpi;
     sub.icc_profile = doc.icc_profile.clone();
     sub.global_light = doc.global_light;
@@ -838,7 +838,7 @@ pub fn layers_to_smart(doc: &Document, name: &str, layers: Vec<Layer>) -> Result
     let region = layers.iter().map(|l| subtree_bounds(l, canvas)).fold(canvas, |a, b| a.union(&b)).inflate(if has_fx { 256 } else { 0 });
     sub.layers = layers;
 
-    let buf = photocraft_compose::render(&sub, region);
+    let buf = evophoto_compose::render(&sub, region);
     let w = region.width() as usize;
     let mut b = Rect::EMPTY;
     for (i, p) in buf.px.iter().enumerate() {
@@ -852,7 +852,7 @@ pub fn layers_to_smart(doc: &Document, name: &str, layers: Vec<Layer>) -> Result
     }
     let fmt = doc.pixel_format();
     let mut cache = buffer_to_surface(&buf, fmt);
-    cache = photocraft_algo::resample::crop_surface(&cache, b);
+    cache = evophoto_algo::resample::crop_surface(&cache, b);
     cache.prune();
 
     sub.layers.iter_mut().for_each(|l| shift_layer(l, -b.x0, -b.y0));
@@ -984,7 +984,7 @@ fn set_shared_source(s: &mut Session, id: LayerId, label: &str, keep_psd: bool, 
 
 fn replace_contents(s: &mut Session, p: &Value) -> Result<Value> {
     let path = path_param("layer.smartObjects.replaceContents", p)?.to_string();
-    let bytes = photocraft_format::read_file(std::path::Path::new(&path)).map_err(|e| other(format!("can't read {path}: {e}")))?;
+    let bytes = evophoto_format::read_file(std::path::Path::new(&path)).map_err(|e| other(format!("can't read {path}: {e}")))?;
     let id = layer_param(s, p)?;
     replace_contents_bytes(s, id, &base_name(&path), bytes)
 }
@@ -1008,7 +1008,7 @@ pub fn contents_of(doc: &Document, id: LayerId) -> Result<(String, Arc<Vec<u8>>)
 }
 
 /// Writes the smart object's file as it is. To a path with another extension (a `.png` for
-/// `.psb` or `.pcraft` contents) the contents are opened and exported in that format instead.
+/// `.psb` or `.evophoto` contents) the contents are opened and exported in that format instead.
 fn export_contents(s: &mut Session, p: &Value) -> Result<Value> {
     let path = path_param("layer.smartObjects.exportContents", p)?;
     let id = layer_param(s, p)?;
@@ -1026,7 +1026,7 @@ fn export_contents(s: &mut Session, p: &Value) -> Result<Value> {
         return Ok(json!({"path": path, "fileName": name, "bytes": bytes.len(), "converted": false}));
     }
     let contents = decode_source(&name, &bytes)?;
-    let r = photocraft_io::export(&contents, path, &Default::default()).map_err(|e| other(format!("can't export the contents as {}: {e}", base_name(path))))?;
+    let r = evophoto_io::export(&contents, path, &Default::default()).map_err(|e| other(format!("can't export the contents as {}: {e}", base_name(path))))?;
     crate::file_cmds::write_file(path, &r.bytes)?;
     Ok(json!({"path": path, "fileName": name, "bytes": r.bytes.len(), "converted": true, "warnings": r.warnings}))
 }
@@ -1080,7 +1080,7 @@ pub fn commit_child(s: &mut Session, index: usize) -> Result<bool> {
                 SmartSource::Linked { .. } => child.name.as_str(),
             };
             let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
-            sm.source = SmartSource::Embedded { file_name: format!("{stem}.pcraft"), bytes: bytes.clone() };
+            sm.source = SmartSource::Embedded { file_name: format!("{stem}.evophoto"), bytes: bytes.clone() };
             detach_psd(doc.layer_mut(id).ok_or(EngineError::NoLayer(id))?);
             refresh_or_fail(doc, id)?;
         }
@@ -1201,7 +1201,7 @@ fn set_filter_params(s: &mut Session, p: &Value) -> Result<Value> {
         let mut fp = crate::filters::params_for(DISPLACE, &request).ok_or_else(|| bad(CMD, "unreadable Displace settings"))?;
         crate::filters_ext::resolve(s, &mut fp, &request)?;
         match fp {
-            photocraft_algo::FilterParams::Displace { map, .. } => map,
+            evophoto_algo::FilterParams::Displace { map, .. } => map,
             _ => None,
         }
     } else {
@@ -1210,8 +1210,8 @@ fn set_filter_params(s: &mut Session, p: &Value) -> Result<Value> {
     edit_filters(s, p, "Edit Smart Filter", |sm| {
         let i = filter_index(CMD, p, sm)?;
         let f = &mut sm.smart_filters[i];
-        if f.command == photocraft_io::smart_map::UNSUPPORTED_FILTER {
-            return Err(bad(CMD, "this smart filter isn't implemented in PhotoCraft: it is kept as is (it can be hidden, moved or deleted)"));
+        if f.command == evophoto_io::smart_map::UNSUPPORTED_FILTER {
+            return Err(bad(CMD, "this smart filter isn't implemented in EvoPhoto: it is kept as is (it can be hidden, moved or deleted)"));
         }
         match (&mut f.params, new) {
             (Value::Object(old), Value::Object(n)) => old.extend(n),
@@ -1219,10 +1219,10 @@ fn set_filter_params(s: &mut Session, p: &Value) -> Result<Value> {
         }
         if f.command == DISPLACE {
             if let Some(map) = &new_map {
-                f.params = photocraft_io::smart_map::displace_embed_map(&f.params, map)
+                f.params = evophoto_io::smart_map::displace_embed_map(&f.params, map)
                     .ok_or_else(|| bad(CMD, "the displacement map is too large to keep in a Smart Object's filter"))?;
             } else if new_path {
-                f.params = photocraft_io::smart_map::displace_without_map(&f.params);
+                f.params = evophoto_io::smart_map::displace_without_map(&f.params);
             }
         }
         // Authorize the underlying command with the complete merged params, including paths

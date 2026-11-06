@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Build and package PhotoCraft for FreeBSD:
+# Build and package EvoPhoto for FreeBSD:
 #
-#   $DIST/photocraft-<version>-freebsd-x86_64.tar.gz   a /usr/local-style tree:
-#       photocraft-<version>-freebsd-x86_64/{bin, man/man1, share/applications, share/icons,
-#       share/mime, share/metainfo, share/doc/photocraft, share/{bash-completion,zsh,fish}}
+#   $DIST/evophoto-<version>-freebsd-x86_64.tar.gz   a /usr/local-style tree:
+#       evophoto-<version>-freebsd-x86_64/{bin, man/man1, share/applications, share/icons,
+#       share/mime, share/metainfo, share/doc/evophoto, share/{bash-completion,zsh,fish}}
 #
 # Install by copying the tree's contents into /usr/local:
-#   tar -xzf photocraft-<version>-freebsd-x86_64.tar.gz --strip-components 1 -C /usr/local
+#   tar -xzf evophoto-<version>-freebsd-x86_64.tar.gz --strip-components 1 -C /usr/local
 #
 # Usage: packaging/freebsd/package.sh [--skip-build] [--dry-run]
 #   --dry-run   stage the tree from stub binaries and list it, without building (works on any OS)
@@ -16,7 +16,7 @@ set -euo pipefail
 # shellcheck source=../env.sh
 . "$(dirname "${BASH_SOURCE[0]}")/../env.sh"
 LINUX="$ROOT/packaging/linux"
-APP_ID=ai.storyteller.photocraft
+APP_ID=ai.storyteller.evophoto
 
 SKIP_BUILD=0
 DRY_RUN=0
@@ -40,18 +40,18 @@ if [[ "$DRY_RUN" = 0 ]] && [[ "$(uname -s)" != FreeBSD ]]; then
   echo "error: build on FreeBSD (or pass --dry-run to check the tree layout)" >&2
   exit 2
 fi
-BASENAME="photocraft-$VERSION-freebsd-$ARCH"
+BASENAME="evophoto-$VERSION-freebsd-$ARCH"
 
-echo "==> PhotoCraft $VERSION for FreeBSD $ARCH"
+echo "==> EvoPhoto $VERSION for FreeBSD $ARCH"
 
 # The release VM has 12 GB; full parallelism on the biggest crates runs it out of memory.
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-4}"
-# The man-and-completions example writes photocraft-cli's man pages and shell completions below. It
+# The man-and-completions example writes evophoto-cli's man pages and shell completions below. It
 # is built in its own cargo run: built with the binaries, its dev-dependencies' features would be
 # unified into them.
 if [[ "$SKIP_BUILD" = 0 ]]; then
-  (cd "$ROOT" && cargo build --release --locked -p photocraft -p photocraft-cli --features heif --bins)
-  (cd "$ROOT" && cargo build --release --locked -p photocraft-cli --features heif --example man-and-completions)
+  (cd "$ROOT" && cargo build --release --locked -p evophoto -p evophoto-cli --features heif --bins)
+  (cd "$ROOT" && cargo build --release --locked -p evophoto-cli --features heif --example man-and-completions)
 fi
 WORK="$CARGO_TARGET_DIR/freebsd-package"
 STAGE="$WORK/$BASENAME"
@@ -65,7 +65,7 @@ if [[ "$DRY_RUN" = 1 ]]; then
   BIN="$WORK/stub-bin"
   OUT_DIR="$WORK"
   mkdir -p "$BIN"
-  for b in photocraft photocraft-cli; do
+  for b in evophoto evophoto-cli; do
     printf '#!/bin/sh\necho "%s %s (dry-run stub)"\n' "$b" "$VERSION" >"$BIN/$b"
     chmod 755 "$BIN/$b"
   done
@@ -74,38 +74,38 @@ fi
 # ---- stage a /usr/local-style tree --------------------------------------------------------------
 # FreeBSD's install(1) has no -D: create the directories first.
 mkdir -p "$STAGE/bin" "$STAGE/share/applications" "$STAGE/share/mime/packages" \
-  "$STAGE/share/metainfo" "$STAGE/share/icons" "$STAGE/share/doc/photocraft"
-install -m 755 "$BIN/photocraft" "$BIN/photocraft-cli" "$STAGE/bin/"
-strip "$STAGE/bin/photocraft" "$STAGE/bin/photocraft-cli" 2>/dev/null || true
+  "$STAGE/share/metainfo" "$STAGE/share/icons" "$STAGE/share/doc/evophoto"
+install -m 755 "$BIN/evophoto" "$BIN/evophoto-cli" "$STAGE/bin/"
+strip "$STAGE/bin/evophoto" "$STAGE/bin/evophoto-cli" 2>/dev/null || true
 # The desktop entry, MIME type, metainfo and icons are the freedesktop files Linux ships.
 install -m 644 "$LINUX/$APP_ID.desktop" "$STAGE/share/applications/$APP_ID.desktop"
 install -m 644 "$LINUX/$APP_ID.mime.xml" "$STAGE/share/mime/packages/$APP_ID.xml"
-sed -e "s/@VERSION@/$VERSION/g" -e "s/@DATE@/$PHOTOCRAFT_BUILD_DATE/g" \
+sed -e "s/@VERSION@/$VERSION/g" -e "s/@DATE@/$EVOPHOTO_BUILD_DATE/g" \
   "$LINUX/$APP_ID.metainfo.xml.in" >"$STAGE/share/metainfo/$APP_ID.metainfo.xml"
 cp -R "$ROOT/assets/app-icon/hicolor" "$STAGE/share/icons/"
-copy_docs "$STAGE/share/doc/photocraft"
+copy_docs "$STAGE/share/doc/evophoto"
 for f in NOTICE ATTRIBUTION.md; do
-  if [[ -f "$ROOT/$f" ]]; then install -m 644 "$ROOT/$f" "$STAGE/share/doc/photocraft/"; fi
+  if [[ -f "$ROOT/$f" ]]; then install -m 644 "$ROOT/$f" "$STAGE/share/doc/evophoto/"; fi
 done
-# photocraft-cli's man pages and shell completions, from its clap definition, written by the
+# evophoto-cli's man pages and shell completions, from its clap definition, written by the
 # example built above. A dry run builds nothing, so it leaves them out, as a --skip-build run whose
 # prebuilt binaries came without the example does.
 CLI_DOCS="$BIN/examples/man-and-completions"
 if [[ "$DRY_RUN" = 0 ]] && [[ ! -x "$CLI_DOCS" ]]; then
-  warn "$CLI_DOCS is not built, so photocraft-cli's man pages and completions are left out"
+  warn "$CLI_DOCS is not built, so evophoto-cli's man pages and completions are left out"
 elif [[ "$DRY_RUN" = 0 ]]; then
   "$CLI_DOCS" "$WORK/cli-docs"
   mkdir -p "$STAGE/man/man1" "$STAGE/share/bash-completion/completions" \
     "$STAGE/share/zsh/site-functions" "$STAGE/share/fish/vendor_completions.d"
   install -m 644 "$WORK"/cli-docs/*.1 "$STAGE/man/man1/"
-  install -m 644 "$WORK/cli-docs/photocraft-cli.bash" "$STAGE/share/bash-completion/completions/photocraft-cli"
-  install -m 644 "$WORK/cli-docs/_photocraft-cli" "$STAGE/share/zsh/site-functions/_photocraft-cli"
-  install -m 644 "$WORK/cli-docs/photocraft-cli.fish" "$STAGE/share/fish/vendor_completions.d/photocraft-cli.fish"
+  install -m 644 "$WORK/cli-docs/evophoto-cli.bash" "$STAGE/share/bash-completion/completions/evophoto-cli"
+  install -m 644 "$WORK/cli-docs/_evophoto-cli" "$STAGE/share/zsh/site-functions/_evophoto-cli"
+  install -m 644 "$WORK/cli-docs/evophoto-cli.fish" "$STAGE/share/fish/vendor_completions.d/evophoto-cli.fish"
 fi
 
-for f in bin/photocraft bin/photocraft-cli "share/applications/$APP_ID.desktop" \
+for f in bin/evophoto bin/evophoto-cli "share/applications/$APP_ID.desktop" \
   "share/icons/hicolor/256x256/apps/$APP_ID.png" "share/icons/hicolor/scalable/apps/$APP_ID.svg" \
-  share/doc/photocraft/LICENSE-MIT share/doc/photocraft/LICENSE-APACHE; do
+  share/doc/evophoto/LICENSE-MIT share/doc/evophoto/LICENSE-APACHE; do
   if [[ ! -e "$STAGE/$f" ]]; then echo "error: $f is missing from the package" >&2; exit 1; fi
 done
 
@@ -114,7 +114,7 @@ mkdir -p "$OUT_DIR"
 tar -C "$WORK" -czf "$OUT_DIR/$BASENAME.tar.gz" "$BASENAME"
 echo "wrote $OUT_DIR/$BASENAME.tar.gz"
 
-"$STAGE/bin/photocraft-cli" --version
+"$STAGE/bin/evophoto-cli" --version
 if [[ "$DRY_RUN" = 1 ]]; then
   echo "==> dry run: tarball contents"
   tar -tzvf "$OUT_DIR/$BASENAME.tar.gz"

@@ -4,7 +4,7 @@
 # Clean-room: every entry was written from the plain meaning of the English label using ordinary
 # Dutch computing vocabulary (laag, selectie, masker, aanpassingslaag, penseel, verloop ...). No
 # proprietary localisation resource, string table or product UI was consulted or copied; add
-# entries the same way. Product and technology names (PhotoCraft, OpenType, CMYK, Lab ...)
+# entries the same way. Product and technology names (EvoPhoto, OpenType, CMYK, Lab ...)
 # stay as they are; the trailing "…" of dialog commands is kept. UI text addresses the user
 # informally ("je") and uses sentence case.
 
@@ -1335,7 +1335,7 @@
 	Lumbra	Lumbra
 	Lumbra Manages Colors	Lumbra beheert kleuren
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — een opensource, native afbeeldingseditor geschreven in Rust.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	Gebaseerd op PhotoCraft, opensourcesoftware (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Gebaseerd op EvoPhoto, opensourcesoftware (MIT OR Apache-2.0).
 	Pin Depth:	Speldiepte:
 	Pixel Length:	Pixellengte:
 	Pixels/Centimeter	Pixels/centimeter
@@ -3448,7 +3448,7 @@ cameraRaw	Color	Kleur
 	Modify Date	Wijzigingsdatum
 	Mosaic	Mozaïek
 	Motion Blur	Bewegingsonscherpte
-	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= photocraft`.	Bestanden slepen en neerzetten wordt nog niet ondersteund onder Wayland. Gebruik Bestand › Openen, of start Lumbra onder XWayland met `WAYLAND_DISPLAY= photocraft`.
+	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= evophoto`.	Bestanden slepen en neerzetten wordt nog niet ondersteund onder Wayland. Gebruik Bestand › Openen, of start Lumbra onder XWayland met `WAYLAND_DISPLAY= evophoto`.
 	Neon Glow	Neongloed
 	New Guide Layout	Nieuwe hulplijnindeling
 	New Path	Nieuw pad
@@ -3994,7 +3994,7 @@ curves	Smooth	Vloeiend maken
 	Sent to {printer}	Verzonden naar {printer}
 	set in Print Settings…	instellen in de afdrukinstellingen…
 	ICO is limited to 256 × 256 pixels	ICO is beperkt tot 256 × 256 pixels
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	Controleren op updates…
 	Lumbra Updates	Lumbra-updates
 	Checking for updates…	Controleren op updates…

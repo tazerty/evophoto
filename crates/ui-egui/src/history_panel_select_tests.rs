@@ -10,8 +10,8 @@ use serde_json::json;
 use super::*;
 
 /// Open, then New Layer, Fill, New Layer, Fill.
-fn harness() -> Harness<'static, PhotocraftApp> {
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+fn harness() -> Harness<'static, EvoPhotoApp> {
+    let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 64, "height": 48})).unwrap();
     for (cmd, p) in
         [("layer.new.layer", json!({})), ("edit.fill", json!({"color": "#ff0000"})), ("layer.new.layer", json!({})), ("edit.fill", json!({"color": "#00ff00"}))]
@@ -20,9 +20,9 @@ fn harness() -> Harness<'static, PhotocraftApp> {
     }
     let mut ready = false;
     let mut h = Harness::builder().with_size(vec2(300.0, 400.0)).build_ui_state(
-        move |ui, app: &mut PhotocraftApp| {
+        move |ui, app: &mut EvoPhotoApp| {
             if !ready {
-                PhotocraftApp::setup_context(ui.ctx(), theme::ThemeKind::ProMedium);
+                EvoPhotoApp::setup_context(ui.ctx(), theme::ThemeKind::ProMedium);
                 ready = true;
                 return;
             }
@@ -34,7 +34,7 @@ fn harness() -> Harness<'static, PhotocraftApp> {
     h
 }
 
-fn state(h: &Harness<'_, PhotocraftApp>) -> (usize, usize, u64) {
+fn state(h: &Harness<'_, EvoPhotoApp>) -> (usize, usize, u64) {
     let st = h.state().session.active().unwrap();
     (st.history.past_len(), st.history.redo_labels().count(), st.revision)
 }
@@ -61,16 +61,16 @@ fn clicking_a_state_jumps_there_with_one_command() {
 
 #[test]
 fn new_history_steps_scroll_the_current_state_into_view() {
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+    let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 64, "height": 48})).unwrap();
     for n in 0..18 {
         app.run("layer.new.layer", json!({"name": format!("Layer {n}")})).unwrap();
     }
     let mut ready = false;
     let mut h = Harness::builder().with_size(vec2(280.0, 120.0)).build_ui_state(
-        move |ui, app: &mut PhotocraftApp| {
+        move |ui, app: &mut EvoPhotoApp| {
             if !ready {
-                PhotocraftApp::setup_context(ui.ctx(), theme::ThemeKind::ProMedium);
+                EvoPhotoApp::setup_context(ui.ctx(), theme::ThemeKind::ProMedium);
                 ready = true;
                 return;
             }
@@ -85,17 +85,17 @@ fn new_history_steps_scroll_the_current_state_into_view() {
 }
 
 /// Open plus 18 New Layer states in a dock that shows only a few rows.
-fn long_harness() -> Harness<'static, PhotocraftApp> {
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+fn long_harness() -> Harness<'static, EvoPhotoApp> {
+    let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 64, "height": 48})).unwrap();
     for n in 0..18 {
         app.run("layer.new.layer", json!({"name": format!("Layer {n}")})).unwrap();
     }
     let mut ready = false;
     let mut h = Harness::builder().with_size(vec2(280.0, 220.0)).build_ui_state(
-        move |ui, app: &mut PhotocraftApp| {
+        move |ui, app: &mut EvoPhotoApp| {
             if !ready {
-                PhotocraftApp::setup_context(ui.ctx(), theme::ThemeKind::ProMedium);
+                EvoPhotoApp::setup_context(ui.ctx(), theme::ThemeKind::ProMedium);
                 ready = true;
                 return;
             }
@@ -108,13 +108,13 @@ fn long_harness() -> Harness<'static, PhotocraftApp> {
 }
 
 /// Top of the `n`th New Layer row from the end (0 = the last).
-fn row_top(h: &Harness<'_, PhotocraftApp>, n: usize) -> f32 {
+fn row_top(h: &Harness<'_, EvoPhotoApp>, n: usize) -> f32 {
     let rows: Vec<_> = h.get_all_by_label("New Layer").map(|r| r.rect()).collect();
     rows[rows.len() - 1 - n].top()
 }
 
 /// The rows' visible band: below the window top, above the footer.
-fn shown(h: &Harness<'_, PhotocraftApp>, n: usize) -> bool {
+fn shown(h: &Harness<'_, EvoPhotoApp>, n: usize) -> bool {
     let footer = h.get_by_label("Delete current state").rect().top();
     let top = row_top(h, n);
     top >= h.ctx.input(|i| i.viewport_rect()).top() && top + 24.0 <= footer + 0.5

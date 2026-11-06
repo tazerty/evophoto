@@ -3,11 +3,11 @@
 
 use std::sync::Arc;
 
-use photocraft_color::{ColorMode, SampleType};
-use photocraft_doc::{Document, Layer, Size};
-use photocraft_io::{ExportOptions, export, import};
-use photocraft_psd::PsdFile;
-use photocraft_psd::metadata::{layer_xmp, put_layer_xmp};
+use evophoto_color::{ColorMode, SampleType};
+use evophoto_doc::{Document, Layer, Size};
+use evophoto_io::{ExportOptions, export, import};
+use evophoto_psd::PsdFile;
+use evophoto_psd::metadata::{layer_xmp, put_layer_xmp};
 
 const A: &str = r#"<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:app="http://example.com/app/1.0/"><app:arc>120</app:arc></rdf:Description></rdf:RDF></x:xmpmeta>"#;
 const G: &str = r#"<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:app="http://example.com/app/1.0/"><app:name>Café 🎨</app:name></rdf:Description></rdf:RDF></x:xmpmeta>"#;
@@ -45,7 +45,7 @@ fn layer_xmp_round_trips_through_every_layered_format_and_depth() {
     let tiff = ExportOptions { tiff_layers: true, ..Default::default() };
     for depth in SampleType::ALL {
         let doc = sample(depth);
-        for (path, opts) in [("x.psd", &ExportOptions::default()), ("x.psb", &psb), ("x.tif", &tiff), ("x.pcraft", &ExportOptions::default())] {
+        for (path, opts) in [("x.psd", &ExportOptions::default()), ("x.psb", &psb), ("x.tif", &tiff), ("x.evophoto", &ExportOptions::default())] {
             let bytes = export(&doc, path, opts).unwrap().bytes;
             let back = import(path, &bytes).unwrap().document;
             assert_eq!(xmps(&back), xmps(&doc), "{path} {depth:?}");
@@ -63,7 +63,7 @@ fn layer_xmp_round_trips_through_every_layered_format_and_depth() {
 fn photoshop_shmd_keeps_its_other_data() {
     let without = unhex(PS_WITHOUT_XMP);
     let with = put_layer_xmp(Some(&without), A).unwrap();
-    // A layer as an older PhotoCraft kept it: Photoshop's block verbatim, no field.
+    // A layer as an older EvoPhoto kept it: Photoshop's block verbatim, no field.
     let mut doc = Document::new("PS", Size::new(2, 2), ColorMode::Rgb, SampleType::U8);
     let mut l = Layer::raster("L", doc.pixel_format());
     l.psd_blocks.push((*b"shmd", Arc::new(with.clone())));

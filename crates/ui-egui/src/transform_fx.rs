@@ -22,13 +22,13 @@
 use std::sync::{Arc, Mutex, PoisonError};
 
 use egui::{Color32, ColorImage, TextureHandle, TextureId, TextureOptions};
-use photocraft_algo::transform::Homography;
-use photocraft_color::{BlendMode, PixelFormat};
-use photocraft_compose::Buffer;
-use photocraft_compose::effects::{self, TextureCtx};
-use photocraft_doc::{Document, Effect, Layer, LayerContent};
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use evophoto_algo::transform::Homography;
+use evophoto_color::{BlendMode, PixelFormat};
+use evophoto_compose::Buffer;
+use evophoto_compose::effects::{self, TextureCtx};
+use evophoto_doc::{Document, Effect, Layer, LayerContent};
+use evophoto_geom::Rect;
+use evophoto_raster::Surface;
 
 use crate::transform_tex::PreviewTextures;
 
@@ -106,7 +106,7 @@ pub fn work_layer(layer: &Layer, scale: f64) -> Layer {
     l.vector_mask = None;
     l.fill_cache = None;
     l.blend = BlendMode::Normal;
-    photocraft_engine::image_cmds::scale_effects(&mut l.effects, scale as f32);
+    evophoto_engine::image_cmds::scale_effects(&mut l.effects, scale as f32);
     l.effects.reference = l.effects.reference.map(|(x, y)| (x * scale, y * scale));
     l
 }
@@ -394,7 +394,7 @@ impl StyledPreview {
         &self,
         ctx: &egui::Context,
         frame: &Frame,
-        display: Option<&photocraft_engine::display_color::CanvasDisplay>,
+        display: Option<&evophoto_engine::display_color::CanvasDisplay>,
     ) -> Option<(TextureId, [f32; 4])> {
         let (plan, work, level) = frame.plan()?;
         let crisp = plan.scale >= 1.0 && frame.zoom >= CRISP_ZOOM;
@@ -429,8 +429,8 @@ impl StyledPreview {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_color::Color;
-    use photocraft_doc::{Contour, FxCommon, FxPaint, Shadow, StrokeFx, StrokePosition};
+    use evophoto_color::Color;
+    use evophoto_doc::{Contour, FxCommon, FxPaint, Shadow, StrokeFx, StrokePosition};
 
     const BLUE: Color32 = Color32::from_rgb(0, 0, 255);
 
@@ -468,7 +468,7 @@ mod tests {
     }
 
     fn doc() -> Document {
-        Document::new("t", photocraft_geom::Size::new(200, 200), photocraft_color::ColorMode::Rgb, photocraft_color::SampleType::U8)
+        Document::new("t", evophoto_geom::Size::new(200, 200), evophoto_color::ColorMode::Rgb, evophoto_color::SampleType::U8)
     }
 
     fn rect_quad(r: [f64; 4]) -> [[f64; 2]; 4] {

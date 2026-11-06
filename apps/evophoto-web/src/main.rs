@@ -1,0 +1,83 @@
+//! EvoPhoto in the browser.
+//!
+//! Runs the same [`evophoto_ui_egui::EvoPhotoApp`] as the desktop app through eframe's web
+//! runner (wgpu: WebGPU where available, WebGL2 otherwise). Build with `trunk build --release`
+//! from this directory; see `docs/development.md` ("Web build").
+//!
+//! Differences from the desktop app:
+//! - no TCP control server (browsers can't listen on sockets);
+//! - file pickers return browser file contents asynchronously through `Services::file_dialog`;
+//!   this includes File → Open and commands such as Place Embedded;
+//! - saving/exporting triggers a browser download;
+//! - dropped files are read asynchronously by `web::WebShell` and delivered through `Services::inbox`.
+//!
+//! URL query flags: `?cpu` forces the CPU canvas path (same as `EVOPHOTO_CPU_CANVAS=1`);
+//! `?webgl` forces the WebGL2 backend instead of WebGPU. Evora build: every parameter is read by
+//! name (LUM-01); `?host=evora` turns on the Evora host protocol bridge (patch E4, `ehp`).
+
+#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+
+#[cfg(any(target_arch = "wasm32", test))]
+mod preset_bridge;
+
+#[cfg(target_arch = "wasm32")]
+mod indexed_presets;
+
+// Evora build (patch E5, corrected with E4): the storage namespace from `evora:init` and `evora:purge`.
+#[cfg(target_arch = "wasm32")]
+mod storage_ns;
+
+// Evora build (patch E4): the Evora host protocol bridge (EHP v1) and the host's documents.
+#[cfg(target_arch = "wasm32")]
+mod ehp;
+#[cfg(target_arch = "wasm32")]
+mod host_docs;
+// Evora build (patch LUM-10): the commands the host may run (`evora:command`).
+#[cfg(target_arch = "wasm32")]
+mod host_commands;
+// Evora build (patch LUM-02): the host's file picker (`evora:pick`).
+#[cfg(target_arch = "wasm32")]
+mod host_pick;
+// Evora build (patch LUM-09): the menu items the host build hides.
+#[cfg(target_arch = "wasm32")]
+mod host_menus;
+// Evora build (patch LUM-13): the exit key, `evora:focus-out`.
+#[cfg(target_arch = "wasm32")]
+mod host_focus;
+// Evora build (patch LUM-TOUCHES): the shortcuts browsers keep, typed with other keys.
+#[cfg(target_arch = "wasm32")]
+mod host_keys;
+// Evora build (patch LUM-14): exports without the location.
+#[cfg(target_arch = "wasm32")]
+mod host_meta;
+// Evora build (patches LUM-06 r2, LUM-14 r2, LUM-15): the accent and the preferences `evora:init` sets.
+#[cfg(target_arch = "wasm32")]
+mod host_prefs;
+
+#[cfg(target_arch = "wasm32")]
+mod web;
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    web::start();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {
+    eprintln!("evophoto-web only runs in the browser: build it with `trunk build --release` in apps/evophoto-web");
+}
+
+#[cfg(test)]
+mod tests {
+    /// A WebAssembly module that never downloads (or doesn't match the page) runs no Rust, so the
+    /// page itself replaces the endless "Loading" with what may have gone wrong and a way to
+    /// retry, without a hand-written script.
+    #[test]
+    fn loading_page_offers_a_reload_when_startup_stalls() {
+        let html = include_str!("../index.html");
+        let (_, hint) = html.split_once("<p id=\"evophoto_stalled\">").expect("stalled-startup hint in the loading element");
+        assert!(hint.contains("failed to") && hint.contains("<a href=\"\">Reload</a>"), "{hint}");
+        assert!(html.contains("animation: evophoto-stalled"), "the hint appears after a delay");
+        assert!(!html.contains("<script"), "trunk injects the generated loader; the page has no script of its own");
+    }
+}

@@ -10,9 +10,9 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use photocraft_color::{BlendMode, ColorMode, PixelFormat, SampleType};
-use photocraft_geom::Rect;
-use photocraft_raster::{Surface, from_rgba_into, to_rgba};
+use evophoto_color::{BlendMode, ColorMode, PixelFormat, SampleType};
+use evophoto_geom::Rect;
+use evophoto_raster::{Surface, from_rgba_into, to_rgba};
 
 use crate::brush::{BrushSettings, MaskMode, Pattern, TipShape};
 use crate::dynamics::{DabGenerator, grid_cell};
@@ -1044,9 +1044,9 @@ impl StrokeRenderer {
                         let d = to_rgba(&fmt, px);
                         let sr = to_rgba(&fmt, &src[..n]);
                         let o = if lock_transparency {
-                            photocraft_color::blend::composite_atop(b.mode, d, sr, k)
+                            evophoto_color::blend::composite_atop(b.mode, d, sr, k)
                         } else {
-                            photocraft_color::blend::composite(b.mode, d, sr, k)
+                            evophoto_color::blend::composite(b.mode, d, sr, k)
                         };
                         let mut enc = [0.0f32; 8];
                         from_rgba_into(&fmt, o, &mut enc);

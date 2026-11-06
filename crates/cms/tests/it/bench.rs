@@ -1,6 +1,6 @@
-//! Throughput check: `cargo test -p photocraft-cms --release --test it -- bench:: --ignored --nocapture`.
+//! Throughput check: `cargo test -p evophoto-cms --release --test it -- bench:: --ignored --nocapture`.
 
-use photocraft_cms::{Builtin, Intent, Transform};
+use evophoto_cms::{Builtin, Intent, Transform};
 
 #[test]
 #[ignore]

@@ -10,11 +10,11 @@
 
 use std::sync::Arc;
 
-use photocraft_algo::resample::{Resample, resize_surface, translate_surface};
-use photocraft_color::{ColorMode, PixelFormat};
-use photocraft_doc::{Affine, Document, Layer, LayerContent, LayerId, SmartObject, SmartSource};
-use photocraft_geom::Rect;
-use photocraft_raster::{Surface, from_rgba_into};
+use evophoto_algo::resample::{Resample, resize_surface, translate_surface};
+use evophoto_color::{ColorMode, PixelFormat};
+use evophoto_doc::{Affine, Document, Layer, LayerContent, LayerId, SmartObject, SmartSource};
+use evophoto_geom::Rect;
+use evophoto_raster::{Surface, from_rgba_into};
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, layer_param};
@@ -78,9 +78,9 @@ fn is_file(_path: &str) -> bool {
 
 #[cfg(not(target_arch = "wasm32"))]
 /// Every file the engine opens is read here: in bounded reads, with a clear error when it does
-/// not fit in memory (see [`photocraft_format::read`]).
+/// not fit in memory (see [`evophoto_format::read`]).
 pub(crate) fn read_file(path: &str) -> Result<Vec<u8>> {
-    photocraft_format::read_file(std::path::Path::new(path)).map_err(|e| EngineError::Other(format!("{path}: {e}")))
+    evophoto_format::read_file(std::path::Path::new(path)).map_err(|e| EngineError::Other(format!("{path}: {e}")))
 }
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn read_file(path: &str) -> Result<Vec<u8>> {
@@ -89,9 +89,9 @@ pub(crate) fn read_file(path: &str) -> Result<Vec<u8>> {
 
 #[cfg(not(target_arch = "wasm32"))]
 /// Every file the engine writes goes through here: crash-safe (temp file + fsync + rename, see
-/// [`photocraft_format::atomic`]), so a failed save never destroys the previous file.
+/// [`evophoto_format::atomic`]), so a failed save never destroys the previous file.
 pub(crate) fn write_file(path: &str, bytes: &[u8]) -> Result<()> {
-    photocraft_format::atomic_write(std::path::Path::new(path), bytes).map_err(|e| EngineError::Other(e.to_string()))
+    evophoto_format::atomic_write(std::path::Path::new(path), bytes).map_err(|e| EngineError::Other(e.to_string()))
 }
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn write_file(path: &str, _bytes: &[u8]) -> Result<()> {
@@ -127,16 +127,16 @@ fn openable_name(path: &str) -> bool {
 /// Extensions the batch commands pick up from a folder.
 #[cfg(not(target_arch = "wasm32"))]
 const OPENABLE: &[&str] = &[
-    "pdn", "ora", "xcf", "xcfgz", "kra", "krz", "psd", "psb", "pcraft", "png", "jpg", "jpeg", "tif", "tiff", "webp", "gif", "bmp", "tga", "exr", "hdr", "qoi",
+    "pdn", "ora", "xcf", "xcfgz", "kra", "krz", "psd", "psb", "evophoto", "png", "jpg", "jpeg", "tif", "tiff", "webp", "gif", "bmp", "tga", "exr", "hdr", "qoi",
     "ico", "pnm", "ppm", "pgm", "fits", "fit", "fts", "dpx", "heic", "heif", "hif", "dng", "cr2", "nef", "nrw", "arw", "pef", "svg", "svgz", "af", "afdesign",
     "afphoto", "afpub",
 ];
 
 /// Whether saving `doc` as a TIFF writes Photoshop layer data (anything beyond a lone
 /// Background layer). The UI asks before such a save when the "ask before saving layered TIFF"
-/// preference is on; see `photocraft_io::tiff_layers`.
+/// preference is on; see `evophoto_io::tiff_layers`.
 pub fn tiff_would_write_layers(doc: &Document) -> bool {
-    photocraft_io::tiff_layers::would_write_layers(doc)
+    evophoto_io::tiff_layers::would_write_layers(doc)
 }
 
 pub(crate) fn file_name(path: &str) -> String {
@@ -162,42 +162,42 @@ pub fn extension(path: &str) -> Option<String> {
 }
 
 /// Whether a save without a new path may write back to `path` as far as its format goes: only
-/// layered files (PSD, PSB, OpenRaster, .pcraft). A flat file goes through Save As instead, so it
+/// layered files (PSD, PSB, OpenRaster, .evophoto). A flat file goes through Save As instead, so it
 /// is never flattened over the original. Whether this document fits is [`holds_at`].
 pub fn saves_in_place(path: &str) -> bool {
     extension(path).is_some_and(|ext| layered_extension(&ext))
 }
 
 /// Whether the lower-case extension `ext` names a layered document format (PSD, PSB, OpenRaster,
-/// .pcraft). A save to one becomes the document's file; any other format is a copy for automation
+/// .evophoto). A save to one becomes the document's file; any other format is a copy for automation
 /// saves, desktop and headless alike (#1547, #2579).
 pub fn layered_extension(ext: &str) -> bool {
-    matches!(ext, "psd" | "psb" | "pcraft" | "ora")
+    matches!(ext, "psd" | "psb" | "evophoto" | "ora")
 }
 
 /// Whether a file in format `ext` (lower-case) holds the whole of `doc`, so it can be the
-/// document's own file: PSD, PSB and .pcraft always; OpenRaster only when it drops nothing (no
-/// adjustment layers, styles, masks…, [`photocraft_io::ora_losses`]). A save to a format that
+/// document's own file: PSD, PSB and .evophoto always; OpenRaster only when it drops nothing (no
+/// adjustment layers, styles, masks…, [`evophoto_io::ora_losses`]). A save to a format that
 /// doesn't hold the document is a copy, and File › Save goes through Save As, so an editable
 /// original is never overwritten with less than it had (#3806).
-pub fn holds(doc: &photocraft_doc::Document, ext: &str) -> bool {
+pub fn holds(doc: &evophoto_doc::Document, ext: &str) -> bool {
     match ext {
-        "psd" | "psb" | "pcraft" => true,
-        "ora" => photocraft_io::ora_losses(doc).is_empty(),
+        "psd" | "psb" | "evophoto" => true,
+        "ora" => evophoto_io::ora_losses(doc).is_empty(),
         _ => false,
     }
 }
 
 /// [`holds`] for the file at `path`.
-pub fn holds_at(doc: &photocraft_doc::Document, path: &str) -> bool {
+pub fn holds_at(doc: &evophoto_doc::Document, path: &str) -> bool {
     extension(path).is_some_and(|ext| holds(doc, &ext))
 }
 
 /// What a save of `doc` to `path` would leave out when its format can't hold it: OpenRaster's
-/// [`photocraft_io::ora_losses`]; empty for other formats.
-pub fn losses_at(doc: &photocraft_doc::Document, path: &str) -> Vec<String> {
+/// [`evophoto_io::ora_losses`]; empty for other formats.
+pub fn losses_at(doc: &evophoto_doc::Document, path: &str) -> Vec<String> {
     match extension(path).as_deref() {
-        Some("ora") => photocraft_io::ora_losses(doc),
+        Some("ora") => evophoto_io::ora_losses(doc),
         _ => Vec::new(),
     }
 }
@@ -326,9 +326,9 @@ fn import_at_raw_ppi(raw_ppi: f64, name: &str, bytes: &[u8]) -> Result<Document>
     Ok(doc)
 }
 
-fn import_result(name: &str, bytes: &[u8]) -> Result<photocraft_io::ImportResult> {
+fn import_result(name: &str, bytes: &[u8]) -> Result<evophoto_io::ImportResult> {
     crate::allocation::checkpoint("importing document")?;
-    let r = photocraft_io::import(name, bytes).map_err(|e| EngineError::Other(format!("{name}: {e}")))?;
+    let r = evophoto_io::import(name, bytes).map_err(|e| EngineError::Other(format!("{name}: {e}")))?;
     // Auxiliary imports return only a document and cannot surface the preview's fidelity warning.
     // Open has its own warning-preserving path; never silently place or process a thumbnail.
     if r.preview_only {
@@ -346,19 +346,19 @@ pub(crate) struct SaveOpts {
     /// Photoshop's 0–12 JPEG scale.
     pub quality: Option<f64>,
     /// JPEG Options › Format Options (`"jpegFormat"`); unset, Baseline ("Standard").
-    pub jpeg_format: Option<photocraft_codecs::JpegFormat>,
+    pub jpeg_format: Option<evophoto_codecs::JpegFormat>,
     /// TIFF: keep the layers. Off unless a command's params ask (`"tiffLayers": true`).
     pub tiff_layers: bool,
     /// Targa: 24 or 32 bits per pixel (`"tgaBits"`); unset, 32 with an alpha channel or
     /// transparency, else 24.
-    pub tga_bits: Option<photocraft_io::TgaBits>,
+    pub tga_bits: Option<evophoto_io::TgaBits>,
     /// DPX: 8, 10, 12 or 16 bits per sample (`"dpxBits"`); unset, 8 for an 8-bit document, else 16.
-    pub dpx_bits: Option<photocraft_io::DpxBits>,
+    pub dpx_bits: Option<evophoto_io::DpxBits>,
     /// TIFF: the image compression (`"tiffCompression": "none" | "lzw" | "zip"`); unset, none.
-    pub tiff_compression: Option<photocraft_codecs::TiffCompression>,
+    pub tiff_compression: Option<evophoto_codecs::TiffCompression>,
     /// DDS: the compression and whether to write the mip chain (`"ddsCompression"`,
     /// `"ddsMipmaps"`); unset, uncompressed without mipmaps.
-    pub dds: photocraft_io::DdsOptions,
+    pub dds: evophoto_io::DdsOptions,
     /// PSD/PSB: embed the thumbnail resource (Preferences › File Handling › Image Previews).
     pub image_previews: bool,
     /// PSD/PSB: write the real merged image (Preferences › File Handling › Maximize PSD and PSB
@@ -375,7 +375,7 @@ impl Default for SaveOpts {
             tga_bits: None,
             dpx_bits: None,
             tiff_compression: None,
-            dds: photocraft_io::DdsOptions::default(),
+            dds: evophoto_io::DdsOptions::default(),
             image_previews: true,
             psd_maximize_compatibility: true,
         }
@@ -418,12 +418,12 @@ impl From<Option<f64>> for SaveOpts {
 /// The Targa bits per pixel in `p` (`"tgaBits": 24 | 32`; absent or null: the automatic choice).
 /// Anything else is a bad parameter of command `cmd`. Shared by every save that takes it (the
 /// engine's commands, the app's Save As and control channel, the headless server).
-pub fn tga_bits_param(p: &Value, cmd: &str) -> Result<Option<photocraft_io::TgaBits>> {
+pub fn tga_bits_param(p: &Value, cmd: &str) -> Result<Option<evophoto_io::TgaBits>> {
     match p.get("tgaBits") {
         None | Some(Value::Null) => Ok(None),
         Some(v) => v
             .as_u64()
-            .and_then(photocraft_io::TgaBits::from_bits)
+            .and_then(evophoto_io::TgaBits::from_bits)
             .map(Some)
             .ok_or_else(|| EngineError::BadParams { cmd: cmd.into(), msg: format!("`tgaBits` must be 24 or 32, got {v}") }),
     }
@@ -431,8 +431,8 @@ pub fn tga_bits_param(p: &Value, cmd: &str) -> Result<Option<photocraft_io::TgaB
 
 /// The TIFF compression in `p` (`"tiffCompression": "none" | "lzw" | "zip"`, Photoshop's TIFF
 /// Options; absent or null: none). Anything else is a bad parameter of command `cmd` (#5301).
-pub fn tiff_compression_param(p: &Value, cmd: &str) -> Result<Option<photocraft_codecs::TiffCompression>> {
-    use photocraft_codecs::TiffCompression;
+pub fn tiff_compression_param(p: &Value, cmd: &str) -> Result<Option<evophoto_codecs::TiffCompression>> {
+    use evophoto_codecs::TiffCompression;
     match p.get("tiffCompression") {
         None | Some(Value::Null) => Ok(None),
         Some(v) => match v.as_str() {
@@ -447,10 +447,10 @@ pub fn tiff_compression_param(p: &Value, cmd: &str) -> Result<Option<photocraft_
 /// The JPEG format in `p` (`"jpegFormat": "baseline" | "optimized" | "progressive"`; absent or
 /// null: Baseline). Anything else is a bad parameter of command `cmd`. Shared like
 /// [`tga_bits_param`].
-pub fn jpeg_format_param(p: &Value, cmd: &str) -> Result<Option<photocraft_codecs::JpegFormat>> {
+pub fn jpeg_format_param(p: &Value, cmd: &str) -> Result<Option<evophoto_codecs::JpegFormat>> {
     match p.get("jpegFormat") {
         None | Some(Value::Null) => Ok(None),
-        Some(v) => v.as_str().and_then(photocraft_codecs::JpegFormat::parse).map(Some).ok_or_else(|| EngineError::BadParams {
+        Some(v) => v.as_str().and_then(evophoto_codecs::JpegFormat::parse).map(Some).ok_or_else(|| EngineError::BadParams {
             cmd: cmd.into(),
             msg: format!("`jpegFormat` must be \"baseline\", \"optimized\" or \"progressive\", got {v}"),
         }),
@@ -465,12 +465,12 @@ pub fn jpeg_quality(q: f64) -> u8 {
 
 /// The DPX bits per sample in `p` (`"dpxBits": 8 | 10 | 12 | 16`; absent or null: the document's
 /// depth). Anything else is a bad parameter of command `cmd`.
-pub fn dpx_bits_param(p: &Value, cmd: &str) -> Result<Option<photocraft_io::DpxBits>> {
+pub fn dpx_bits_param(p: &Value, cmd: &str) -> Result<Option<evophoto_io::DpxBits>> {
     match p.get("dpxBits") {
         None | Some(Value::Null) => Ok(None),
         Some(v) => v
             .as_u64()
-            .and_then(photocraft_io::DpxBits::from_bits)
+            .and_then(evophoto_io::DpxBits::from_bits)
             .map(Some)
             .ok_or_else(|| EngineError::BadParams { cmd: cmd.into(), msg: format!("`dpxBits` must be 8, 10, 12 or 16, got {v}") }),
     }
@@ -480,13 +480,13 @@ pub fn dpx_bits_param(p: &Value, cmd: &str) -> Result<Option<photocraft_io::DpxB
 /// and `"ddsMipmaps": bool`. `None` when neither is given (Save As then asks); either alone
 /// leaves the other at its default (uncompressed, no mipmaps). Anything else is a bad parameter
 /// of command `cmd`.
-pub fn dds_param(p: &Value, cmd: &str) -> Result<Option<photocraft_io::DdsOptions>> {
+pub fn dds_param(p: &Value, cmd: &str) -> Result<Option<evophoto_io::DdsOptions>> {
     let bad = |msg: String| EngineError::BadParams { cmd: cmd.into(), msg };
     let compression = match p.get("ddsCompression") {
         None | Some(Value::Null) => None,
         Some(v) => Some(
             v.as_str()
-                .and_then(photocraft_io::DdsCompression::from_name)
+                .and_then(evophoto_io::DdsCompression::from_name)
                 .ok_or_else(|| bad(format!("`ddsCompression` must be \"none\", \"bc1\", \"bc2\" or \"bc3\", got {v}")))?,
         ),
     };
@@ -497,14 +497,14 @@ pub fn dds_param(p: &Value, cmd: &str) -> Result<Option<photocraft_io::DdsOption
     if compression.is_none() && mipmaps.is_none() {
         return Ok(None);
     }
-    Ok(Some(photocraft_io::DdsOptions { compression: compression.unwrap_or_default(), mipmaps: mipmaps.unwrap_or(false) }))
+    Ok(Some(evophoto_io::DdsOptions { compression: compression.unwrap_or_default(), mipmaps: mipmaps.unwrap_or(false) }))
 }
 
 /// Encodes `doc` for `path`'s extension.
 pub(crate) fn encode(doc: &Document, path: &str, save: impl Into<SaveOpts>) -> Result<(Vec<u8>, Vec<String>)> {
     crate::allocation::checkpoint("saving document")?;
     let save = save.into();
-    let mut opts = photocraft_io::ExportOptions {
+    let mut opts = evophoto_io::ExportOptions {
         tiff_layers: save.tiff_layers,
         tga_bits: save.tga_bits,
         image_previews: save.image_previews,
@@ -517,7 +517,7 @@ pub(crate) fn encode(doc: &Document, path: &str, save: impl Into<SaveOpts>) -> R
     };
     // No quality chosen: write the file the way it was opened (a JPEG at its own quality, a WebP
     // lossy or lossless as it was), as Photoshop's Save does.
-    photocraft_io::apply_file_encoding(doc, &mut opts.encode);
+    evophoto_io::apply_file_encoding(doc, &mut opts.encode);
     opts.encode.dpx_bits = save.dpx_bits;
     if let Some(c) = save.tiff_compression {
         opts.encode.tiff_compression = c;
@@ -533,7 +533,7 @@ pub(crate) fn encode(doc: &Document, path: &str, save: impl Into<SaveOpts>) -> R
     if let Some(f) = save.jpeg_format {
         opts.encode.jpeg_format = f;
     }
-    photocraft_io::export(doc, path, &opts).map(|r| (r.bytes, r.warnings)).map_err(|e| EngineError::Other(format!("{path}: {e}")))
+    evophoto_io::export(doc, path, &opts).map(|r| (r.bytes, r.warnings)).map_err(|e| EngineError::Other(format!("{path}: {e}")))
 }
 
 pub(crate) fn save_doc(doc: &Document, path: &str, save: impl Into<SaveOpts>) -> Result<Vec<String>> {
@@ -558,7 +558,7 @@ fn size_param(p: &Value, key: &str) -> Option<f64> {
 // ---------- pixels ----------
 
 /// A composite buffer as a surface in `fmt` (straight RGBA → the format's model and depth).
-pub(crate) fn buffer_surface(buf: &photocraft_compose::Buffer, fmt: PixelFormat) -> Surface {
+pub(crate) fn buffer_surface(buf: &evophoto_compose::Buffer, fmt: PixelFormat) -> Surface {
     let n = fmt.channels();
     let mut data = vec![0.0f32; buf.px.len() * n];
     for (p, out) in buf.px.iter().zip(data.chunks_exact_mut(n)) {
@@ -574,7 +574,7 @@ pub(crate) fn buffer_surface(buf: &photocraft_compose::Buffer, fmt: PixelFormat)
 
 /// The flattened image of `doc` as a surface in `fmt`, placed at the origin.
 pub(crate) fn flattened(doc: &Document, fmt: PixelFormat) -> Surface {
-    photocraft_compose::flatten_to_surface(doc, fmt, None)
+    evophoto_compose::flatten_to_surface(doc, fmt, None)
 }
 
 /// [`flattened`] for documents that came from a file (Save a Copy, Place, Load Files into Stack):
@@ -582,7 +582,7 @@ pub(crate) fn flattened(doc: &Document, fmt: PixelFormat) -> Surface {
 /// in full, however little it holds. Refused past the compositor's own per-render limit.
 pub(crate) fn flattened_checked(doc: &Document, fmt: PixelFormat, cmd: &str) -> Result<Surface> {
     let b = doc.bounds();
-    if u64::from(b.width()) * u64::from(b.height()) > photocraft_compose::MAX_RENDER_PIXELS {
+    if u64::from(b.width()) * u64::from(b.height()) > evophoto_compose::MAX_RENDER_PIXELS {
         return Err(EngineError::BadParams { cmd: cmd.into(), msg: format!("the document's {}×{} canvas is too large to flatten", b.width(), b.height()) });
     }
     Ok(flattened(doc, fmt))
@@ -665,9 +665,9 @@ pub(crate) fn tag_exr_colorspace(s: &Session, name: &str, doc: &mut Document) {
     if !name.to_ascii_lowercase().ends_with(".exr") || !s.prefs.get().file_handling.exr_aces_cg {
         return;
     }
-    let linear = photocraft_cms::Builtin::LinearSrgb.profile().to_bytes();
+    let linear = evophoto_cms::Builtin::LinearSrgb.profile().to_bytes();
     if doc.icc_profile.as_ref().map(|v| v.as_slice()) == Some(linear.as_slice()) {
-        doc.icc_profile = Some(photocraft_cms::Builtin::AcesCg.profile().to_bytes());
+        doc.icc_profile = Some(evophoto_cms::Builtin::AcesCg.profile().to_bytes());
     }
 }
 
@@ -679,7 +679,7 @@ pub fn raw_defaults(s: &Session, warnings: &[String], doc: &mut Document) {
 }
 
 fn raw_resolution(ppi: f64, warnings: &[String], doc: &mut Document) {
-    if ppi.is_finite() && warnings.iter().any(|w| w.contains(photocraft_io::raw::DEVELOPED_NOTE)) {
+    if ppi.is_finite() && warnings.iter().any(|w| w.contains(evophoto_io::raw::DEVELOPED_NOTE)) {
         doc.resolution_dpi = ppi.clamp(1.0, 10_000.0) as f32;
     }
 }
@@ -690,7 +690,7 @@ pub fn open_bytes_as(s: &mut Session, name: &str, bytes: &[u8], as_ext: Option<&
         Some(ext) => format!("{}.{}", stem(name), ext.trim_start_matches('.')),
         None => name.to_string(),
     };
-    let r = photocraft_io::import(&decode_name, bytes).map_err(|e| EngineError::Other(format!("{decode_name}: {e}")))?;
+    let r = evophoto_io::import(&decode_name, bytes).map_err(|e| EngineError::Other(format!("{decode_name}: {e}")))?;
     let mut doc = r.document;
     tag_exr_colorspace(s, &decode_name, &mut doc);
     raw_defaults(s, &r.warnings, &mut doc);
@@ -734,9 +734,9 @@ pub fn place_bytes(s: &mut Session, name: &str, bytes: Vec<u8>, linked: Option<S
     let d = s.active().ok_or(EngineError::NoDocument)?;
     let (cw, ch) = (d.doc.size.width as f64, d.doc.size.height as f64);
     let fmt = d.doc.pixel_format();
-    let vector = photocraft_io::svg::is_svg(&bytes);
+    let vector = evophoto_io::svg::is_svg(&bytes);
     let opts = crate::jobs::import_options(s.prefs());
-    let imported = photocraft_io::import_with_options(name, &bytes, &opts).map_err(|e| EngineError::Other(format!("{name}: {e}")))?;
+    let imported = evophoto_io::import_with_options(name, &bytes, &opts).map_err(|e| EngineError::Other(format!("{name}: {e}")))?;
     if imported.preview_only {
         return Err(EngineError::Other(format!(
             "{name}: only this Affinity file's embedded preview could be read; open it with File › Open to see the warning, or export PSD or PNG from Affinity before using it here"
@@ -1032,7 +1032,7 @@ fn xmp_number(x: &str, prop: &str) -> Option<f64> {
 /// for display. Read from the EXIF block (JPEG APP1, PSD resource 1058, …); properties it lacks
 /// fall back to the XMP `tiff:`/`exif:`/`aux:` copies (files without an EXIF block).
 pub fn camera_data(exif: Option<&[u8]>, xmp: Option<&str>) -> Value {
-    let e = exif.map(photocraft_algo::exif::read).unwrap_or_default();
+    let e = exif.map(evophoto_algo::exif::read).unwrap_or_default();
     let x = xmp.unwrap_or("");
     let text = |v: Option<String>, props: &[&str]| v.or_else(|| props.iter().find_map(|p| xmp_value(x, p)));
     let num =
@@ -1348,13 +1348,13 @@ pub(crate) fn process_tree(
 }
 
 /// The extension a batch output takes with Format "Same": the input's own, except for formats
-/// PhotoCraft opens but can't write, camera raws above all (#5799: a folder of ARWs failed on
+/// EvoPhoto opens but can't write, camera raws above all (#5799: a folder of ARWs failed on
 /// every file). Those are saved as PSD, the format Photoshop's Save As offers for a raw. An input
 /// whose file name has no extension (a dot in a folder name doesn't count) is saved as PNG.
 fn same_format(path: &str) -> String {
     const IMPORT_ONLY: &[&str] = &["pdn", "kra", "krz", "af", "afdesign", "afphoto", "afpub", "heic", "heif", "hif", "svg", "svgz", "cin", "pcx", "xpm"];
     let ext = extension(path).unwrap_or_else(|| "png".into());
-    if photocraft_io::raw::EXTENSIONS.contains(&ext.as_str()) || IMPORT_ONLY.contains(&ext.as_str()) { "psd".into() } else { ext }
+    if evophoto_io::raw::EXTENSIONS.contains(&ext.as_str()) || IMPORT_ONLY.contains(&ext.as_str()) { "psd".into() } else { ext }
 }
 
 #[cfg(test)]
@@ -1576,7 +1576,7 @@ fn load_files_into_stack(s: &mut Session, p: &Value) -> Result<Value> {
     let first = &docs[0].1;
     let w = docs.iter().map(|(_, d)| d.size.width).max().unwrap_or(1);
     let h = docs.iter().map(|(_, d)| d.size.height).max().unwrap_or(1);
-    let mut stack = Document::new(stem(&paths[0]), photocraft_doc::Size::new(w, h), first.mode, first.depth);
+    let mut stack = Document::new(stem(&paths[0]), evophoto_doc::Size::new(w, h), first.mode, first.depth);
     stack.resolution_dpi = first.resolution_dpi;
     stack.icc_profile = first.icc_profile.clone();
     let fmt = stack.pixel_format();
@@ -1632,7 +1632,7 @@ fn bake(doc: &Document, l: &Layer, keep_effects: bool, apply_mask: bool) -> Surf
     let canvas = doc.bounds();
     let mut tmp = l.clone();
     tmp.opacity = 1.0;
-    tmp.blend = photocraft_color::BlendMode::Normal;
+    tmp.blend = evophoto_color::BlendMode::Normal;
     tmp.visible = true;
     tmp.clipped = false;
     if !keep_effects {
@@ -1646,7 +1646,7 @@ fn bake(doc: &Document, l: &Layer, keep_effects: bool, apply_mask: bool) -> Surf
     // Render over the union of the canvas and the content so off-canvas pixels survive.
     let area = l.surface().map_or(canvas, |s| s.content_bounds().union(&canvas));
     let area = if keep_effects { area.inflate(256) } else { area };
-    buffer_surface(&photocraft_compose::render_layer_in(doc, &tmp, area), doc.pixel_format())
+    buffer_surface(&evophoto_compose::render_layer_in(doc, &tmp, area), doc.pixel_format())
 }
 
 fn walk_ids(doc: &Document) -> Vec<LayerId> {
@@ -1831,7 +1831,7 @@ fn lut_layers<'a>(doc: &'a Document, ids: Option<&[LayerId]>) -> Result<Vec<&'a 
 fn bake_cube_layers(size: usize, title: &str, layers: &[&Layer]) -> String {
     let n = size;
     let (w, h) = ((n * n) as u32, n as u32);
-    let mut lattice = Document::new("lut", photocraft_doc::Size::new(w, h), ColorMode::Rgb, photocraft_color::SampleType::F32);
+    let mut lattice = Document::new("lut", evophoto_doc::Size::new(w, h), ColorMode::Rgb, evophoto_color::SampleType::F32);
     let fmt = lattice.pixel_format();
     let step = 1.0 / (n - 1) as f32;
     let mut data = Vec::with_capacity((w * h) as usize * fmt.channels());
@@ -1855,8 +1855,8 @@ fn bake_cube_layers(size: usize, title: &str, layers: &[&Layer]) -> String {
         a.clipped = false;
         lattice.layers.push(a);
     }
-    let out = photocraft_compose::flatten(&lattice);
-    let mut s = format!("TITLE \"{}\"\n# Created by PhotoCraft\nLUT_3D_SIZE {n}\nDOMAIN_MIN 0.0 0.0 0.0\nDOMAIN_MAX 1.0 1.0 1.0\n", title.replace('"', "'"));
+    let out = evophoto_compose::flatten(&lattice);
+    let mut s = format!("TITLE \"{}\"\n# Created by EvoPhoto\nLUT_3D_SIZE {n}\nDOMAIN_MIN 0.0 0.0 0.0\nDOMAIN_MAX 1.0 1.0 1.0\n", title.replace('"', "'"));
     // .cube order: red changes fastest, then green, then blue.
     for b in 0..n {
         for g in 0..n {
@@ -1873,7 +1873,7 @@ fn bake_cube_layers(size: usize, title: &str, layers: &[&Layer]) -> String {
 /// Backwards-compatible helper for exporting all visible top-level adjustments.
 pub fn bake_cube(doc: &Document, size: usize, title: &str) -> String {
     let layers: Vec<&Layer> = doc.layers.iter().filter(|l| l.visible && matches!(l.content, LayerContent::Adjustment(_))).collect();
-    bake_cube_layers(size.clamp(2, photocraft_cms::lutfile::MAX_SIZE), title, &layers)
+    bake_cube_layers(size.clamp(2, evophoto_cms::lutfile::MAX_SIZE), title, &layers)
 }
 
 /// Export either the whole visible stack (backward-compatible default), the Layers panel's
@@ -1885,8 +1885,8 @@ fn color_lookup_tables(s: &mut Session, p: &Value) -> Result<Value> {
         None | Some(Value::Null) => 33,
         Some(v) => v.as_u64().ok_or_else(|| EngineError::BadParams { cmd: CMD.into(), msg: "size must be an integer".into() })?,
     };
-    if !(2..=photocraft_cms::lutfile::MAX_SIZE as u64).contains(&size) {
-        return Err(EngineError::BadParams { cmd: CMD.into(), msg: format!("size must be 2..={}", photocraft_cms::lutfile::MAX_SIZE) });
+    if !(2..=evophoto_cms::lutfile::MAX_SIZE as u64).contains(&size) {
+        return Err(EngineError::BadParams { cmd: CMD.into(), msg: format!("size must be 2..={}", evophoto_cms::lutfile::MAX_SIZE) });
     }
     let scope = match p.get("scope") {
         None | Some(Value::Null) => "all",
@@ -2157,20 +2157,20 @@ mod aces_exr_tests {
     /// default; on, it opens as ACEScg — the working space ACES render pipelines write.
     #[test]
     fn exr_aces_cg_preference_retags_the_opened_document() {
-        let image = photocraft_codecs::Image::from_f32(
+        let image = evophoto_codecs::Image::from_f32(
             4,
             4,
-            photocraft_codecs::ChannelLayout::Rgb,
+            evophoto_codecs::ChannelLayout::Rgb,
             &[
                 0.25, 0.5, 0.75, 1.0, 0.25, 0.5, 0.75, 1.0, 0.25, 0.5, 0.75, 1.0, 0.25, 0.5, 0.75, 1.0, 0.25, 0.5, 0.75, 1.0, 0.25, 0.5, 0.75, 1.0, 0.25, 0.5,
                 0.75, 1.0, 0.25, 0.5, 0.75, 1.0, 0.25, 0.5, 0.75, 1.0, 0.25, 0.5, 0.75, 1.0, 0.25, 0.5, 0.75, 1.0, 0.25, 0.5, 0.75, 1.0,
             ],
         )
         .unwrap();
-        let bytes = photocraft_codecs::encode(&image, photocraft_codecs::Format::OpenExr, &photocraft_codecs::EncodeOptions::default()).unwrap();
+        let bytes = evophoto_codecs::encode(&image, evophoto_codecs::Format::OpenExr, &evophoto_codecs::EncodeOptions::default()).unwrap();
 
-        let linear = photocraft_cms::Builtin::LinearSrgb.profile().to_bytes();
-        let aces = photocraft_cms::Builtin::AcesCg.profile().to_bytes();
+        let linear = evophoto_cms::Builtin::LinearSrgb.profile().to_bytes();
+        let aces = evophoto_cms::Builtin::AcesCg.profile().to_bytes();
 
         // Off (the default): io's linear-sRGB tagging stays.
         let mut s = Session::new();
@@ -2191,11 +2191,11 @@ mod aces_exr_tests {
     #[test]
     fn exr_aces_cg_preference_applies_to_background_opens() {
         use crate::jobs::{OpenSource, Started};
-        let image = photocraft_codecs::Image::from_f32(4, 4, photocraft_codecs::ChannelLayout::Rgb, &[0.5; 48]).unwrap();
+        let image = evophoto_codecs::Image::from_f32(4, 4, evophoto_codecs::ChannelLayout::Rgb, &[0.5; 48]).unwrap();
         let bytes =
-            std::sync::Arc::new(photocraft_codecs::encode(&image, photocraft_codecs::Format::OpenExr, &photocraft_codecs::EncodeOptions::default()).unwrap());
-        let linear = photocraft_cms::Builtin::LinearSrgb.profile().to_bytes();
-        let aces = photocraft_cms::Builtin::AcesCg.profile().to_bytes();
+            std::sync::Arc::new(evophoto_codecs::encode(&image, evophoto_codecs::Format::OpenExr, &evophoto_codecs::EncodeOptions::default()).unwrap());
+        let linear = evophoto_cms::Builtin::LinearSrgb.profile().to_bytes();
+        let aces = evophoto_cms::Builtin::AcesCg.profile().to_bytes();
         for (on, want) in [(false, &linear), (true, &aces)] {
             let mut s = Session::new();
             s.prefs.edit(|p| p.file_handling.exr_aces_cg = on);

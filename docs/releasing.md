@@ -1,13 +1,13 @@
-# Releasing PhotoCraft
+# Releasing EvoPhoto
 
 Every push to the `release` branch runs `.github/workflows/release.yml`. The workflow builds
 signed installers for macOS, Windows, Linux and the web, plus a FreeBSD tarball, then creates
-or updates a **draft** GitHub Release named `PhotoCraft v<version>`. Nobody sees a draft until a
+or updates a **draft** GitHub Release named `EvoPhoto v<version>`. Nobody sees a draft until a
 maintainer publishes it.
 
-This is PhotoCraft's implementation of the shared
-[release playbook](release-playbook.md). User-facing names say **PhotoCraft**. Files, binaries
-and ids stay lowercase (`photocraft-<version>-<platform>-<arch>.<ext>`, `ai.storyteller.photocraft`).
+This is EvoPhoto's implementation of the shared
+[release playbook](release-playbook.md). User-facing names say **EvoPhoto**. Files, binaries
+and ids stay lowercase (`evophoto-<version>-<platform>-<arch>.<ext>`, `ai.storyteller.evophoto`).
 
 ## In-app update checks
 
@@ -39,7 +39,7 @@ are required: publishing a newer stable GitHub Release makes it discoverable.
    Commit the change (`Cargo.toml` + `Cargo.lock`) through the normal review flow.
 2. **Merge `main` into `release`** (or fast-forward it) and push. The workflow starts by itself.
 3. **Wait for the draft.** After about 30 to 45 minutes (notarization is the slow part), the
-   Releases page has a draft `PhotoCraft v0.2.0`, tagged `v0.2.0` on the pushed commit, with
+   Releases page has a draft `EvoPhoto v0.2.0`, tagged `v0.2.0` on the pushed commit, with
    every artifact and `SHA256SUMS.txt`. The notes are generated from the merged PRs.
 4. **Check it.** Download an installer or two and look at the job summaries. Any
    `::warning::` there means a signing secret was missing and that artifact is unsigned.
@@ -65,37 +65,37 @@ in the dialog.
 
 | Platform | Artifacts | Built on |
 |---|---|---|
-| macOS 11+ (universal: Apple silicon + Intel) | `photocraft-<v>-macos-universal.dmg`, `photocraft-cli-<v>-macos-universal.zip` | `macos-15` |
-| Windows 10+ x64 | `photocraft-<v>-windows-x64.msi`, `photocraft-<v>-windows-x64-portable.zip` | `windows-latest` |
-| Windows 10+ x86 (32-bit) | `photocraft-<v>-windows-x86.msi`, `photocraft-<v>-windows-x86-portable.zip` | `windows-latest` |
-| Linux x86_64 | `photocraft-<v>-linux-x86_64.{AppImage,AppImage.zsync,deb,rpm,tar.gz,flatpak}` | `ubuntu-22.04` (Flatpak: `ubuntu-24.04`) |
-| Linux aarch64 | `photocraft-<v>-linux-aarch64.{AppImage,AppImage.zsync,deb,rpm,tar.gz,flatpak}` | `ubuntu-22.04-arm` (Flatpak: `ubuntu-24.04-arm`) |
-| Linux riscv64 (glibc 2.39+) | `photocraft-<v>-linux-riscv64.tar.gz` | cross-compiled on `ubuntu-24.04` (ports.ubuntu.com riscv64 libs); CLI smoke-tested under QEMU |
-| FreeBSD 14 x86_64 | `photocraft-<v>-freebsd-x86_64.tar.gz` | FreeBSD 14.3 VM on `ubuntu-latest` |
-| Web | `photocraft-web-<v>.zip` (static site; see [`packaging/web/README.md`](../packaging/web/README.md)) | `ubuntu-latest` |
+| macOS 11+ (universal: Apple silicon + Intel) | `evophoto-<v>-macos-universal.dmg`, `evophoto-cli-<v>-macos-universal.zip` | `macos-15` |
+| Windows 10+ x64 | `evophoto-<v>-windows-x64.msi`, `evophoto-<v>-windows-x64-portable.zip` | `windows-latest` |
+| Windows 10+ x86 (32-bit) | `evophoto-<v>-windows-x86.msi`, `evophoto-<v>-windows-x86-portable.zip` | `windows-latest` |
+| Linux x86_64 | `evophoto-<v>-linux-x86_64.{AppImage,AppImage.zsync,deb,rpm,tar.gz,flatpak}` | `ubuntu-22.04` (Flatpak: `ubuntu-24.04`) |
+| Linux aarch64 | `evophoto-<v>-linux-aarch64.{AppImage,AppImage.zsync,deb,rpm,tar.gz,flatpak}` | `ubuntu-22.04-arm` (Flatpak: `ubuntu-24.04-arm`) |
+| Linux riscv64 (glibc 2.39+) | `evophoto-<v>-linux-riscv64.tar.gz` | cross-compiled on `ubuntu-24.04` (ports.ubuntu.com riscv64 libs); CLI smoke-tested under QEMU |
+| FreeBSD 14 x86_64 | `evophoto-<v>-freebsd-x86_64.tar.gz` | FreeBSD 14.3 VM on `ubuntu-latest` |
+| Web | `evophoto-web-<v>.zip` (static site; see [`packaging/web/README.md`](../packaging/web/README.md)) | `ubuntu-latest` |
 
-Every binary reports its version, the commit and the build date: `photocraft --version`,
-`photocraft-cli --version`, and *Help › About PhotoCraft*. CI sets `PHOTOCRAFT_BUILD_SHA` and
-`PHOTOCRAFT_BUILD_DATE`, and `crates/engine/src/build_info.rs` reads them at compile time. A plain
+Every binary reports its version, the commit and the build date: `evophoto --version`,
+`evophoto-cli --version`, and *Help › About EvoPhoto*. CI sets `EVOPHOTO_BUILD_SHA` and
+`EVOPHOTO_BUILD_DATE`, and `crates/engine/src/build_info.rs` reads them at compile time. A plain
 `cargo build` doesn't set them and reports `0.2.0 (dev build)`.
 
-Every desktop build job (macOS, Windows, Linux, FreeBSD) also checks out [craft-fonts](https://github.com/storytold/craft-fonts)
-at the `craft-fonts-ref` commit in `.github/workflows/release.yml` and builds with `CRAFT_FONTS_DIR` and
-`CRAFT_FONTS_REQUIRED=1`, so desktop releases embed its Japanese fonts (the web build embeds none: see
+Every desktop build job (macOS, Windows, Linux, FreeBSD) also checks out [evo-fonts](https://github.com/tazerty/evo-fonts)
+at the `evo-fonts-ref` commit in `.github/workflows/release.yml` and builds with `EVO_FONTS_DIR` and
+`EVO_FONTS_REQUIRED=1`, so desktop releases embed its Japanese fonts (the web build embeds none: see
 `docs/development.md` › Fonts) and fail rather than ship without them. The packages carry each font's licence as
 `OFL-<family>.txt` (`copy_font_licences` in `packaging/env.sh`; the portable zip on Windows;
 `Contents/Resources/Licenses` in the macOS app). Bump the pin deliberately, together with the one
-in `ci.yml`. Rules: `../craftrules/standards/fonts.md`; build option: `docs/development.md` › Fonts.
+in `ci.yml`. Rules: `../evorules/standards/fonts.md`; build option: `docs/development.md` › Fonts.
 
 ### macOS
 
 `packaging/macos/package.sh` builds `aarch64-apple-darwin` and `x86_64-apple-darwin` with
-`MACOSX_DEPLOYMENT_TARGET=11.0`, joins them with `lipo`, and assembles `PhotoCraft.app`:
+`MACOSX_DEPLOYMENT_TARGET=11.0`, joins them with `lipo`, and assembles `EvoPhoto.app`:
 
-- `Info.plist` is generated from `Info.plist.in`. The bundle id is `ai.storyteller.photocraft`.
+- `Info.plist` is generated from `Info.plist.in`. The bundle id is `ai.storyteller.evophoto`.
   The plist sets `LSMinimumSystemVersion` 11.0, `NSHighResolutionCapable`, and document types:
-  `.pcraft` (Owner), plus PSD/PSB and the image formats PhotoCraft reads (Alternate, so it never
-  takes over Preview's defaults). The icon is `assets/app-icon/photocraft.icns`.
+  `.evophoto` (Owner), plus PSD/PSB and the image formats EvoPhoto reads (Alternate, so it never
+  takes over Preview's defaults). The icon is `assets/app-icon/evophoto.icns`.
 - **Signing** goes inside-out with the hardened runtime and a secure timestamp. The executable
   is signed first, then the bundle. There's no `--deep` on the final signature. The
   entitlements (`entitlements.plist`) are deliberately empty.
@@ -104,10 +104,10 @@ in `ci.yml`. Rules: `../craftrules/standards/fonts.md`; build option: `docs/deve
   to drag onto). The DMG is signed, notarized and stapled too. The script checks the results
   with `codesign --verify --strict`, `stapler validate` and `spctl -a -vvv`.
   Its Finder window (background, icon size and positions) comes from
-  [`packaging/macos/dmg/`](../packaging/macos/dmg/README.md), and its volume is named `PhotoCraft`
+  [`packaging/macos/dmg/`](../packaging/macos/dmg/README.md), and its volume is named `EvoPhoto`
   without the version, which the window's background needs; the DMG file name keeps the version.
-- **CLI:** the universal `photocraft-cli` is signed with the same Developer ID, the hardened
-  runtime and a secure timestamp (identifier `ai.storyteller.photocraft-cli`), zipped, and the zip
+- **CLI:** the universal `evophoto-cli` is signed with the same Developer ID, the hardened
+  runtime and a secure timestamp (identifier `ai.storyteller.evophoto-cli`), zipped, and the zip
   is sent to `notarytool`. Only `.app`, `.dmg` and `.pkg` can hold a stapled ticket, not a bare
   Mach-O, so Gatekeeper looks the CLI's ticket up online the first time a downloaded
   (quarantined) copy runs. Offline, that first run can be refused until the Mac is online again.
@@ -127,7 +127,7 @@ That's enough to check the bundle and the DMG on your own Mac:
 ```sh
 packaging/macos/package.sh                    # universal; needs both rustup targets
 packaging/macos/package.sh --arch aarch64     # quicker, host-only
-open dist/release/photocraft-*-macos-*.dmg
+open dist/release/evophoto-*-macos-*.dmg
 ```
 
 ### Windows
@@ -137,31 +137,31 @@ The static C runtime means neither the MSI nor the portable zip needs the Visual
 redistributable, which matters for a standalone installer and costs only about 100 KB. The flag
 goes in `CARGO_TARGET_<TRIPLE>_RUSTFLAGS`, so host build scripts aren't affected.
 
-- `apps/photocraft/build.rs` and `apps/photocraft-cli/build.rs` embed the icon
-  (`assets/app-icon/photocraft.ico`) and VERSIONINFO with the `winresource` crate
+- `apps/evophoto/build.rs` and `apps/evophoto-cli/build.rs` embed the icon
+  (`assets/app-icon/evophoto.ico`) and VERSIONINFO with the `winresource` crate
   (build dependency `0.1`). They only do this when targeting Windows. Elsewhere each
-  script is a no-op, even if `PHOTOCRAFT_REQUIRE_WINRES` is set, and the web build
-  doesn't touch that crate. Both set ProductName to PhotoCraft, CompanyName to
+  script is a no-op, even if `EVOPHOTO_REQUIRE_WINRES` is set, and the web build
+  doesn't touch that crate. Both set ProductName to EvoPhoto, CompanyName to
   Learning Machines LLC and the same copyright line. The GUI description is
-  "PhotoCraft image editor" (`photocraft.exe`). The CLI description is
-  "PhotoCraft command-line interface", with OriginalFilename `photocraft-cli.exe`
-  and InternalName `photocraft-cli`. Version strings are the Cargo package version,
+  "EvoPhoto image editor" (`evophoto.exe`). The CLI description is
+  "EvoPhoto command-line interface", with OriginalFilename `evophoto-cli.exe`
+  and InternalName `evophoto-cli`. Version strings are the Cargo package version,
   so a pre-release tag is kept; the numeric file and product versions are
   winresource's `major.minor.patch.0`. A missing resource compiler warns, so an
-  optional cross-compile still links. `package.ps1` sets `PHOTOCRAFT_REQUIRE_WINRES=1`.
+  optional cross-compile still links. `package.ps1` sets `EVOPHOTO_REQUIRE_WINRES=1`.
   The CLI build script then returns an error naming `rc.exe` or `windres` and does
   not panic.
 - Release builds use the GUI subsystem, so Start Menu launches don't open a console window.
   The CLI stays console subsystem 3 so its output reaches the terminal.
-- `photocraft.wxs` (WiX v5) is a per-machine install into Program Files with an advertised
-  Start Menu shortcut. PhotoCraft becomes the default app for `.pcraft` and is listed under
-  "Open with" for PSD/PSB and image files. It also registers App Paths (Win+R `photocraft`).
+- `evophoto.wxs` (WiX v5) is a per-machine install into Program Files with an advertised
+  Start Menu shortcut. EvoPhoto becomes the default app for `.evophoto` and is listed under
+  "Open with" for PSD/PSB and image files. It also registers App Paths (Win+R `evophoto`).
   The MSI version is the numeric `X.Y.Z`, because MSI has no pre-release field. Same-version
   upgrades are allowed so that release candidates replace each other.
 - Double-clicking the MSI opens a setup wizard (WixUI_InstallDir without the licence page):
-  Welcome, install folder (remembered for upgrades in `HKLM\Software\PhotoCraft\InstallDir`),
+  Welcome, install folder (remembered for upgrades in `HKLM\Software\EvoPhoto\InstallDir`),
   Ready, a progress page, and a Finish page that says where to find the app, with a ticked "Launch
-  PhotoCraft" box. The pages name the full version (`photocraft.en-us.wxl`). `package.ps1` draws
+  EvoPhoto" box. The pages name the full version (`evophoto.en-us.wxl`). `package.ps1` draws
   the wizard's banner and side bitmaps from the app icon, so no WiX stock art ships. `msiexec /qn`
   still installs silently. Building needs the WiX UI and Util extensions:
   `wix extension add -g WixToolset.UI.wixext/5.0.2 WixToolset.Util.wixext/5.0.2`.
@@ -169,11 +169,11 @@ goes in `CARGO_TARGET_<TRIPLE>_RUSTFLAGS`, so host build scripts aren't affected
   as the cached icon filename, and an extensionless filename can render as a blank document
   icon. `packaging/windows/check-icons.ps1` checks the references and extensions in CI;
   `package.ps1` also validates the built MSI with ICE50 before signing it.
-- **Portable zip:** it ships `packaging/windows/portable.txt` beside `photocraft.exe`. That
-  marker (or a `PhotoCraft.portable` file) switches on portable mode: preferences, presets,
-  recovery autosaves and the GPU startup marker go to `PhotoCraftData\` next to the exe instead
-  of `%APPDATA%\Photocraft`. If that folder isn't writable the app warns and uses `%APPDATA%`.
-  The MSI has no marker. The logic is in `apps/photocraft/src/app_dirs.rs` and works the same
+- **Portable zip:** it ships `packaging/windows/portable.txt` beside `evophoto.exe`. That
+  marker (or a `EvoPhoto.portable` file) switches on portable mode: preferences, presets,
+  recovery autosaves and the GPU startup marker go to `EvoPhotoData\` next to the exe instead
+  of `%APPDATA%\EvoPhoto`. If that folder isn't writable the app warns and uses `%APPDATA%`.
+  The MSI has no marker. The logic is in `apps/evophoto/src/app_dirs.rs` and works the same
   on macOS and Linux.
 - **Signing:** `packaging/windows/sign.ps1` signs both `.exe` files and then the `.msi` with
   `signtool`, using SHA-256 and an RFC 3161 timestamp. It uses whichever material is present:
@@ -191,9 +191,9 @@ Locally on Windows: `dotnet tool install -g wix --version 5.0.2`,
 ### Linux
 
 `packaging/linux/package.sh` stages one FHS tree and makes every format from it. The tree
-holds both binaries, `ai.storyteller.photocraft.desktop`, hicolor icons from 16 px to 512 px
-plus a scalable SVG, AppStream metainfo, a shared-mime-info file for `.pcraft`, `.psb` and
-`.qoi`, and `photocraft-cli`'s man pages and bash, zsh and fish completions. The
+holds both binaries, `ai.storyteller.evophoto.desktop`, hicolor icons from 16 px to 512 px
+plus a scalable SVG, AppStream metainfo, a shared-mime-info file for `.evophoto`, `.psb` and
+`.qoi`, and `evophoto-cli`'s man pages and bash, zsh and fish completions. The
 `man-and-completions` example, built with the binaries, writes those; a cross build runs it
 through `EMULATOR` and leaves them out without one. The zsh completion is in
 `/usr/share/zsh/site-functions`, which Fedora's and openSUSE's zsh read; the `.deb` also links it
@@ -218,12 +218,12 @@ Why these formats:
   Wayland the dock icon comes from the compositor resolving the window's app_id against an
   *installed* `.desktop` file, which an AppImage alone never provides — without this every
   AppImage run shows the generic Wayland logo (#593). Best effort: it installs
-  `~/.local/share/applications/ai.storyteller.photocraft.desktop` with `Exec` rewritten to
+  `~/.local/share/applications/ai.storyteller.evophoto.desktop` with `Exec` rewritten to
   the AppImage's path (`TryExec` dropped, the binary isn't on the host PATH) and the
   hicolor icons beside it, rewriting only when the content changed, and any failure leaves
-  the launch untouched. `PHOTOCRAFT_NO_DESKTOP_INTEGRATION=1` opts out; to uninstall, `rm
-  ~/.local/share/applications/ai.storyteller.photocraft.desktop` and `find
-  ~/.local/share/icons/hicolor -name 'ai.storyteller.photocraft*' -delete`. The script is
+  the launch untouched. `EVOPHOTO_NO_DESKTOP_INTEGRATION=1` opts out; to uninstall, `rm
+  ~/.local/share/applications/ai.storyteller.evophoto.desktop` and `find
+  ~/.local/share/icons/hicolor -name 'ai.storyteller.evophoto*' -delete`. The script is
   covered by `packaging/linux/apprun-test.sh` in the packaging-lint workflow.
 - **.deb** covers Debian, Ubuntu, Mint, Pop!_OS and elementary. **.rpm** covers Fedora, RHEL
   and its clones, and openSUSE. Both integrate with the menu, MIME and icon caches (the
@@ -235,27 +235,27 @@ Why these formats:
 - **Flatpak bundle** (`.flatpak`) is a single file that installs into Flatpak, sandboxed and
   updatable by installing a newer bundle, for people who prefer Flatpak to AppImage.
   `packaging/linux/flatpak-bundle.sh` repackages the job's `.tar.gz` with
-  `packaging/linux/flatpak/ai.storyteller.photocraft.bundle.yml` on the freedesktop 26.08
+  `packaging/linux/flatpak/ai.storyteller.evophoto.bundle.yml` on the freedesktop 26.08
   runtime. It does no Rust build and needs no network inside `flatpak-builder`, so the bundle
   holds the same binaries as the other formats. A separate `flatpak` job per architecture
   (`ubuntu-24.04` and `ubuntu-24.04-arm`, for flatpak-builder 1.4) downloads the Linux job's
-  artifact, runs the script, installs the bundle and runs `photocraft-cli --version` inside the
+  artifact, runs the script, installs the bundle and runs `evophoto-cli --version` inside the
   sandbox as a smoke test. The bundle names Flathub as its runtime repo, so users install
   it with:
 
   ```sh
-  flatpak install --user photocraft-<v>-linux-x86_64.flatpak   # pulls org.freedesktop.Platform//26.08 from Flathub if missing
-  flatpak run ai.storyteller.photocraft
+  flatpak install --user evophoto-<v>-linux-x86_64.flatpak   # pulls org.freedesktop.Platform//26.08 from Flathub if missing
+  flatpak run ai.storyteller.evophoto
   ```
 
   Sandbox permissions (justified in the manifest): Wayland with X11 fallback, IPC (X11
   shared memory), `dri` for the GPU, and read/write access to Pictures and Documents. Every
   other file goes through the file-chooser and document portals. There's no network, so the
   `--control` server is only reachable from inside the sandbox until the user runs
-  `flatpak override --user --share=network ai.storyteller.photocraft`. Host fonts are read from
+  `flatpak override --user --share=network ai.storyteller.evophoto`. Host fonts are read from
   `/run/host/fonts` and `/run/host/user-fonts`. Locally (on Linux, with `flatpak` and
   `flatpak-builder`): `packaging/linux/package.sh --formats tar && packaging/linux/flatpak-bundle.sh`.
-- **Flathub**: `packaging/linux/flatpak/ai.storyteller.photocraft.yml` builds from source and
+- **Flathub**: `packaging/linux/flatpak/ai.storyteller.evophoto.yml` builds from source and
   is ready for a Flathub submission (it keeps the same runtime and `finish-args` as the bundle
   manifest, which packaging-lint checks). CI doesn't build it. A real build needs vendored crate
   sources (`cargo-sources.json` from `flatpak-cargo-generator.py`) and adds 20+ minutes per
@@ -267,10 +267,10 @@ Wayland, xkbcommon, Vulkan and EGL are loaded at runtime from the system, which 
 the GPU driver has to come from. That's why the .deb and .rpm declare them as dependencies
 (the full list, and why each is there, is in `packaging/linux/nfpm.yaml`) and the AppImage
 doesn't bundle them. The Flatpak gets them from the freedesktop runtime. Because the AppImage
-and the tarball can't declare dependencies, `photocraft` checks for the libraries its session
-(X11 or Wayland) needs before it opens a window (`apps/photocraft/src/linux_libs.rs`) and, if
+and the tarball can't declare dependencies, `evophoto` checks for the libraries its session
+(X11 or Wayland) needs before it opens a window (`apps/evophoto/src/linux_libs.rs`) and, if
 one is missing, prints the package to install and exits with status 1 instead of crashing.
-`PHOTOCRAFT_SKIP_LIB_CHECK=1` skips the check.
+`EVOPHOTO_SKIP_LIB_CHECK=1` skips the check.
 
 Locally (on Linux): install [nfpm](https://nfpm.goreleaser.com/install/), then
 `packaging/linux/package.sh` (or `--formats "deb tar"`).
@@ -281,17 +281,17 @@ GitHub has no FreeBSD runners, so the `freebsd` job runs `packaging/freebsd/pack
 FreeBSD 14.3 VM (`vmactions/freebsd-vm`, pinned by commit), with the same packages as the
 FreeBSD CI workflow (`.github/workflows/freebsd.yml`) plus `bash`. The script builds both
 binaries with `CARGO_BUILD_JOBS=4` (more runs the 12 GB VM out of memory) and writes
-`photocraft-<v>-freebsd-x86_64.tar.gz`. FreeBSD's `uname -m` says `amd64`; the file name uses
-`x86_64` like the other artifacts. The tarball is a `/usr/local`-style tree: `bin/photocraft`,
-`bin/photocraft-cli`, and under `share/` the same desktop entry, MIME type, AppStream metainfo
+`evophoto-<v>-freebsd-x86_64.tar.gz`. FreeBSD's `uname -m` says `amd64`; the file name uses
+`x86_64` like the other artifacts. The tarball is a `/usr/local`-style tree: `bin/evophoto`,
+`bin/evophoto-cli`, and under `share/` the same desktop entry, MIME type, AppStream metainfo
 and hicolor icons as Linux, plus the licences, `NOTICE` and `ATTRIBUTION.md` in
-`share/doc/photocraft/`, and `photocraft-cli`'s man pages (`man/man1/`) and bash, zsh and fish
+`share/doc/evophoto/`, and `evophoto-cli`'s man pages (`man/man1/`) and bash, zsh and fish
 completions (`share/bash-completion`, `share/zsh/site-functions`, `share/fish`), written by the
 `man-and-completions` example built with the binaries. Users install it with:
 
 ```sh
 pkg install libxkbcommon wayland libX11 libXcursor libXrandr libXi libxcb mesa-libs vulkan-loader gtk3 fontconfig freetype2 alsa-lib
-tar -xzf photocraft-<v>-freebsd-x86_64.tar.gz --strip-components 1 -C /usr/local
+tar -xzf evophoto-<v>-freebsd-x86_64.tar.gz --strip-components 1 -C /usr/local
 ```
 
 The job signs nothing, so it runs outside the `release` environment and gets no secrets. The
@@ -307,12 +307,12 @@ and lists the tarball, which checks the layout without a FreeBSD machine.
 
 ### Web
 
-`packaging/web/package.sh` runs `trunk build --release` for the app (`apps/photocraft-web`, into
-`dist/web`) and for the module that starts it (`apps/photocraft-web-boot`, into `dist/web-boot`).
+`packaging/web/package.sh` runs `trunk build --release` for the app (`apps/evophoto-web`, into
+`dist/web`) and for the module that starts it (`apps/evophoto-web-boot`, into `dist/web-boot`).
 It gzips the app's wasm, cuts it into parts of at most 20 MiB and zips the boot module's page with
 the parts, sample `_headers` and `.htaccess` files and the hosting guide. The site only uses
 relative URLs, so it works under any path and in an iframe. The wasm builds with the
-size-optimized `wasm-release` Cargo profile (set in `apps/photocraft-web/index.html`), and the
+size-optimized `wasm-release` Cargo profile (set in `apps/evophoto-web/index.html`), and the
 script fails if any file in the site exceeds 24 MiB, below Cloudflare's 25 MiB per-file limit;
 the app's wasm itself may be larger, since it ships as parts.
 [`packaging/web/README.md`](../packaging/web/README.md) covers MIME types, compression,
@@ -349,7 +349,7 @@ The keychain is deleted at the end of the job.
 
 ## Icons
 
-`assets/app-icon/photocraft.svg` is the canonical icon: the owner's ArtCraft drawing of a
+`assets/app-icon/evophoto.svg` is the canonical icon: the owner's Upstream drawing of a
 nine-tailed kitsune, vectorised (MIT OR Apache-2.0, see `LICENSE.txt` there; palette and
 geometry in `README.md`). `packaging/icons.sh` regenerates the 1024 px PNG, the `.icns`, the `.ico` (packed by
 `cargo xtask ico`) and the hicolor PNGs from it. It needs `resvg`, plus `iconutil` on macOS.

@@ -13,7 +13,7 @@
 //   - evora:open d'une petite image PNG reçue en octets : accusé positif, puis evora:dirty false ;
 //   - une modification (Ctrl+I, Image › Réglages › Négatif ; depuis v0.15.1, Sélection › Tout ne
 //     modifie plus le document) : evora:dirty true ; evora:request-save : un
-//     evora:save conforme (re = la demande, docRef, nom .pcraft, octets non vides d'une archive zip),
+//     evora:save conforme (re = la demande, docRef, nom .evophoto, octets non vides d'une archive zip),
 //     aucun evora:dirty false tant que la coquille n'a pas répondu (LUM-04, doc.saved-ack), puis
 //     evora:dirty false après evora:saved {ok: true} ; une seconde demande : evora:ack {ok: true,
 //     code: "clean"} ; Ctrl+S (action de l'utilisateur) : un evora:save sans re ;
@@ -28,7 +28,7 @@
 //   - export.drive (LUM-03) : Export As (file.export.exportAs, Entrée) rend un evora:export PNG
 //     conforme (docRef, nom, MIME, octets PNG), accusé par la coquille ; un second, refusé (quota),
 //     n'est ni renvoyé ni remplacé par un téléchargement ; Enregistrer sous (Ctrl+Maj+S) rend
-//     evora:save {saveAs: true} en .pcraft, et le moteur adopte le docRef de evora:saved (dirty
+//     evora:save {saveAs: true} en .evophoto, et le moteur adopte le docRef de evora:saved (dirty
 //     false, demande « clean » pour le nouveau, not_found pour l'ancien, plus aucun message pour
 //     l'ancien) ; un document du moteur (file.new, Entrée) crée au premier Ctrl+S un document de la
 //     coquille ; aucun téléchargement (compté par smoke.mjs, Browser.downloadWillBegin) ;
@@ -42,7 +42,7 @@
 //     file.exit, hors liste, refusés (code capability) sans effet ; un seul accusé par commande ;
 //   - stockage (E5 corrigé) : restes posés avant le démarrage (autre compte, noms nus de l'amont)
 //     purgés à l'init, noms d'un autre moteur de la même origine conservés ; tout le stockage du
-//     moteur sous <storageNs>: (marqueur de base <storageNs>:photocraft.presets compris, aucun
+//     moteur sous <storageNs>: (marqueur de base <storageNs>:evophoto.presets compris, aucun
 //     marqueur d'un autre espace) ; aucune purge par un message de version 2, à champ en trop ou venu
 //     des témoins ; la vraie purge efface d'abord les clés, n'est PAS accusée tant qu'une autre
 //     connexion bloque la suppression de la base, puis l'est une fois la base supprimée, avec un
@@ -112,7 +112,7 @@
 // « none ») prouvent que les métadonnées sont lues et réécrites.
 // LUM-14 r3 (constats de la revue de sécurité de LF-3) : avant les exports, la coquille ajoute aussi
 // (evora:smoke-placed et evora:smoke-shmd, absents de l'artefact servi) des objets dynamiques qui
-// placent une photo PNG et une photo JPEG géolocalisées, un document .pcraft géolocalisé, un fichier
+// placent une photo PNG et une photo JPEG géolocalisées, un document .evophoto géolocalisé, un fichier
 // d'un format que l'export ne sait pas nettoyer et le PNG d'un PSD importé (bloc global lnk2), puis
 // un bloc global que le moteur ne lit pas, une note, et cinq calques dont le bloc shmd tient plus que
 // l'export ne garde (second élément cust, second paquet, paquet qui n'est pas du texte, élément qui
@@ -197,8 +197,8 @@ const STORAGE_NS = 'ab'.repeat(32);
 const OTHER_NS = 'cd'.repeat(32);
 const FOREIGN_KEY = 'autre-moteur:reglages';
 const FOREIGN_DB = 'autre-moteur.cache';
-const PREFS = 'photocraft.preferences';
-const PRESETS = 'photocraft.presets';
+const PREFS = 'evophoto.preferences';
+const PRESETS = 'evophoto.presets';
 // LUM-06 r2 : l'accent de la coquille dans evora:init (autre que l'indigo d'Evora, pour que son
 // application se voie), les evora:theme suivants, et les valeurs que le thème doit tenir.
 const INIT_ACCENT = '#0E7490';
@@ -243,7 +243,7 @@ const SMOKE_PLACED = 'evora:smoke-placed';
 const SMOKE_SHMD = 'evora:smoke-shmd';
 const PLACED_MARKERS = { png: 'EvoraGeoPng', jpeg: 'EvoraGeoJpeg', linked: 'EvoraGeoLinked', other: 'EvoraGeoOther', nested: 'EvoraGeoNested' };
 // Les fichiers placés tels que l'export les range (bloc lnk2, nom en UTF-16) : présents tant que
-// l'objet dynamique garde son fichier (le document .pcraft placé y devient un PSB) ; celui d'un format
+// l'objet dynamique garde son fichier (le document .evophoto placé y devient un PSB) ; celui d'un format
 // que l'export ne sait pas nettoyer fait du calque un calque de pixels sous « none » et « rights ».
 const PLACED_FILES = ['evora-place.png', 'evora-place.jpg', 'evora-place-linked.png', 'evora-place.psb'];
 const PLACED_OTHER = 'evora-place.bin';
@@ -791,7 +791,7 @@ const GEO_FIXTURES = [
 ];
 
 // LUM-11 : la plus petite police TrueType ou OpenType du dossier des polices servies (quatrième
-// argument de smoke.mjs, fonts/manifest.txt de craft-fonts), ou null.
+// argument de smoke.mjs, fonts/manifest.txt de evo-fonts), ou null.
 function benchFont() {
   const dir = process.argv[5];
   if (!dir) return null;
@@ -1107,7 +1107,7 @@ export function harnessJs() {
 
 // Clavier synthétique vers le canvas d'eframe (raccourci de l'utilisateur), dans le document moteur.
 const shortcut = (key) => `(() => {
-  const c = document.getElementById('photocraft_canvas');
+  const c = document.getElementById('evophoto_canvas');
   c.focus();
   const init = { key: '${key}', code: 'Key${key.toUpperCase()}', ctrlKey: true, bubbles: true, cancelable: true };
   c.dispatchEvent(new KeyboardEvent('keydown', init));
@@ -1117,7 +1117,7 @@ const shortcut = (key) => `(() => {
 
 // Une touche nommée (Échap, Entrée) vers le canvas d'eframe, avec ses modificateurs.
 const keyPress = (key, code, mods = {}) => `(() => {
-  const c = document.getElementById('photocraft_canvas');
+  const c = document.getElementById('evophoto_canvas');
   c.focus();
   const init = { key: ${JSON.stringify(key)}, code: ${JSON.stringify(code)}, ctrlKey: ${!!mods.ctrl}, shiftKey: ${!!mods.shift},
     altKey: ${!!mods.alt}, bubbles: true, cancelable: true };
@@ -1128,7 +1128,7 @@ const keyPress = (key, code, mods = {}) => `(() => {
 
 // Une touche vers le canvas d'eframe ; rend vrai si le moteur l'a retenue (preventDefault).
 const keyDown = (key, code, mods = {}) => `(() => {
-  const c = document.getElementById('photocraft_canvas');
+  const c = document.getElementById('evophoto_canvas');
   c.focus();
   const init = { key: ${JSON.stringify(key)}, code: ${JSON.stringify(code)}, ctrlKey: ${!!mods.ctrl}, shiftKey: ${!!mods.shift},
     altKey: ${!!mods.alt}, bubbles: true, cancelable: true };
@@ -1430,7 +1430,7 @@ export class EhpBench {
         `{ v: 1, type: 'evora:ack', re: ${JSON.stringify(this.ids.prefsStats)}, payload: ${JSON.stringify({ ok: true, result: { ...first, prefs: { ...first.prefs, canvasColor: 'default', applied: [], refused: [] } } })} }`);
     }
     await this.sabotage('envelope', 'evora:dirty à champ d\'enveloppe en trop', `{ v: 1, type: 'evora:dirty', payload: { dirty: false, docRef: ${JSON.stringify(DOC_REF)} }, extra: true }`);
-    await this.sabotage('save-shape', 'evora:save aux octets en vue typée', `{ v: 1, type: 'evora:save', payload: { docRef: ${JSON.stringify(DOC_REF)}, name: 'evora-smoke.pcraft', saveAs: false, bytes: new Uint8Array(4) } }`);
+    await this.sabotage('save-shape', 'evora:save aux octets en vue typée', `{ v: 1, type: 'evora:save', payload: { docRef: ${JSON.stringify(DOC_REF)}, name: 'evora-smoke.evophoto', saveAs: false, bytes: new Uint8Array(4) } }`);
     const dirty = await this.press('i', (m) => m.type === 'evora:dirty' && m.payload.docRef === DOC_REF && m.payload.dirty === true, 'evora:dirty true');
     if (!dirty) {
       this.fail('dirty', 'evora:dirty {dirty: true} absent après une modification (Ctrl+I, Négatif)');
@@ -1442,8 +1442,8 @@ export class EhpBench {
     else {
       const p = save.msg.payload || {};
       const b = p.bytes || {};
-      if (p.docRef !== DOC_REF || p.name !== 'evora-smoke.pcraft' || p.saveAs !== false || !(b.$arrayBuffer > 0) || b.head !== '504b0304') {
-        this.fail('save', `evora:save inattendu (docRef, nom .pcraft, saveAs, octets zip non vides) : ${JSON.stringify(p)}`);
+      if (p.docRef !== DOC_REF || p.name !== 'evora-smoke.evophoto' || p.saveAs !== false || !(b.$arrayBuffer > 0) || b.head !== '504b0304') {
+        this.fail('save', `evora:save inattendu (docRef, nom .evophoto, saveAs, octets zip non vides) : ${JSON.stringify(p)}`);
       }
       this.log(`[ehp] evora:save : ${p.name}, ${b.$arrayBuffer} octets, en-tête ${b.head}`);
     }
@@ -1844,8 +1844,8 @@ export class EhpBench {
     else {
       picked.add(open.msg.id);
       const p = open.msg.payload || {};
-      if (p.purpose !== 'open' || p.multiple !== true || !Array.isArray(p.accept) || !p.accept.includes('.pcraft') || !p.accept.includes('image/*')) {
-        this.fail('pick', `evora:pick de Fichier › Ouvrir inattendu (open, plusieurs, .pcraft et image/*) : ${JSON.stringify(p)}`);
+      if (p.purpose !== 'open' || p.multiple !== true || !Array.isArray(p.accept) || !p.accept.includes('.evophoto') || !p.accept.includes('image/*')) {
+        this.fail('pick', `evora:pick de Fichier › Ouvrir inattendu (open, plusieurs, .evophoto et image/*) : ${JSON.stringify(p)}`);
       }
       await this.send('evora:file', `{ path: '/evora/${PICK_UID}/evora-ouvert.png', name: 'evora-ouvert.png', bytes: __ehp.png() }`, { re: open.msg.id });
       await this.send('evora:ack', '{ ok: true }', { re: open.msg.id });
@@ -2025,13 +2025,13 @@ export class EhpBench {
     await this.refresh();
     saves = this.engineMessages().filter((e) => e.plain && e.msg.type === 'evora:save' && !savesBefore.has(e.msg.id) && !this.injectedIds.includes(e.msg.id)).map((e) => e.msg);
     await this.sabotage('multi-save-all', 'second evora:save fabriqué en réponse à la même demande',
-      `{ v: 1, type: 'evora:save', re: ${JSON.stringify(this.ids.saveAll)}, payload: { docRef: ${JSON.stringify(MULTI_REF)}, name: 'evora-multi.pcraft', saveAs: false, bytes: new ArrayBuffer(8) } }`);
+      `{ v: 1, type: 'evora:save', re: ${JSON.stringify(this.ids.saveAll)}, payload: { docRef: ${JSON.stringify(MULTI_REF)}, name: 'evora-multi.evophoto', saveAs: false, bytes: new ArrayBuffer(8) } }`);
     const saveOf = (ref) => saves.find((m) => m.payload && m.payload.docRef === ref);
     const s1 = saveOf(DOC_REF);
     const s2 = saveOf(MULTI_REF);
     const named = (m, name) => !!m && m.payload.name === name && m.payload.saveAs === false && (m.payload.bytes || {}).head === '504b0304';
     const answering = saves.filter((m) => m.re === this.ids.saveAll);
-    if (saves.length !== 2 || !named(s1, 'evora-smoke.pcraft') || !named(s2, 'evora-multi.pcraft') || answering.length !== 1 || saves.some((m) => m.re !== undefined && m.re !== this.ids.saveAll)) {
+    if (saves.length !== 2 || !named(s1, 'evora-smoke.evophoto') || !named(s2, 'evora-multi.evophoto') || answering.length !== 1 || saves.some((m) => m.re !== undefined && m.re !== this.ids.saveAll)) {
       this.fail('multi-save-all', `evora:request-save sans docRef : ${saves.length} evora:save (${saves.map((m) => `${m.id} ${(m.payload || {}).docRef} ${(m.payload || {}).name} re ${m.re || 'aucun'}`).join(' | ') || 'aucun'}), attendu un par document modifié, un seul en réponse`);
     }
     // Accusés indépendants : le premier enregistré, le second en conflit, puis enregistré à son tour.
@@ -2136,8 +2136,8 @@ export class EhpBench {
     if (!saveAs) this.fail('save-as-adopt', 'aucun evora:save après Ctrl+Maj+S (Fichier › Enregistrer sous)');
     else {
       const p = saveAs.msg.payload || {};
-      if (p.saveAs !== true || p.docRef !== DOC_REF || p.name !== 'evora-smoke.pcraft' || !zip(p)) {
-        this.fail('save-as-adopt', `evora:save d'Enregistrer sous inattendu (saveAs, docRef d'origine, nom .pcraft, octets zip) : ${JSON.stringify(p)}`);
+      if (p.saveAs !== true || p.docRef !== DOC_REF || p.name !== 'evora-smoke.evophoto' || !zip(p)) {
+        this.fail('save-as-adopt', `evora:save d'Enregistrer sous inattendu (saveAs, docRef d'origine, nom .evophoto, octets zip) : ${JSON.stringify(p)}`);
       }
       const adopted = await this.saved(saveAs.msg.id, { ok: true, version: 1, docRef: ADOPT_REF });
       this.windows.push({ kind: 'ref', tag: 'save-as-adopt', what: 'après l\'adoption du nouveau docRef', from: adopted, docRef: DOC_REF });
@@ -2162,11 +2162,11 @@ export class EhpBench {
       if (!first) this.fail('local-doc-first-save', 'aucun evora:save après Ctrl+S sur un document du moteur');
       else {
         const p = first.msg.payload || {};
-        if (p.saveAs !== true || !ULID_RE.test(p.docRef || '') || !/\.pcraft$/.test(p.name || '') || !zip(p)) {
-          this.fail('local-doc-first-save', `premier enregistrement d'un document du moteur inattendu (saveAs, .pcraft, octets zip) : ${JSON.stringify(p)}`);
+        if (p.saveAs !== true || !ULID_RE.test(p.docRef || '') || !/\.evophoto$/.test(p.name || '') || !zip(p)) {
+          this.fail('local-doc-first-save', `premier enregistrement d'un document du moteur inattendu (saveAs, .evophoto, octets zip) : ${JSON.stringify(p)}`);
         }
         const adopted = await this.saved(first.msg.id, { ok: true, version: 1, docRef: LOCAL_REF });
-        await this.sabotage('local-doc-first-save', 'evora:save {saveAs: true} hors .pcraft',
+        await this.sabotage('local-doc-first-save', 'evora:save {saveAs: true} hors .evophoto',
           `{ v: 1, type: 'evora:save', payload: { docRef: ${JSON.stringify(ADOPT_REF)}, name: 'Untitled-1.psd', saveAs: true, bytes: new ArrayBuffer(8) } }`);
         if (!(await this.until(() => this.dirtyAfter(adopted, false, LOCAL_REF), 10000))) this.fail('local-doc-first-save', 'evora:dirty {dirty: false} du nouveau document absent');
         const r = await this.stats();
@@ -2182,7 +2182,7 @@ export class EhpBench {
   async openNew() {
     for (const [tag, ref, key] of [['open-new', NEW_REF, 'Enter'], ['open-new-cancel', CANCEL_REF, 'Escape']]) {
       const before = await this.stats();
-      const id = await this.send('evora:open', `{ docRef: ${JSON.stringify(ref)}, name: 'Sans titre.pcraft', new: true }`);
+      const id = await this.send('evora:open', `{ docRef: ${JSON.stringify(ref)}, name: 'Sans titre.evophoto', new: true }`);
       this.ids[tag] = id;
       if (!before || !(await this.dialogsReach(before.dialogs + 1, () => this.stats(), 8000))) {
         this.fail(tag, 'evora:open {new: true} sans dialogue Nouveau document dans le moteur');
@@ -2635,8 +2635,8 @@ export class EhpBench {
             || /[\\/\u0000-\u001f\u007f]/.test(p.name) || typeof p.saveAs !== 'boolean' || !(b.$arrayBuffer >= 1) || b.$shared !== undefined || b.$view !== undefined) {
             this.fail('save-shape', `evora:save non conforme : ${where}`);
           }
-          // LUM-03 : un nouveau document de la coquille est toujours un .pcraft.
-          if (p && p.saveAs === true && !/\.pcraft$/.test(p.name || '')) this.fail('local-doc-first-save', `evora:save {saveAs: true} hors .pcraft : ${where}`);
+          // LUM-03 : un nouveau document de la coquille est toujours un .evophoto.
+          if (p && p.saveAs === true && !/\.evophoto$/.test(p.name || '')) this.fail('local-doc-first-save', `evora:save {saveAs: true} hors .evophoto : ${where}`);
           break;
         }
         case 'evora:export': {

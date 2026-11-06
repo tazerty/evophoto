@@ -3,17 +3,17 @@
 //! Text offsets in parameters and results are **character** indices (Unicode scalar values),
 //! so JSON clients never split a UTF-8 sequence. Sizes, leading, indents and spacing are in
 //! points (converted with the document resolution); tracking is in 1/1000 em; positions and
-//! boxes are document pixels. Every edit re-renders the layer with `photocraft-text` and
+//! boxes are document pixels. Every edit re-renders the layer with `evophoto-text` and
 //! regenerates its PSD `TySh` data, so the layer saves as editable text.
 
 use std::sync::Arc;
 
-use photocraft_color::{Color, PixelFormat};
-use photocraft_doc::text::{
+use evophoto_color::{Color, PixelFormat};
+use evophoto_doc::text::{
     AntiAlias, Caps, CharStyle, FontBaseline, FontFeature, FontVariation, Kerning, Orientation, ParagraphRun, ParagraphStyle, TextAlign, TextDirection,
     TextRun, TextShape,
 };
-use photocraft_doc::{Affine, Document, Layer, LayerContent, LayerId, TextLayer};
+use evophoto_doc::{Affine, Document, Layer, LayerContent, LayerId, TextLayer};
 use serde_json::{Value, json};
 
 use crate::commands::CommandSpec;
@@ -108,7 +108,7 @@ pub fn check_kerning(p: &Value) -> std::result::Result<(), String> {
 }
 
 /// Validates text metrics (size, tracking, leading, baseline shift, scales) that can otherwise
-/// exceed the rasterizer's supported range or overflow `f32`, which a .pcraft manifest cannot hold,
+/// exceed the rasterizer's supported range or overflow `f32`, which a .evophoto manifest cannot hold,
 /// and the superscript/subscript `baseline`, so a typo is an error rather than a reset to Normal.
 pub fn check_size_tracking(p: &Value) -> std::result::Result<(), String> {
     if let Some(v) = p.get("size") {
@@ -161,7 +161,7 @@ pub fn check_size_tracking(p: &Value) -> std::result::Result<(), String> {
 /// nearby face would override the requested weight (a variable font's axis, a weight between two
 /// faces) or italic. Without an exact face the style keeps no name and layout matches as before.
 fn installed_postscript(family: &str, weight: u16, italic: bool) -> Option<String> {
-    let mut shared = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner());
+    let mut shared = evophoto_text::shared().lock().unwrap_or_else(|e| e.into_inner());
     let faces = shared.fonts.faces(family);
     let face = faces.iter().find(|f| f.italic == italic && f.weight.round() as u16 == weight)?;
     face.postscript_name.clone()
@@ -252,7 +252,7 @@ pub fn apply_char_props(s: &mut CharStyle, p: &Value) -> bool {
         s.postscript_name = None;
         // Photoshop accepts either a family name or a face's PostScript name in the font field.
         // Resolve only exact PostScript matches here so an unknown family remains untouched.
-        let mut text = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner());
+        let mut text = evophoto_text::shared().lock().unwrap_or_else(|e| e.into_inner());
         if !text.fonts.has_family(v) {
             let resolved = text.fonts.resolve_postscript(v);
             if resolved.exact {
@@ -273,9 +273,9 @@ pub fn apply_char_props(s: &mut CharStyle, p: &Value) -> bool {
         s.variations.retain(|f| f.axis != "wght");
         let l = v.to_lowercase();
         s.italic = l.contains("italic") || l.contains("oblique");
-        let g = photocraft_text::fonts::guess_from_postscript(&format!("X-{}", v.replace(' ', "")));
+        let g = evophoto_text::fonts::guess_from_postscript(&format!("X-{}", v.replace(' ', "")));
         s.weight = g.weight;
-        if let Some(face) = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner()).fonts.named_face(&s.font_family, v) {
+        if let Some(face) = evophoto_text::shared().lock().unwrap_or_else(|e| e.into_inner()).fonts.named_face(&s.font_family, v) {
             s.weight = face.weight.round() as u16;
             s.italic = face.italic;
             s.postscript_name = face.postscript_name;
@@ -515,7 +515,7 @@ pub fn style_paragraphs(t: &mut TextLayer, a: usize, b: usize, f: &dyn Fn(&mut P
     let style_at = |off: usize| old[starts.iter().rposition(|&s| s <= off).unwrap_or(0)].style.clone();
     let mut out: Vec<(usize, ParagraphStyle)> = Vec::new();
     let trailing_break = t.text.ends_with(['\r', '\n']);
-    for pr in photocraft_text::layout::split_paragraphs(&t.text) {
+    for pr in evophoto_text::layout::split_paragraphs(&t.text) {
         let mut st = style_at(pr.start);
         let terminal_empty = pr.start == pr.end;
         let touches =
@@ -633,10 +633,10 @@ pub fn refresh(doc: &Document, t: &mut TextLayer) {
 /// pixel format. A caller holding the layer mutably reads them first instead of cloning the whole
 /// document to pass it, once per keystroke and pointer move while typing (#7092).
 pub fn refresh_at(dpi: f32, format: PixelFormat, t: &mut TextLayer) {
-    let mut eng = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner());
+    let mut eng = evophoto_text::shared().lock().unwrap_or_else(|e| e.into_inner());
     let (layout, r) = eng.render(t, dpi, format);
     t.cache = Some(r.surface);
-    t.psd_raw = Some(Arc::new(photocraft_text::psd::build_tysh(t, dpi, layout.bounds())));
+    t.psd_raw = Some(Arc::new(evophoto_text::psd::build_tysh(t, dpi, layout.bounds())));
 }
 
 /// Refuses to change a type layer under Lock All (its own or an enclosing group's), with
@@ -733,7 +733,7 @@ pub(crate) fn with_text_targets(
     }
     let damage = s.edit(label, |doc, _| {
         let (dpi, format) = (doc.resolution_dpi, doc.pixel_format());
-        let mut damage = Some(photocraft_geom::Rect::EMPTY);
+        let mut damage = Some(evophoto_geom::Rect::EMPTY);
         for id in &ids {
             let Some(LayerContent::Text(t)) = doc.layer_mut(*id).map(|l| &mut l.content) else { return Err(EngineError::NoLayer(*id)) };
             let before = t.cache.as_ref().map(|c| c.tile_bounds());
@@ -814,7 +814,7 @@ fn info(s: &Session, p: &Value) -> Result<Value> {
             v
         })
         .collect();
-    let layout = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner()).layout(t, d.doc.resolution_dpi);
+    let layout = evophoto_text::shared().lock().unwrap_or_else(|e| e.into_inner()).layout(t, d.doc.resolution_dpi);
     let lines: Vec<Value> = layout
         .lines
         .iter()
@@ -861,7 +861,7 @@ pub(crate) fn new_text_layer(s: &Session, p: &Value, cmd: &str) -> Result<TextLa
     let (mut style, mut para) = s
         .type_defaults
         .clone()
-        .unwrap_or_else(|| (CharStyle { font_family: photocraft_text::fonts::DEFAULT_FAMILY.into(), ..Default::default() }, ParagraphStyle::default()));
+        .unwrap_or_else(|| (CharStyle { font_family: evophoto_text::fonts::DEFAULT_FAMILY.into(), ..Default::default() }, ParagraphStyle::default()));
     let fg = s.tools.foreground;
     style.color = Color::rgba(fg[0], fg[1], fg[2], fg[3]);
     apply_char_props(&mut style, p);
@@ -971,7 +971,7 @@ pub fn specs() -> Vec<CommandSpec> {
                         let a = byte_at(&t.text, at - 1);
                         let b = byte_at(&t.text, at);
                         let now = {
-                            let mut eng = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner());
+                            let mut eng = evophoto_text::shared().lock().unwrap_or_else(|e| e.into_inner());
                             eng.pair_kerning(t, dpi, a)
                         }
                         .ok_or_else(|| bad("type.edit", "no kerning pair at the caret (line break or line end)"))?;
@@ -1099,7 +1099,7 @@ pub fn specs() -> Vec<CommandSpec> {
                     if t.cache.is_none() {
                         refresh_at(dpi, format, t);
                     }
-                    let surface = t.cache.take().unwrap_or_else(|| photocraft_raster::Surface::new(format));
+                    let surface = t.cache.take().unwrap_or_else(|| evophoto_raster::Surface::new(format));
                     let surface = if surface.format() == format { surface } else { surface.convert(format) };
                     l.content = LayerContent::Raster(surface);
                     l.psd_blocks.retain(|(k, _)| k != b"TySh");
@@ -1127,7 +1127,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: |_| Ok(()),
             journal: false,
             run: |_, p| {
-                let mut eng = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner());
+                let mut eng = evophoto_text::shared().lock().unwrap_or_else(|e| e.into_inner());
                 match p.get("family").and_then(Value::as_str) {
                     Some(f) => {
                         let faces: Vec<Value> = eng.fonts.faces(f).into_iter().map(|x| json!({ "family": x.family, "style": x.style, "postscriptName": x.postscript_name, "weight": x.weight, "italic": x.italic, "axes": x.axes })).collect();
@@ -1231,7 +1231,7 @@ mod tests {
         // layout still matches the requested weight instead of a nearby face's.
         apply_char_props(&mut style, &json!({"weight": 650}));
         assert!(style.postscript_name.is_none(), "{:?}", style.postscript_name);
-        // A family PhotoCraft does not have keeps no name; the export falls back as before.
+        // A family EvoPhoto does not have keeps no name; the export falls back as before.
         let mut absent = CharStyle { font_family: "No Such Family 123".into(), ..Default::default() };
         apply_char_props(&mut absent, &json!({"font": "No Such Family 123"}));
         assert!(absent.postscript_name.is_none());
@@ -1291,7 +1291,7 @@ mod tests {
             st.saved_revision = st.revision;
         }
         let rev = s.active().unwrap().revision;
-        let unknown = [(doc_id, LayerId(u64::MAX)), (photocraft_doc::DocId(u64::MAX), id)];
+        let unknown = [(doc_id, LayerId(u64::MAX)), (evophoto_doc::DocId(u64::MAX), id)];
         assert!(s.refresh_type_layers(&[&[(doc_id, id)][..], &unknown].concat()).is_empty());
         assert!(text_layer(&s, id.0).cache.is_some());
         let st = s.active().unwrap();
@@ -1320,7 +1320,7 @@ mod tests {
         let r = c.content_bounds();
         assert!(c.read_region(r).as_chunks::<4>().0.iter().any(|p| p[3] > 0.9 && p[0] > 0.9 && p[1] < 0.1));
         // The TySh we generated parses back to the same model.
-        let back = photocraft_text::psd::text_layer_from_tysh(t.psd_raw.as_ref().unwrap(), 72.0).unwrap();
+        let back = evophoto_text::psd::text_layer_from_tysh(t.psd_raw.as_ref().unwrap(), 72.0).unwrap();
         assert_eq!(back.text, "Hello");
         let strip = |mut r: Vec<TextRun>| {
             for x in &mut r {
@@ -1537,7 +1537,7 @@ mod tests {
         assert_eq!(styled["paragraphs"][1]["style"]["align"], "Right");
         assert_eq!(styled["lines"][1], previous_line, "the preceding paragraph must not move");
         let raw = text_layer(&s, id).psd_raw.clone().unwrap();
-        let round_trip = photocraft_text::psd::text_layer_from_tysh(&raw, 72.0).unwrap();
+        let round_trip = evophoto_text::psd::text_layer_from_tysh(&raw, 72.0).unwrap();
         assert_eq!(round_trip.paragraph_runs().last().unwrap().style.align, TextAlign::Right);
 
         // Typing directly into the previously empty final paragraph retains its style.
@@ -1721,14 +1721,14 @@ mod tests {
         }
         let (dark, purple) = ([0x1b, 0x1f, 0x4b, 255], [0x5a, 0x3d, 0xf0, 255]);
         let mut s = session();
-        let id = s.execute("type.create", json!({"x": 20, "y": 50, "text": "Craft Suite in Workshop", "size": 40, "color": "#1b1f4b"})).unwrap()["layer"]
+        let id = s.execute("type.create", json!({"x": 20, "y": 50, "text": "Evo Suite in Workshop", "size": 40, "color": "#1b1f4b"})).unwrap()["layer"]
             .as_u64()
             .unwrap();
         s.execute("type.setStyle", json!({"layer": id, "range": [15, 23], "color": "#5a3df0"})).unwrap();
         assert_eq!(runs(&s, id), [(15, dark), (8, purple)]);
-        s.execute("type.edit", json!({"layer": id, "text": "Craft Suite in Workshop!"})).unwrap();
+        s.execute("type.edit", json!({"layer": id, "text": "Evo Suite in Workshop!"})).unwrap();
         assert_eq!(runs(&s, id), [(15, dark), (9, purple)], "the added character joins the last run");
-        s.execute("type.edit", json!({"layer": id, "text": "Craft Suite in Worksh\u{f6}p!"})).unwrap();
+        s.execute("type.edit", json!({"layer": id, "text": "Evo Suite in Worksh\u{f6}p!"})).unwrap();
         assert_eq!(runs(&s, id), [(15, dark), (9, purple)], "a change inside a run stays in it");
         s.execute("type.edit", json!({"layer": id, "text": "Kraft Suite in Worksh\u{f6}p!"})).unwrap();
         assert_eq!(runs(&s, id), [(15, dark), (9, purple)]);
@@ -1756,10 +1756,10 @@ b", "size": 20}),
 Xb"}),
         )
         .unwrap();
-        let paragraphs: Vec<(usize, photocraft_doc::text::TextAlign)> =
+        let paragraphs: Vec<(usize, evophoto_doc::text::TextAlign)> =
             text_layer(&s, id).paragraph_runs().into_iter().map(|r| (r.len, r.style.align)).collect();
         assert_eq!(paragraphs.first().map(|p| p.0), Some(2), "{paragraphs:?}");
-        assert_eq!(paragraphs.get(1).copied(), Some((2, photocraft_doc::text::TextAlign::Right)), "{paragraphs:?}");
+        assert_eq!(paragraphs.get(1).copied(), Some((2, evophoto_doc::text::TextAlign::Right)), "{paragraphs:?}");
     }
 
     /// #206: `type.edit {"kerning"}` over a range takes a number (manual, 1/1000 em) or a mode.
@@ -1827,7 +1827,7 @@ Xb"}),
 
     /// Cost of one Alt+←/→ press (`kernPair`: two measuring layouts + the edit's re-render) on
     /// a headline and on a 2000-character paragraph. Release timings for the dev log:
-    /// `cargo test --release -p photocraft-engine kern_pair_cost -- --ignored --nocapture`.
+    /// `cargo test --release -p evophoto-engine kern_pair_cost -- --ignored --nocapture`.
     #[test]
     #[ignore]
     fn kern_pair_cost() {
@@ -1867,7 +1867,7 @@ Xb"}),
         let id = s.execute("type.create", json!({"x": 5, "y": 50, "text": "AVA", "size": 40, "font": "Inter"})).unwrap()["layer"].as_u64().unwrap();
         let metric = {
             let t = text_layer(&s, id);
-            photocraft_text::shared().lock().unwrap().pair_kerning(&t, 72.0, 0).unwrap()
+            evophoto_text::shared().lock().unwrap().pair_kerning(&t, 72.0, 0).unwrap()
         };
         assert!(metric < -10.0, "Inter kerns AV: {metric}");
         let steps = s.active().unwrap().history.entries().len();

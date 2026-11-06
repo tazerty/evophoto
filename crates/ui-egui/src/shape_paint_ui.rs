@@ -4,9 +4,9 @@ use egui::{Color32, Sense, Stroke, vec2};
 
 use crate::theme::Tokens;
 
-pub(crate) fn color_of(f: &photocraft_doc::Fill) -> Option<[f32; 4]> {
+pub(crate) fn color_of(f: &evophoto_doc::Fill) -> Option<[f32; 4]> {
     match f {
-        photocraft_doc::Fill::Solid(c) => {
+        evophoto_doc::Fill::Solid(c) => {
             let [r, g, b] = c.to_rgb();
             Some([r, g, b, c.alpha])
         }
@@ -39,7 +39,7 @@ fn picker_rgba(hsva: egui::ecolor::Hsva) -> [f32; 4] {
 
 /// The shared compact picker keeps the float RGB paint and its alpha. Color32 is only display
 /// data: opening the picker must never quantize an existing high-depth colour or enable paint.
-pub(crate) fn swatch(ui: &mut egui::Ui, fill: Option<&photocraft_doc::Fill>, fallback: [f32; 4], tip: &str) -> Option<PaintChange> {
+pub(crate) fn swatch(ui: &mut egui::Ui, fill: Option<&evophoto_doc::Fill>, fallback: [f32; 4], tip: &str) -> Option<PaintChange> {
     let t = Tokens::get(ui.ctx());
     let (r, resp) = ui.allocate_exact_size(vec2(30.0, 22.0), Sense::click());
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::ColorButton, ui.is_enabled(), tip));
@@ -49,9 +49,9 @@ pub(crate) fn swatch(ui: &mut egui::Ui, fill: Option<&photocraft_doc::Fill>, fal
         (Some(c), _) => {
             ui.painter().rect_filled(r.shrink(1.0), t.radius_sm, rgba32(c));
         }
-        (None, Some(photocraft_doc::Fill::Gradient { stops, .. })) if !stops.is_empty() => {
+        (None, Some(evophoto_doc::Fill::Gradient { stops, .. })) if !stops.is_empty() => {
             // Gradient fills preview as a left-to-right ramp through their stops.
-            let rgb = |c: &photocraft_doc::Color| {
+            let rgb = |c: &evophoto_doc::Color| {
                 let v = c.to_rgba8();
                 Color32::from_rgba_unmultiplied(v[0], v[1], v[2], v[3])
             };

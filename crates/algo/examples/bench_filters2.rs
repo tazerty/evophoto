@@ -1,13 +1,13 @@
 //! Timing for the heavier second-batch filters on a ~24 MP (6000×4000) RGBA8 layer.
 //!
-//! `cargo run --release -p photocraft-algo --example bench_filters2 [name-substring] [--reps N] [--quick] [--json <file>]`
+//! `cargo run --release -p evophoto-algo --example bench_filters2 [name-substring] [--reps N] [--quick] [--json <file>]`
 //!
 //! `--json` writes the report `cargo xtask perf` reads: `{"rows": [{"name", "samples_ms"}]}`.
 //! `--quick` runs the list on a 1500×1000 layer instead, for `cargo xtask perf --quick`.
-use photocraft_algo::*;
-use photocraft_color::PixelFormat;
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use evophoto_algo::*;
+use evophoto_color::PixelFormat;
+use evophoto_geom::Rect;
+use evophoto_raster::Surface;
 
 fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();

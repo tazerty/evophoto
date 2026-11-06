@@ -1,10 +1,10 @@
 //! A layer's own XMP packet, as Photoshop scripts reach it through `layer.xmpMetadata.rawData`:
 //! scripts and embedding apps keep data about a layer there under their own namespaces. It is
-//! saved in PSD, PSB, layered TIFF and `.pcraft`, and copied when the layer is duplicated.
+//! saved in PSD, PSB, layered TIFF and `.evophoto`, and copied when the layer is duplicated.
 
 use std::sync::Arc;
 
-use photocraft_doc::LayerId;
+use evophoto_doc::LayerId;
 use serde_json::{Map, Value, json};
 
 use crate::commands::CommandSpec;
@@ -73,7 +73,7 @@ fn xmp_metadata(s: &mut Session, p: &Value) -> Result<Value> {
         })?;
         if let Some(st) = s.active_mut() {
             // Saved metadata only; no canvas pixels need recompositing.
-            st.last_damage = Some(photocraft_geom::Rect::EMPTY);
+            st.last_damage = Some(evophoto_geom::Rect::EMPTY);
         }
     }
     Ok(json!({"layer": id.0, "rawData": new, "changed": changed}))

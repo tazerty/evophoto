@@ -1,4 +1,4 @@
-# Greek (el) PhotoCraft interface catalog.
+# Greek (el) EvoPhoto interface catalog.
 # Columns separated by TAB: context, English source, Greek translation.
 # Original translations based on general Greek graphics/computing terminology.
 # Covers every source label the i18n coverage check lists.
@@ -810,7 +810,7 @@
 	Perspective Warp: draw planes along the image's perspective, then switch to Warp	Μετασχηματισμός προοπτικής: σχεδιάστε επίπεδα σύμφωνα με την προοπτική της εικόνας και έπειτα επιλέξτε Παραμόρφωση
 	Lumbra Manages Colors	Διαχείριση χρωμάτων από το Lumbra
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — εγγενής εφαρμογή επεξεργασίας εικόνας ανοικτού κώδικα, γραμμένη σε Rust.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	Βασίζεται στο PhotoCraft, λογισμικό ανοικτού κώδικα (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Βασίζεται στο EvoPhoto, λογισμικό ανοικτού κώδικα (MIT OR Apache-2.0).
 	Pixels/Centimeter	Εικονοστοιχεία/εκατοστό
 	Pixels/Inch	Εικονοστοιχεία/ίντσα
 	Position and Size	Θέση και μέγεθος
@@ -2756,7 +2756,7 @@
 	Move to	Μετακίνηση σε
 	NTSC Colors	Χρώματα NTSC
 	Name:	Όνομα:
-	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= photocraft`.	Η μεταφορά και απόθεση αρχείων δεν υποστηρίζεται ακόμη στο Wayland. Χρησιμοποιήστε Αρχείο › Άνοιγμα ή εκτελέστε το Lumbra μέσω XWayland με `WAYLAND_DISPLAY= photocraft`.
+	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= evophoto`.	Η μεταφορά και απόθεση αρχείων δεν υποστηρίζεται ακόμη στο Wayland. Χρησιμοποιήστε Αρχείο › Άνοιγμα ή εκτελέστε το Lumbra μέσω XWayland με `WAYLAND_DISPLAY= evophoto`.
 	Nearest Neighbor	Πλησιέστερος γείτονας
 	Nearest Neighbor (hard edges)	Πλησιέστερος γείτονας (σκληρές ακμές)
 	Nearest neighbor	Πλησιέστερος γείτονας
@@ -3932,7 +3932,7 @@ curves	Smooth	Εξομάλυνση
 	Sent to {printer}	Στάλθηκε στον {printer}
 	set in Print Settings…	ορίζεται στις ρυθμίσεις εκτύπωσης…
 	ICO is limited to 256 × 256 pixels	Το ICO περιορίζεται σε 256 × 256 εικονοστοιχεία
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	Έλεγχος ενημερώσεων…
 	Lumbra Updates	Ενημερώσεις Lumbra
 	Checking for updates…	Έλεγχος για ενημερώσεις…

@@ -1,5 +1,5 @@
-//! Font database: bundled fonts (always available, also on the web), the optional craft-fonts
-//! fonts of every script ([`crate::craft_fonts`], when built with `CRAFT_FONTS_DIR`), optional
+//! Font database: bundled fonts (always available, also on the web), the optional evo-fonts
+//! fonts of every script ([`crate::evo_fonts`], when built with `EVO_FONTS_DIR`), optional
 //! system fonts found by scanning platform directories (plus Fontconfig's file list on Linux),
 //! user-registered font data, and PostScript-name lookup for PSD import.
 
@@ -37,7 +37,7 @@ pub static INTER_MEDIUM: LazyLock<Vec<u8>> = LazyLock::new(|| inflate_font(bundl
 pub static INTER_SEMIBOLD: LazyLock<Vec<u8>> = LazyLock::new(|| inflate_font(bundled_font!("Inter-SemiBold.ttf")));
 pub static JETBRAINS_MONO_REGULAR: LazyLock<Vec<u8>> = LazyLock::new(|| inflate_font(bundled_font!("JetBrainsMono-Regular.ttf")));
 
-/// Fonts shipped with PhotoCraft (OFL; licences in `assets/fonts`).
+/// Fonts shipped with EvoPhoto (OFL; licences in `assets/fonts`).
 pub static BUNDLED: [(&str, &LazyLock<Vec<u8>>); 4] = [
     ("Inter-Regular.ttf", &INTER_REGULAR),
     ("Inter-Medium.ttf", &INTER_MEDIUM),
@@ -130,10 +130,10 @@ pub fn fallback_candidates(order: &[crate::cjk::CjkScript; 4]) -> Vec<&'static s
         }
     }
     for s in order {
-        // craft-fonts' Japanese fonts (if built in) go ahead of the installed Japanese fonts, in
+        // evo-fonts' Japanese fonts (if built in) go ahead of the installed Japanese fonts, in
         // the Japanese slot of the locale order, so shared Han keeps the locale's forms.
         if *s == crate::cjk::CjkScript::Japanese {
-            v.extend(crate::craft_fonts::japanese_families());
+            v.extend(crate::evo_fonts::japanese_families());
         }
         v.extend_from_slice(crate::cjk::families(*s));
     }
@@ -224,17 +224,17 @@ impl FontDb {
         for (_, bytes) in BUNDLED {
             db.register_static_font(bytes.as_slice());
         }
-        // The optional craft-fonts (empty unless built with CRAFT_FONTS_DIR; always empty on
+        // The optional evo-fonts (empty unless built with EVO_FONTS_DIR; always empty on
         // wasm32), every script, before any system font.
-        db.register_craft_fonts(crate::craft_fonts::CRAFT_FONTS);
+        db.register_evo_fonts(crate::evo_fonts::EVO_FONTS);
         db.refresh_generics();
         db
     }
 
-    /// Registers craft-fonts manifest entries of every script. A single-face file registers under
+    /// Registers evo-fonts manifest entries of every script. A single-face file registers under
     /// its manifest family, whatever family its `name` table gives. Each face of a collection
     /// (TTC/OTC) keeps the family its `name` table gives.
-    fn register_craft_fonts(&mut self, fonts: &[crate::CraftFont]) {
+    fn register_evo_fonts(&mut self, fonts: &[crate::EvoFont]) {
         for f in fonts {
             let family = (face_count(f.bytes) == 1).then_some(f.family);
             self.register_blob(Blob::new(Arc::new(f.bytes)), family);
@@ -488,7 +488,7 @@ impl FontDb {
     /// ("Bahnschrift-LightCondensed"): that face is selected and the instance's axis values are
     /// added to the style's variations, keeping any axis the style sets itself (#8797). Faces are
     /// tried in this order: exact PostScript name, named instance, then style, weight and italic.
-    pub(crate) fn select_named_face(&mut self, style: &mut photocraft_doc::text::CharStyle) {
+    pub(crate) fn select_named_face(&mut self, style: &mut evophoto_doc::text::CharStyle) {
         let family = style.font_family.clone();
         let faces = self.faces(&family);
         let index = style.postscript_name.as_ref().and_then(|ps| faces.iter().position(|f| f.postscript_name.as_ref() == Some(ps)));
@@ -501,7 +501,7 @@ impl FontDb {
         if let Some((_, axes)) = &instance {
             for (axis, value) in axes {
                 if !style.variations.iter().any(|v| &v.axis == axis) {
-                    style.variations.push(photocraft_doc::text::FontVariation { axis: axis.clone(), value: *value });
+                    style.variations.push(evophoto_doc::text::FontVariation { axis: axis.clone(), value: *value });
                 }
             }
         }
@@ -523,7 +523,7 @@ impl FontDb {
             let Some(font) = info.fonts().get(index) else { return };
             let Some(blob) = font.load(Some(&mut self.fcx.source_cache)) else { return };
             let Some(blob) = isolated_face(blob, font.index()) else { return };
-            let alias = format!(".PhotoCraft-face-{}-{index}", info.id().to_u64());
+            let alias = format!(".EvoPhoto-face-{}-{index}", info.id().to_u64());
             self.fcx.collection.register_fonts(blob, Some(FontInfoOverride { family_name: Some(&alias), ..Default::default() }));
             self.face_aliases.insert(key, alias.clone());
             alias
@@ -1086,7 +1086,7 @@ mod tests {
     #[test]
     fn font_files_of_lists_each_font_file_once() {
         use super::{Blob, Collection, CollectionOptions};
-        let dir = std::env::temp_dir().join(format!("photocraft-font-files-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("evophoto-font-files-{}", std::process::id()));
         let activated = dir.join("activated");
         std::fs::create_dir_all(&activated).unwrap();
         let (inter, mono) = (dir.join("inter.ttf"), activated.join("mono.ttf"));
@@ -1141,7 +1141,7 @@ mod tests {
     #[test]
     fn missing_font_dirs_are_skipped() {
         let mut files = Vec::new();
-        super::collect_font_files(std::path::Path::new("/nonexistent/photocraft/fonts"), 0, &mut files);
+        super::collect_font_files(std::path::Path::new("/nonexistent/evophoto/fonts"), 0, &mut files);
         assert!(files.is_empty());
     }
 }

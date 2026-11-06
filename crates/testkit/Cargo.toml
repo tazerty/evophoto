@@ -1,5 +1,5 @@
 [package]
-name = "photocraft-testkit"
+name = "evophoto-testkit"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

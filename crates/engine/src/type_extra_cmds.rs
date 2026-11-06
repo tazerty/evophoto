@@ -6,11 +6,11 @@
 //! so the PSD `TySh` data (and with it warp, anti-aliasing and the OpenType flags) is regenerated
 //! and the layer saves as editable text.
 
-use photocraft_doc::text::{AntiAlias, FontFeature, Orientation, TextAlign, TextShape, TextWarp};
-use photocraft_doc::vector::{Knot, Path, PathOp, Subpath};
-use photocraft_doc::{Affine, Document, Fill, Layer, LayerContent, LayerId, ShapeLayer, TextLayer};
-use photocraft_geom::Point;
-use photocraft_text::render::PathEl;
+use evophoto_doc::text::{AntiAlias, FontFeature, Orientation, TextAlign, TextShape, TextWarp};
+use evophoto_doc::vector::{Knot, Path, PathOp, Subpath};
+use evophoto_doc::{Affine, Document, Fill, Layer, LayerContent, LayerId, ShapeLayer, TextLayer};
+use evophoto_geom::Point;
+use evophoto_text::render::PathEl;
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, explicit_layer, layer_param};
@@ -92,12 +92,12 @@ pub(crate) fn with_text<R>(s: &mut Session, p: &Value, label: &str, f: impl FnOn
     })
 }
 
-fn layout(doc: &Document, t: &TextLayer) -> photocraft_text::TextLayout {
+fn layout(doc: &Document, t: &TextLayer) -> evophoto_text::TextLayout {
     layout_at(doc.resolution_dpi, t)
 }
 
-fn layout_at(dpi: f32, t: &TextLayer) -> photocraft_text::TextLayout {
-    photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner()).layout(t, dpi)
+fn layout_at(dpi: f32, t: &TextLayer) -> evophoto_text::TextLayout {
+    evophoto_text::shared().lock().unwrap_or_else(|e| e.into_inner()).layout(t, dpi)
 }
 
 /// `m ∘ translate(tx, ty)`.
@@ -288,9 +288,9 @@ fn contours(els: &[PathEl]) -> Vec<Vec<Knot>> {
 /// which reproduces the nonzero fill under Photoshop's per-subpath path operations.
 pub fn text_path(doc: &Document, t: &TextLayer) -> Path {
     let l = layout(doc, t);
-    let warp = photocraft_text::render::layout_deform(&l, t);
+    let warp = evophoto_text::render::layout_deform(&l, t);
     let mut subpaths = Vec::new();
-    for glyph in photocraft_text::render::outlines(&l, &t.transform, warp.as_ref()) {
+    for glyph in evophoto_text::render::outlines(&l, &t.transform, warp.as_ref()) {
         let cs = contours(&glyph);
         let Some(outer) = cs.iter().map(|k| signed_area(k)).max_by(|a, b| a.abs().total_cmp(&b.abs())) else { continue };
         let (fills, holes): (Vec<_>, Vec<_>) = cs.into_iter().partition(|k| signed_area(k).signum() == outer.signum());
@@ -406,7 +406,7 @@ fn attach_to_path(s: &mut Session, p: &Value) -> Result<Value> {
             None => start,
             Some((x, y)) => {
                 let q = map(Point::new(x, y));
-                photocraft_text::warp::arc_length_at(&path, flip, q.x, q.y).ok_or_else(|| bad("the path has no length"))? as f32
+                evophoto_text::warp::arc_length_at(&path, flip, q.x, q.y).ok_or_else(|| bad("the path has no length"))? as f32
             }
         };
         t.shape = TextShape::Path { path, start, flip };
@@ -428,13 +428,13 @@ fn detach_from_path(s: &mut Session, p: &Value) -> Result<Value> {
         match &t.shape {
             TextShape::Path { .. } => {
                 // Point text starts where the type started on the path.
-                let origin = photocraft_text::warp::Warp::on_path(&t.shape).map_or((0.0, 0.0), |w| w.apply(0.0, 0.0));
+                let origin = evophoto_text::warp::Warp::on_path(&t.shape).map_or((0.0, 0.0), |w| w.apply(0.0, 0.0));
                 t.shape = TextShape::Point;
                 t.transform = then_translate(&t.transform, origin.0, origin.1);
             }
             // Area type keeps wrapping, in a text box over the path's bounds.
             TextShape::Area { path } => {
-                let (x0, y0, x1, y1) = photocraft_text::area::path_bounds(path)
+                let (x0, y0, x1, y1) = evophoto_text::area::path_bounds(path)
                     .ok_or_else(|| EngineError::Other("the area type's path is empty or has coordinates that aren't finite".into()))?;
                 t.shape = TextShape::Box { x: x0 as f32, y: y0 as f32, width: ((x1 - x0) as f32).max(1.0), height: ((y1 - y0) as f32).max(1.0) };
             }
@@ -451,7 +451,7 @@ fn warp_text(s: &mut Session, p: &Value) -> Result<Value> {
     let cmd = "type.warpText";
     let style = p.get("style").and_then(Value::as_str).unwrap_or("arc");
     let psd =
-        photocraft_text::warp::psd_style(style).ok_or_else(|| EngineError::BadParams { cmd: cmd.into(), msg: format!("unknown warp style \"{style}\"") })?;
+        evophoto_text::warp::psd_style(style).ok_or_else(|| EngineError::BadParams { cmd: cmd.into(), msg: format!("unknown warp style \"{style}\"") })?;
     let f = |k: &str, d: f64| p.get(k).and_then(Value::as_f64).unwrap_or(d).clamp(-100.0, 100.0) as f32;
     let warp = (psd != "warpNone").then(|| TextWarp {
         style: psd.into(),
@@ -471,7 +471,7 @@ fn warp_text(s: &mut Session, p: &Value) -> Result<Value> {
 // ---------- OpenType toggles ----------
 
 /// Is the OpenType toggle `tag` on for a character style? (`liga`/`dlig` have dedicated fields.)
-pub fn feature_on(st: &photocraft_doc::text::CharStyle, tag: &str) -> bool {
+pub fn feature_on(st: &evophoto_doc::text::CharStyle, tag: &str) -> bool {
     match tag {
         "liga" => st.ligatures,
         "dlig" => st.discretionary_ligatures,
@@ -479,7 +479,7 @@ pub fn feature_on(st: &photocraft_doc::text::CharStyle, tag: &str) -> bool {
     }
 }
 
-fn set_feature(st: &mut photocraft_doc::text::CharStyle, tag: &str, on: bool) {
+fn set_feature(st: &mut evophoto_doc::text::CharStyle, tag: &str, on: bool) {
     match tag {
         "liga" => st.ligatures = on,
         "dlig" => st.discretionary_ligatures = on,
@@ -545,7 +545,7 @@ fn update_all(s: &mut Session) -> Result<Value> {
     Ok(json!({"updated": n}))
 }
 
-fn style_font_missing(fonts: &mut photocraft_text::FontDb, style: &photocraft_doc::text::CharStyle) -> bool {
+fn style_font_missing(fonts: &mut evophoto_text::FontDb, style: &evophoto_doc::text::CharStyle) -> bool {
     if style.font_family.is_empty() || fonts.has_family(&style.font_family) {
         return false;
     }
@@ -587,7 +587,7 @@ pub fn missing_fonts(doc: &Document) -> Vec<String> {
     if layers.is_empty() {
         return Vec::new();
     }
-    let mut engine = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner());
+    let mut engine = evophoto_text::shared().lock().unwrap_or_else(|e| e.into_inner());
     let mut out: Vec<String> = Vec::new();
     for t in layers {
         for r in t.char_runs() {
@@ -601,7 +601,7 @@ pub fn missing_fonts(doc: &Document) -> Vec<String> {
 
 /// Font families used by a type layer that the font database cannot supply.
 pub fn missing_fonts_in_layer(t: &TextLayer) -> Vec<String> {
-    let mut engine = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner());
+    let mut engine = evophoto_text::shared().lock().unwrap_or_else(|e| e.into_inner());
     let mut out: Vec<String> = Vec::new();
     for r in t.char_runs() {
         if style_font_missing(&mut engine.fonts, &r.style) && !out.contains(&r.style.font_family) {
@@ -633,7 +633,7 @@ fn replace_fonts(s: &mut Session, map: &serde_json::Map<String, Value>, all: boo
         if !missing.iter().any(|m| m == f) {
             return None;
         }
-        map.get(f).and_then(Value::as_str).map(str::to_string).or_else(|| all.then(|| photocraft_text::fonts::DEFAULT_FAMILY.to_string()))
+        map.get(f).and_then(Value::as_str).map(str::to_string).or_else(|| all.then(|| evophoto_text::fonts::DEFAULT_FAMILY.to_string()))
     };
     let ids: Vec<LayerId> = d.doc.walk().into_iter().filter(|(_, _, l)| matches!(l.content, LayerContent::Text(_))).map(|(_, _, l)| l.id).collect();
     if missing.is_empty() {
@@ -649,7 +649,7 @@ fn replace_fonts(s: &mut Session, map: &serde_json::Map<String, Value>, all: boo
                 let mut at = 0;
                 for r in runs {
                     let missing_run = {
-                        let mut engine = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner());
+                        let mut engine = evophoto_text::shared().lock().unwrap_or_else(|e| e.into_inner());
                         style_font_missing(&mut engine.fonts, &r.style)
                     };
                     if missing_run && let Some(to) = pick(&r.style.font_family) {

@@ -6,7 +6,7 @@
 use egui::{Align2, Color32, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
 use serde_json::{Map, Value, json};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::state::DialogKind;
 use crate::theme::Tokens;
 
@@ -14,8 +14,8 @@ const UNITS: [(&str, &str); 7] =
     [("px", "Pixels"), ("percent", "Percent"), ("in", "Inches"), ("cm", "Centimeters"), ("mm", "Millimeters"), ("pt", "Points"), ("pica", "Picas")];
 
 /// Dialog unit for the Units & Rulers preference.
-fn pref_unit(u: photocraft_engine::prefs::Unit) -> &'static str {
-    use photocraft_engine::prefs::Unit;
+fn pref_unit(u: evophoto_engine::prefs::Unit) -> &'static str {
+    use evophoto_engine::prefs::Unit;
     match u {
         Unit::Pixels => "px",
         Unit::Percent => "percent",
@@ -28,8 +28,8 @@ fn pref_unit(u: photocraft_engine::prefs::Unit) -> &'static str {
 }
 
 /// Image Size resampling for Preferences › General › Image Interpolation.
-pub(crate) fn pref_resample(i: photocraft_engine::prefs::Interpolation) -> &'static str {
-    use photocraft_engine::prefs::Interpolation;
+pub(crate) fn pref_resample(i: evophoto_engine::prefs::Interpolation) -> &'static str {
+    use evophoto_engine::prefs::Interpolation;
     match i {
         Interpolation::BicubicAutomatic => "automatic",
         Interpolation::Nearest => "nearest",
@@ -68,13 +68,13 @@ pub fn reset(f: &mut Map<String, Value>) {
     }
 }
 
-pub fn open(app: &mut PhotocraftApp, command: &str) -> Option<u64> {
+pub fn open(app: &mut EvoPhotoApp, command: &str) -> Option<u64> {
     let unit = pref_unit(app.session.prefs().units_and_rulers.rulers);
     let mut resample = pref_resample(app.session.prefs().general.image_interpolation);
     let pt_per_in = app.session.prefs().units_and_rulers.point_size.per_inch();
     let d = &app.session.active()?.doc;
     let (w, h, res) = (d.size.width as f64, d.size.height as f64, d.resolution_dpi as f64);
-    let label = photocraft_engine::commands::find(command).map(|c| c.label).unwrap_or("Image Size…");
+    let label = evophoto_engine::commands::find(command).map(|c| c.label).unwrap_or("Image Size…");
     let mut f = Map::new();
     f.insert("__command".into(), json!(command));
     f.insert("__label".into(), json!(label));
@@ -89,7 +89,7 @@ pub fn open(app: &mut PhotocraftApp, command: &str) -> Option<u64> {
     f.insert("height".into(), json!(h));
     if command == "image.imageSize" {
         // Indexed Color resamples with Nearest Neighbor only, as the command does (#6019).
-        let indexed = d.mode == photocraft_color::ColorMode::Indexed;
+        let indexed = d.mode == evophoto_color::ColorMode::Indexed;
         if indexed && resample != "automatic" {
             resample = "nearest";
         }
@@ -502,25 +502,25 @@ mod tests {
 
     #[test]
     fn dialog_maps_to_engine_command() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 200, "height": 100})).unwrap();
         let id = open(&mut app, "image.imageSize").unwrap();
         let d = app.ui.dialog_mut(id).unwrap();
         d.fields.insert("width".into(), json!(100));
         d.fields.insert("height".into(), json!(50));
         crate::dialogs::confirm(&mut app, id).unwrap();
-        assert_eq!(app.session.active().unwrap().doc.size, photocraft_doc::Size::new(100, 50));
+        assert_eq!(app.session.active().unwrap().doc.size, evophoto_doc::Size::new(100, 50));
         let id = open(&mut app, "image.canvasSize").unwrap();
         let d = app.ui.dialog_mut(id).unwrap();
         d.fields.insert("width".into(), json!(120));
         d.fields.insert("anchor".into(), json!("topLeft"));
         crate::dialogs::confirm(&mut app, id).unwrap();
-        assert_eq!(app.session.active().unwrap().doc.size, photocraft_doc::Size::new(120, 50));
+        assert_eq!(app.session.active().unwrap().doc.size, evophoto_doc::Size::new(120, 50));
     }
 
     #[test]
     fn alt_reset_restores_open_dimensions() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 200, "height": 100, "resolution": 72})).unwrap();
         let id = open(&mut app, "image.imageSize").unwrap();
         let d = app.ui.dialog_mut(id).unwrap();
@@ -537,7 +537,7 @@ mod tests {
     /// #6019: on an Indexed Color document the dialog opens on, and offers only, Automatic and Nearest Neighbor.
     #[test]
     fn indexed_color_resamples_with_nearest_neighbor_only() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 200, "height": 100})).unwrap();
         app.session.execute("image.mode.indexedColor", json!({})).unwrap();
         for (pref, method) in [("bicubic", "nearest"), ("bicubicAutomatic", "automatic"), ("nearestNeighbor", "nearest")] {
@@ -551,7 +551,7 @@ mod tests {
         // The open list offers only Automatic and Nearest Neighbor.
         use egui_kittest::{Harness, kittest::Queryable};
         let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app);
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+        EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         open(h.state_mut(), "image.imageSize").unwrap();
         h.run_steps(3);
         let combo = h.query_all_by_role(egui::accesskit::Role::ComboBox).find(|n| n.value().as_deref() == Some("Nearest Neighbor (hard edges)"));
@@ -567,7 +567,7 @@ mod tests {
     /// as Automatic and the others as themselves (Bicubic Sharper used to open as Lanczos).
     #[test]
     fn resample_follows_the_interpolation_preference() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 200, "height": 100})).unwrap();
         for (pref, method) in
             [("bicubicAutomatic", "automatic"), ("bicubicSharper", "bicubicSharper"), ("bicubicSmoother", "bicubicSmoother"), ("nearestNeighbor", "nearest")]
@@ -583,7 +583,7 @@ mod tests {
         d.fields.insert("width".into(), json!(50));
         d.fields.insert("height".into(), json!(25));
         crate::dialogs::confirm(&mut app, id).unwrap();
-        assert_eq!(app.session.active().unwrap().doc.size, photocraft_doc::Size::new(50, 25));
+        assert_eq!(app.session.active().unwrap().doc.size, evophoto_doc::Size::new(50, 25));
     }
 
     /// #441: a typed zero width showed "0 px × 1 px" while OK resized to 1×1.
@@ -591,10 +591,10 @@ mod tests {
     fn typed_zero_width_shows_the_applied_size() {
         use egui::accesskit::Role;
         use egui_kittest::{Harness, kittest::Queryable};
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 4, "height": 4})).unwrap();
         let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app);
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+        EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         let id = open(h.state_mut(), "image.imageSize").unwrap();
         h.run_steps(3);
         // The dialog opens on Width, selected (#2329): the typed 0 replaces the 4.
@@ -606,17 +606,17 @@ mod tests {
         let f = h.state().ui.dialogs.first().map(|d| d.fields.clone()).expect("the dialog is open");
         assert_eq!((num(&f, "width"), num(&f, "height")), (1.0, 1.0), "{f:?}");
         crate::dialogs::confirm(h.state_mut(), id).unwrap();
-        assert_eq!(h.state().session.active().unwrap().doc.size, photocraft_doc::Size::new(1, 1));
+        assert_eq!(h.state().session.active().unwrap().doc.size, evophoto_doc::Size::new(1, 1));
     }
 
     /// An Image Size dialog for a 100 x 50 px, 72 ppi document with Resample off, shown in `unit`.
-    fn resample_off_dialog(unit: &str) -> (egui_kittest::Harness<'static, PhotocraftApp>, u64) {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    fn resample_off_dialog(unit: &str) -> (egui_kittest::Harness<'static, EvoPhotoApp>, u64) {
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 100, "height": 50, "resolution": 72})).unwrap();
         let mut h = egui_kittest::Harness::builder()
             .with_size(egui::vec2(1400.0, 900.0))
-            .build_ui_state(|ui, app: &mut PhotocraftApp| crate::dialogs::show(app, ui.ctx()), app);
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+            .build_ui_state(|ui, app: &mut EvoPhotoApp| crate::dialogs::show(app, ui.ctx()), app);
+        EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         let id = open(h.state_mut(), "image.imageSize").unwrap();
         let d = h.state_mut().ui.dialog_mut(id).unwrap();
         d.fields.insert("resample".into(), json!("none"));
@@ -629,7 +629,7 @@ mod tests {
     /// Traditional (72.27 pt/in) and Resample off, 100 px typed as 72.27 pt wide is 100 ppi.
     #[test]
     fn traditional_point_size_drives_points_and_picas() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 100, "height": 50, "resolution": 72})).unwrap();
         app.session.execute("prefs.set", json!({"path": "unitsAndRulers.pointSize", "value": "traditional"})).unwrap();
         for command in ["image.imageSize", "image.canvasSize"] {
@@ -639,8 +639,8 @@ mod tests {
         }
         let mut h = egui_kittest::Harness::builder()
             .with_size(egui::vec2(1400.0, 900.0))
-            .build_ui_state(|ui, app: &mut PhotocraftApp| crate::dialogs::show(app, ui.ctx()), app);
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+            .build_ui_state(|ui, app: &mut EvoPhotoApp| crate::dialogs::show(app, ui.ctx()), app);
+        EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         let id = open(h.state_mut(), "image.imageSize").unwrap();
         let d = h.state_mut().ui.dialog_mut(id).unwrap();
         d.fields.insert("resample".into(), json!("none"));
@@ -653,12 +653,12 @@ mod tests {
     }
 
     /// Types `text` into the Width field and leaves it with Tab.
-    fn type_width(h: &mut egui_kittest::Harness<'static, PhotocraftApp>, text: &str) {
+    fn type_width(h: &mut egui_kittest::Harness<'static, EvoPhotoApp>, text: &str) {
         type_into(h, 0, text);
     }
 
     /// Types `text` into the `n`th number field (Width, Height, Resolution) and leaves it with Tab.
-    fn type_into(h: &mut egui_kittest::Harness<'static, PhotocraftApp>, n: usize, text: &str) {
+    fn type_into(h: &mut egui_kittest::Harness<'static, EvoPhotoApp>, n: usize, text: &str) {
         use egui::accesskit::Role;
         use egui_kittest::kittest::Queryable;
         let width = h.query_all_by_role(Role::SpinButton).nth(n).map(|n| n.rect()).expect("the number field");
@@ -675,7 +675,7 @@ mod tests {
         h.run_steps(3);
     }
 
-    fn fields(h: &egui_kittest::Harness<'static, PhotocraftApp>) -> Map<String, Value> {
+    fn fields(h: &egui_kittest::Harness<'static, EvoPhotoApp>) -> Map<String, Value> {
         h.state().ui.dialogs.first().map(|d| d.fields.clone()).expect("the dialog is open")
     }
 
@@ -692,7 +692,7 @@ mod tests {
         assert!(h.query_by_label_contains("20K (was 20K)").is_some(), "the Image Size estimate is unchanged");
         crate::dialogs::confirm(h.state_mut(), id).unwrap();
         let doc = &h.state().session.active().unwrap().doc;
-        assert_eq!((doc.size, doc.resolution_dpi), (photocraft_doc::Size::new(100, 50), 72.0));
+        assert_eq!((doc.size, doc.resolution_dpi), (evophoto_doc::Size::new(100, 50), 72.0));
     }
 
     /// With Resample off, a physical Width changes the resolution and keeps the pixels (Photoshop):
@@ -706,7 +706,7 @@ mod tests {
         assert!((num(&f, "resolution") - 50.0).abs() < 1e-3, "{f:?}");
         crate::dialogs::confirm(h.state_mut(), id).unwrap();
         let doc = &h.state().session.active().unwrap().doc;
-        assert_eq!(doc.size, photocraft_doc::Size::new(100, 50));
+        assert_eq!(doc.size, evophoto_doc::Size::new(100, 50));
         assert!((doc.resolution_dpi - 50.0).abs() < 1e-3, "{}", doc.resolution_dpi);
     }
 
@@ -716,12 +716,12 @@ mod tests {
     #[test]
     fn resample_on_resolution_keeps_the_physical_size() {
         for (unit, size) in [("in", (3000.0, 2400.0)), ("cm", (3000.0, 2400.0)), ("px", (720.0, 576.0))] {
-            let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+            let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
             app.session.execute("file.new", json!({"width": 720, "height": 576, "resolution": 72})).unwrap();
             let mut h = egui_kittest::Harness::builder()
                 .with_size(egui::vec2(1400.0, 900.0))
-                .build_ui_state(|ui, app: &mut PhotocraftApp| crate::dialogs::show(app, ui.ctx()), app);
-            PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+                .build_ui_state(|ui, app: &mut EvoPhotoApp| crate::dialogs::show(app, ui.ctx()), app);
+            EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
             let id = open(h.state_mut(), "image.imageSize").unwrap();
             let d = h.state_mut().ui.dialog_mut(id).unwrap();
             d.fields.insert("resample".into(), json!("bicubic"));
@@ -732,7 +732,7 @@ mod tests {
             assert_eq!((num(&f, "width"), num(&f, "height"), num(&f, "resolution")), (size.0, size.1, 300.0), "{unit}: {f:?}");
             crate::dialogs::confirm(h.state_mut(), id).unwrap();
             let doc = &h.state().session.active().unwrap().doc;
-            assert_eq!((doc.size, doc.resolution_dpi), (photocraft_doc::Size::new(size.0 as u32, size.1 as u32), 300.0), "{unit}");
+            assert_eq!((doc.size, doc.resolution_dpi), (evophoto_doc::Size::new(size.0 as u32, size.1 as u32), 300.0), "{unit}");
         }
     }
 
@@ -744,10 +744,10 @@ mod tests {
         use egui_kittest::Harness;
         let mut wrong = Vec::new();
         for command in ["image.imageSize", "image.canvasSize"] {
-            let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+            let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
             app.session.execute("file.new", json!({"width": 40000, "height": 4, "resolution": 72})).unwrap();
             let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app);
-            PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+            EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
             let id = open(h.state_mut(), command).unwrap();
             h.state_mut().ui.dialog_mut(id).unwrap().fields.insert("__unit".into(), json!("pt"));
             h.run_steps(3);
@@ -755,7 +755,7 @@ mod tests {
             let shown = (num(&f, "width"), num(&f, "height"));
             crate::dialogs::confirm(h.state_mut(), id).unwrap();
             let size = h.state().session.active().unwrap().doc.size;
-            if shown != (40000.0, 4.0) || size != photocraft_doc::Size::new(40000, 4) {
+            if shown != (40000.0, 4.0) || size != evophoto_doc::Size::new(40000, 4) {
                 wrong.push(format!("{command}: fields {shown:?}, document {size:?}"));
             }
         }
@@ -769,10 +769,10 @@ mod tests {
         use egui::accesskit::Role;
         use egui_kittest::{Harness, kittest::Queryable};
         for command in ["image.imageSize", "image.canvasSize"] {
-            let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+            let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
             app.session.execute("file.new", json!({"width": 200, "height": 100})).unwrap();
             let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app);
-            PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+            EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
             open(h.state_mut(), command).unwrap();
             h.run_steps(3);
             assert!(h.query_all_by_role(Role::SpinButton).next().expect("the Width field").is_focused(), "{command}: Width has focus");

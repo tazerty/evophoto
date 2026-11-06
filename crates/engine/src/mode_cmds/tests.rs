@@ -1,5 +1,5 @@
 use super::*;
-use photocraft_geom::Rect;
+use evophoto_geom::Rect;
 
 fn session(w: u32, h: u32, depth: u64, mode: &str) -> Session {
     let mut s = Session::new();
@@ -16,7 +16,7 @@ fn paint(s: &mut Session, f: impl Fn(i32, i32) -> [f32; 4]) {
         let mut data = Vec::new();
         for y in b.y0..b.y1 {
             for x in b.x0..b.x1 {
-                data.extend(photocraft_raster::from_rgba(&fmt, f(x, y)));
+                data.extend(evophoto_raster::from_rgba(&fmt, f(x, y)));
             }
         }
         surf.write_region(b, &data);
@@ -118,7 +118,7 @@ fn rotate_arbitrary_rotates_grouped_locked_children_and_preserves_lock() {
     // 2. Child remains position-locked after canvas rotation.
     let d = doc(&s);
     let group = &d.layers[1];
-    let photocraft_doc::LayerContent::Group(g) = &group.content else { panic!("expected group") };
+    let evophoto_doc::LayerContent::Group(g) = &group.content else { panic!("expected group") };
     assert_eq!(g.children.len(), 1);
     let child = &g.children[0];
     assert_eq!(child.name, "Paint");
@@ -141,19 +141,19 @@ fn rotate_arbitrary_rotates_grouped_locked_children_and_preserves_lock() {
     s.execute("edit.undo", json!({})).unwrap();
     s.execute("image.imageRotation.90cw", json!({})).unwrap();
     let d_cw = doc(&s);
-    assert_eq!(photocraft_compose::flatten(&d_arb).px, photocraft_compose::flatten(d_cw).px);
+    assert_eq!(evophoto_compose::flatten(&d_arb).px, evophoto_compose::flatten(d_cw).px);
 }
 
 #[test]
 fn flattened_mode_pixels_match_the_allocating_conversion_at_every_channel_count() {
     let px = [[0.0, 0.25, 0.75, 0.0], [0.9, 0.3, 0.2, 0.2], [0.1, 0.7, 0.4, 0.7], [1.0; 4]];
     for mode in [ColorMode::Indexed, ColorMode::Bitmap, ColorMode::Duotone] {
-        let mut document = Document::with_background("mode", Size::new(2, 2), ColorMode::Rgb, SampleType::F32, photocraft_doc::Color::WHITE);
+        let mut document = Document::with_background("mode", Size::new(2, 2), ColorMode::Rgb, SampleType::F32, evophoto_doc::Color::WHITE);
         let mut active = None;
         single_layer(&mut document, &mut active, mode, &px, "result", false);
         let fmt = document.pixel_format();
         let mut expected = Surface::new(fmt);
-        let converted: Vec<f32> = px.iter().flat_map(|q| photocraft_raster::from_rgba(&fmt, *q)).collect();
+        let converted: Vec<f32> = px.iter().flat_map(|q| evophoto_raster::from_rgba(&fmt, *q)).collect();
         expected.write_region(document.bounds(), &converted);
         let actual = document.layers[0].surface().unwrap();
         assert_eq!(actual.to_interleaved(document.bounds()), expected.to_interleaved(document.bounds()), "{mode:?}");
@@ -363,10 +363,10 @@ fn first_white(d: &Document, y: i32, m: i32, k: i32) -> Option<i32> {
 }
 
 fn add_pattern(s: &mut Session, name: &str, w: u32, h: u32, levels: &[u8]) {
-    let mut surf = photocraft_raster::Surface::new(PixelFormat::new(ColorMode::Grayscale, SampleType::U8, false));
+    let mut surf = evophoto_raster::Surface::new(PixelFormat::new(ColorMode::Grayscale, SampleType::U8, false));
     let data: Vec<f32> = levels.iter().map(|v| f32::from(*v) / 255.0).collect();
     surf.write_region(Rect::new(0, 0, w as i32, h as i32), &data);
-    let pat = photocraft_doc::pattern::Pattern::new(name, surf, w, h);
+    let pat = evophoto_doc::pattern::Pattern::new(name, surf, w, h);
     s.edit("pattern", |doc, _| {
         doc.patterns.push(pat);
         Ok(())
@@ -519,7 +519,7 @@ fn duotone_inks_and_display() {
     assert_eq!(inks[1].curve.last().unwrap().output, 0.8);
     // Display: warm midtones (red > blue) where the gray image is neutral.
     let shown = display_document(d).unwrap();
-    let px = photocraft_compose::render(&shown, Rect::from_xywh(8, 4, 1, 1)).px[0];
+    let px = evophoto_compose::render(&shown, Rect::from_xywh(8, 4, 1, 1)).px[0];
     assert!(px[0] > px[2] + 0.05, "{px:?}");
     assert!(display_document(&Document::new("x", Size::new(1, 1), ColorMode::Grayscale, SampleType::U8)).is_none());
     // Tritone defaults and leaving the mode.
@@ -534,7 +534,7 @@ fn duotone_inks_and_display() {
 #[test]
 fn duotone_curve_points_must_be_finite() {
     let mut s = session(4, 4, 8, "gray");
-    // 1e39 overflows f32 to inf, which the .pcraft writer refuses to save.
+    // 1e39 overflows f32 to inf, which the .evophoto writer refuses to save.
     for curve in [json!([[0, 0], [100, 1e39]]), json!([[0, 0], [1e39, 50]]), json!([[-1e39, 0], [100, 100]])] {
         let r = s.execute("image.mode.duotone", json!({"type": "monotone", "inks": [{"curve": curve}]}));
         assert!(r.is_err(), "{curve} accepted");
@@ -542,15 +542,15 @@ fn duotone_curve_points_must_be_finite() {
     }
     s.execute("image.mode.duotone", json!({"type": "monotone", "inks": [{"curve": [[0, 0], [50, 70], [100, 100]]}]})).unwrap();
     assert_eq!(doc(&s).mode, ColorMode::Duotone);
-    photocraft_format::save_to_bytes(doc(&s), &Default::default()).unwrap();
+    evophoto_format::save_to_bytes(doc(&s), &Default::default()).unwrap();
 }
 
 #[test]
-fn modes_round_trip_through_pcraft() {
+fn modes_round_trip_through_evophoto() {
     let mut s = session(12, 12, 8, "rgb");
     s.execute("image.mode.indexedColor", json!({"colors": 6})).unwrap();
-    let bytes = photocraft_format::save_to_bytes(doc(&s), &Default::default()).unwrap();
-    let back = photocraft_format::load_from_bytes(&bytes).unwrap();
+    let bytes = evophoto_format::save_to_bytes(doc(&s), &Default::default()).unwrap();
+    let back = evophoto_format::load_from_bytes(&bytes).unwrap();
     assert_eq!(back.color_table, doc(&s).color_table);
     assert_eq!(back.mode, ColorMode::Indexed);
 }
@@ -559,7 +559,7 @@ fn modes_round_trip_through_pcraft() {
 /// the displayed ink colours, through the destination profile. Grayscale drops the inks.
 #[test]
 fn duotone_to_colour_modes_keeps_the_ink_colours() {
-    use photocraft_cms::{Builtin, Transform};
+    use evophoto_cms::{Builtin, Transform};
     let configs = [
         json!({"type": "duotone"}),
         json!({"type": "monotone", "inks": [{"name": "Orange", "color": "#ff8000", "curve": [[0, 0], [100, 100]]}]}),
@@ -577,7 +577,7 @@ fn duotone_to_colour_modes_keeps_the_ink_colours() {
                 s.execute("image.mode.duotone", cfg.clone()).unwrap();
                 let before = s.active().unwrap().doc.clone();
                 let gray: Vec<f32> = (0..16).map(|x| before.layers[0].surface().unwrap().pixel(x, 1)[0]).collect();
-                let shown = photocraft_compose::render(&display_document(&before).unwrap(), Rect::from_xywh(0, 1, 16, 1)).px;
+                let shown = evophoto_compose::render(&display_document(&before).unwrap(), Rect::from_xywh(0, 1, 16, 1)).px;
                 s.execute(&format!("image.mode.{mode}"), json!({})).unwrap();
                 let d = doc(&s);
                 assert!(d.duotone.is_none(), "{ctx}");
@@ -626,7 +626,7 @@ fn duotone_to_rgb_inks_fill_layer_colours() {
     s.execute("layer.newFillLayer.solidColor", json!({"color": "#808080"})).unwrap();
     s.execute("image.mode.rgb", json!({})).unwrap();
     let d = doc(&s);
-    let Some(LayerContent::Fill(photocraft_doc::Fill::Solid(c))) = d.layers.last().map(|l| &l.content) else { panic!("no fill layer") };
+    let Some(LayerContent::Fill(evophoto_doc::Fill::Solid(c))) = d.layers.last().map(|l| &l.content) else { panic!("no fill layer") };
     assert_eq!(c.mode, ColorMode::Rgb);
     // Gray 0.5 is half-density orange: (1, 0.75, 0.5).
     for (g, w) in c.c[..3].iter().zip([1.0, 0.75, 0.5]) {
@@ -672,7 +672,7 @@ fn shrinking_the_color_table_drops_a_transparent_index_past_its_end() {
             assert_eq!(a.rgba(x, y), b.rgba(x, y), "({x},{y})");
         }
     }
-    let png = photocraft_io::export(d, "png", &Default::default()).expect("palette PNG export");
+    let png = evophoto_io::export(d, "png", &Default::default()).expect("palette PNG export");
     assert!(png.warnings.iter().any(|w| w.contains("palette PNG")), "{:?}", png.warnings);
     // Undo restores the transparent entry.
     s.execute("edit.undo", json!({})).unwrap();

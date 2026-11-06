@@ -1,10 +1,10 @@
 //! Time and peak memory of the Photomerge multi-band blend: `n` RGB sources of `mp` megapixels
 //! (3:2), each overlapping the next by half its width.
-//! `cargo run --release -p photocraft-algo --example bench_multiband [n] [mp]` (default 4 × 24 MP).
+//! `cargo run --release -p evophoto-algo --example bench_multiband [n] [mp]` (default 4 × 24 MP).
 //! Peak memory is the growth of the process's high-water mark during the blend (Linux only).
 use std::time::Instant;
 
-use photocraft_algo::panorama::{self, RoiImage};
+use evophoto_algo::panorama::{self, RoiImage};
 
 /// The process's peak resident set in MiB (`VmHWM`), where `/proc` has it.
 fn peak_mib() -> Option<f64> {

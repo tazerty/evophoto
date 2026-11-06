@@ -2,8 +2,8 @@
 
 use crate::common;
 use common::*;
-use photocraft_color::{ColorMode, SampleType};
-use photocraft_format::*;
+use evophoto_color::{ColorMode, SampleType};
+use evophoto_format::*;
 use proptest::prelude::*;
 use std::io::Read;
 
@@ -177,9 +177,9 @@ fn total_size_limit() {
 /// distinct bytes (#3315).
 #[test]
 fn many_references_to_one_tile_load_within_the_budget() {
-    let mut doc = photocraft_doc::Document::new("d", photocraft_doc::Size::new(256, 256), ColorMode::Rgb, SampleType::U8);
-    let mut l = photocraft_doc::Layer::raster("solid", doc.pixel_format());
-    l.surface_mut().unwrap().fill_rect(photocraft_geom::Rect::new(0, 0, 256, 256), &[1.0, 0.0, 0.0, 1.0]);
+    let mut doc = evophoto_doc::Document::new("d", evophoto_doc::Size::new(256, 256), ColorMode::Rgb, SampleType::U8);
+    let mut l = evophoto_doc::Layer::raster("solid", doc.pixel_format());
+    l.surface_mut().unwrap().fill_rect(evophoto_geom::Rect::new(0, 0, 256, 256), &[1.0, 0.0, 0.0, 1.0]);
     doc.layers.push(l);
     let bytes = save_to_bytes(&doc, &SaveOptions::default()).unwrap();
     let hostile = rebuild(&bytes, |name, data| {
@@ -207,7 +207,7 @@ fn many_references_to_one_tile_load_within_the_budget() {
 fn directory_bundle_resave_repairs_tampered_objects() {
     let doc = rich_doc(ColorMode::Rgb, SampleType::U8);
     let dir = temp_dir("tamper");
-    let mut writer = PcraftWriter::new();
+    let mut writer = EvoPhotoWriter::new();
     writer.save_dir(&doc, &dir, &SaveOptions::default()).unwrap();
 
     for object_dir in ["tiles", "blobs"] {
@@ -265,7 +265,7 @@ fn damage_in_place_keeping_size_and_mtime(dir: &std::path::Path) -> std::path::P
 fn same_size_same_mtime_tamper_is_repaired_on_the_next_save() {
     let doc = rich_doc(ColorMode::Rgb, SampleType::U8);
     let dir = temp_dir("tamper-same-size");
-    let mut writer = PcraftWriter::new();
+    let mut writer = EvoPhotoWriter::new();
     writer.save_dir(&doc, &dir, &SaveOptions::default()).unwrap();
     // A second save trusts every object it verified in the first one.
     writer.save_dir(&doc, &dir, &SaveOptions::default()).unwrap();
@@ -283,7 +283,7 @@ fn same_size_same_mtime_tamper_is_repaired_on_the_next_save() {
 fn rolling_reverify_reaches_every_object_with_a_tiny_budget() {
     let doc = rich_doc(ColorMode::Rgb, SampleType::U8);
     let dir = temp_dir("tamper-rolling");
-    let mut writer = PcraftWriter::new();
+    let mut writer = EvoPhotoWriter::new();
     writer.save_dir(&doc, &dir, &SaveOptions::default()).unwrap();
     let objects = ["tiles", "blobs"].iter().map(|d| std::fs::read_dir(dir.join(d)).unwrap().count()).sum::<usize>();
 
@@ -303,7 +303,7 @@ fn rolling_reverify_reaches_every_object_with_a_tiny_budget() {
 
     // A zero budget re-reads nothing whose signature is unchanged; a fresh writer still verifies
     // everything on its first save.
-    let mut fresh = PcraftWriter::new();
+    let mut fresh = EvoPhotoWriter::new();
     fresh.set_reverify_budget(0);
     damage_in_place_keeping_size_and_mtime(&dir);
     assert_eq!(fresh.save_dir(&doc, &dir, &SaveOptions::default()).unwrap().tiles_written, 1);
@@ -359,7 +359,7 @@ fn deflated_zip_entries_are_readable() {
     assert_eq!(load_from_bytes(&out).unwrap(), rich_doc_ids_from(&b));
 }
 
-fn rich_doc_ids_from(b: &[u8]) -> photocraft_doc::Document {
+fn rich_doc_ids_from(b: &[u8]) -> evophoto_doc::Document {
     load_from_bytes(b).unwrap()
 }
 
@@ -496,8 +496,8 @@ fn declared_canvas_outside_the_budget_is_refused() {
     let edge = with_size(300_000, 300_000);
     let small = load_from_bytes(&sample()).unwrap();
     let big = load_from_bytes(&edge).unwrap();
-    assert_eq!(big.size, photocraft_geom::Size::new(300_000, 300_000));
-    let tiles = |d: &photocraft_doc::Document| d.layers.iter().filter_map(|l| l.surface()).map(|s| s.tile_count()).sum::<usize>();
+    assert_eq!(big.size, evophoto_geom::Size::new(300_000, 300_000));
+    let tiles = |d: &evophoto_doc::Document| d.layers.iter().filter_map(|l| l.surface()).map(|s| s.tile_count()).sum::<usize>();
     assert_eq!(tiles(&big), tiles(&small));
     // A caller may lower the budget.
     let opts = LoadOptions { max_canvas_pixels: 1 << 20, ..Default::default() };

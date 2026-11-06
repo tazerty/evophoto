@@ -6,11 +6,11 @@
 
 use std::sync::Arc;
 
-use photocraft_color::{ColorMode, PixelFormat, SampleType};
-use photocraft_doc::{Document, Pattern};
-use photocraft_geom::Rect;
-use photocraft_psd::patterns::{PatternBudget, PsdPattern, block_has_user_mask, block_key, mode_channels, parse_pattern_block_with, write_pattern_block};
-use photocraft_raster::Surface;
+use evophoto_color::{ColorMode, PixelFormat, SampleType};
+use evophoto_doc::{Document, Pattern};
+use evophoto_geom::Rect;
+use evophoto_psd::patterns::{PatternBudget, PsdPattern, block_has_user_mask, block_key, mode_channels, parse_pattern_block_with, write_pattern_block};
+use evophoto_raster::Surface;
 
 use crate::pixels::{deinterleave, interleave, max_sample, psd_depth, sample_for_depth, zero_sample};
 
@@ -127,7 +127,7 @@ pub fn from_global_blocks(doc: &Document) -> Vec<Pattern> {
 /// Global blocks to write: the raw ones while they still match [`Document::patterns`] (see
 /// [`repair_legacy_blocks`]), else the raw pattern blocks replaced by one written from the
 /// document (at the first one's position).
-pub fn export_global_blocks(doc: &Document) -> Vec<photocraft_doc::PsdGlobalBlock> {
+pub fn export_global_blocks(doc: &Document) -> Vec<evophoto_doc::PsdGlobalBlock> {
     let raw = &doc.metadata.psd_global_blocks;
     if from_global_blocks(doc) == doc.patterns {
         return repair_legacy_blocks(raw);
@@ -152,11 +152,11 @@ pub fn export_global_blocks(doc: &Document) -> Vec<photocraft_doc::PsdGlobalBloc
     out
 }
 
-/// `raw` with each pattern block that keeps transparency where older PhotoCraft builds put it
+/// `raw` with each pattern block that keeps transparency where older EvoPhoto builds put it
 /// (which Photoshop refuses, #8054) rewritten in place from its own patterns. Every other block,
 /// unreadable pattern blocks included, is kept verbatim. Blocks are decoded in order with one
 /// shared budget, as [`from_global_blocks`] decodes them.
-fn repair_legacy_blocks(raw: &[photocraft_doc::PsdGlobalBlock]) -> Vec<photocraft_doc::PsdGlobalBlock> {
+fn repair_legacy_blocks(raw: &[evophoto_doc::PsdGlobalBlock]) -> Vec<evophoto_doc::PsdGlobalBlock> {
     if !raw.iter().any(|(_, k, d)| PATTERN_KEYS.contains(k) && block_has_user_mask(d)) {
         return raw.to_vec();
     }
@@ -179,19 +179,19 @@ fn repair_legacy_blocks(raw: &[photocraft_doc::PsdGlobalBlock]) -> Vec<photocraf
 
 /// Reads a `.pat` pattern file.
 pub fn read_pat(bytes: &[u8]) -> Result<Vec<Pattern>, String> {
-    let ps = photocraft_psd::patterns::parse_pat_file(bytes).map_err(|e| format!("not a readable .pat file: {e}"))?;
+    let ps = evophoto_psd::patterns::parse_pat_file(bytes).map_err(|e| format!("not a readable .pat file: {e}"))?;
     Ok(ps.iter().filter_map(from_psd).collect())
 }
 
 /// Writes patterns as a `.pat` file.
 pub fn write_pat(patterns: &[Pattern]) -> Result<Vec<u8>, String> {
-    photocraft_psd::patterns::write_pat_file(&patterns.iter().map(to_psd).collect::<Vec<_>>()).map_err(|e| e.to_string())
+    evophoto_psd::patterns::write_pat_file(&patterns.iter().map(to_psd).collect::<Vec<_>>()).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_color::SampleType;
+    use evophoto_color::SampleType;
 
     fn pattern(mode: ColorMode, s: SampleType, alpha: bool) -> Pattern {
         let fmt = PixelFormat::new(mode, s, alpha);
@@ -227,7 +227,7 @@ mod tests {
 
     #[test]
     fn export_reuses_raw_blocks_until_patterns_change() {
-        let mut d = Document::new("x", photocraft_geom::Size { width: 4, height: 4 }, ColorMode::Rgb, SampleType::U8);
+        let mut d = Document::new("x", evophoto_geom::Size { width: 4, height: 4 }, ColorMode::Rgb, SampleType::U8);
         let p = pattern(ColorMode::Rgb, SampleType::U8, false);
         let raw = write_pattern_block(&[to_psd(&p)]).unwrap();
         d.metadata.psd_global_blocks = vec![(*b"8BIM", *b"Txt2", Arc::new(vec![1])), (*b"8BIM", *b"Patt", Arc::new(raw.clone()))];
@@ -248,7 +248,7 @@ mod tests {
     fn transparent_pattern_blocks_from_older_builds_are_rewritten_on_save() {
         // #8054: Define Pattern over transparency, then a Pattern Fill layer; Photoshop refused
         // the PSD because the pattern's transparency sat in the user mask array.
-        let mut d = Document::new("x", photocraft_geom::Size { width: 4, height: 4 }, ColorMode::Rgb, SampleType::U16);
+        let mut d = Document::new("x", evophoto_geom::Size { width: 4, height: 4 }, ColorMode::Rgb, SampleType::U16);
         d.patterns.push(pattern(ColorMode::Rgb, SampleType::U16, true));
         let out = export_global_blocks(&d);
         assert_eq!(out.len(), 1);

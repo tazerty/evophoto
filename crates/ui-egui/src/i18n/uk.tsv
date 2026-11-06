@@ -4,7 +4,7 @@
 # Integer plural forms: one|few|many (1, 21; 2–4, 22–24; 0, 5–19).
 # Rule: https://www.unicode.org/cldr/charts/48/supplemental/language_plural_rules.html#uk
 # Preserve {name} placeholders, shortcut names and trailing dialog ellipses.
-# Original translations from the meaning of PhotoCraft's English source keys.
+# Original translations from the meaning of EvoPhoto's English source keys.
 # No proprietary translation resources were used.
 # Licensed MIT OR Apache-2.0. See LICENSE-translations.txt and ATTRIBUTION.md.
 
@@ -2177,7 +2177,7 @@
 	Pattern Size	Розмір візерунка
 	Lumbra	Lumbra
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — нативний редактор зображень із відкритим кодом, написаний на Rust.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	Засновано на PhotoCraft — програмі з відкритим кодом (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Засновано на EvoPhoto — програмі з відкритим кодом (MIT OR Apache-2.0).
 	Position and Size	Положення та розмір
 	Preserve Details	Зберігати деталі
 	Preserve Luminosity	Зберігати світність
@@ -2584,7 +2584,7 @@ cameraRaw	Roughness	Шорсткість
 	Use tablet pressure to change pen width	Використовувати натиск планшета для зміни ширини пера
 
 
-# About ▸ Contributors / Models (credits, craftrules standards/contributors.md)
+# About ▸ Contributors / Models (credits, evorules standards/contributors.md)
 	About	Про програму
 	Contributors	Учасники
 	Models	Моделі
@@ -3934,7 +3934,7 @@ curves	Smooth	Згладити
 	Sent to {printer}	Надіслано на {printer}
 	set in Print Settings…	задається в параметрах друку…
 	ICO is limited to 256 × 256 pixels	ICO обмежено розміром 256 × 256 пікселів
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	Перевірити оновлення…
 	Lumbra Updates	Оновлення Lumbra
 	Checking for updates…	Перевірка оновлень…

@@ -2,11 +2,11 @@
 
 > **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-10 · **Change:** major (first version: GPU, pen tablets, displays, gestures per platform against Photoshop 2026) · **Target:** Adobe Photoshop 2026
 
-Each hardware feature Photoshop 2026 (27.11.0) uses, per platform, against PhotoCraft. Photoshop
+Each hardware feature Photoshop 2026 (27.11.0) uses, per platform, against EvoPhoto. Photoshop
 side: its bundle (Metal and OpenCL paths, "Precise Color Management for HDR Display" and EDR
-strings, Touch Bar resources, pen pressure/tilt strings) and Adobe's GPU FAQ. PhotoCraft side:
-`crates/tablet`, `crates/ui-egui/src/stylus.rs`, `apps/photocraft/src/gpu_startup.rs`,
-`engine/src/display_color.rs`, `apps/photocraft/src/monitor_profile.rs`.
+strings, Touch Bar resources, pen pressure/tilt strings) and Adobe's GPU FAQ. EvoPhoto side:
+`crates/tablet`, `crates/ui-egui/src/stylus.rs`, `apps/evophoto/src/gpu_startup.rs`,
+`engine/src/display_color.rs`, `apps/evophoto/src/monitor_profile.rs`.
 
 **Summary (estimated):** ~50% ready. GPU compositing and colour-managed display are solid; pen
 input is uneven by platform (Windows lacks tilt/rotation, Wayland is broken) and there is no HDR
@@ -15,14 +15,14 @@ HDR display to verify.
 
 ## GPU
 
-| Feature | Photoshop | PhotoCraft | Status |
+| Feature | Photoshop | EvoPhoto | Status |
 |---|---|---|---|
 | GPU canvas, zoom/pan, rotate view | Metal (macOS), DirectX/OpenCL (Windows) | wgpu 30: Metal, Vulkan, DX12, GL; backend selectable | done |
 | GPU compositing of layers, blend modes, effects | partial (Photoshop composites mostly on CPU) | wgpu compositor, ≤ 1/255 vs CPU oracle; Multichannel and > texture-limit regions fall back to CPU | done (ahead in places) |
 | GPU filters (Blur Gallery, Liquify, Smart Sharpen, Camera Raw) | yes | CPU (rayon) for filters; GPU for compose and effects | partial |
 | Documents larger than the GPU texture limit | yes (tiled) | CPU fallback; tiling in progress (#49) | partial |
 | CPU-only fallback when no GPU | yes, reduced | `cpu` canvas preference; fails to start without an adapter on some Linux systems (#2519, #2412) | partial |
-| Choosing the GPU on a multi-GPU machine | Preferences › Performance › Use Graphics Processor | Linux only: Preferences › Performance › Advanced › GPU adapter and `PHOTOCRAFT_GPU_ADAPTER` (#1885); ignored on Windows and macOS | partial |
+| Choosing the GPU on a multi-GPU machine | Preferences › Performance › Use Graphics Processor | Linux only: Preferences › Performance › Advanced › GPU adapter and `EVOPHOTO_GPU_ADAPTER` (#1885); ignored on Windows and macOS | partial |
 | Old / integrated GPUs | yes | black line on Intel HD (#2426), OpenCore Macs fail (#1859), Rgba32Float panic (#2020) | partial |
 
 ## Pen tablets
@@ -38,7 +38,7 @@ HDR display to verify.
 
 ## Displays and colour
 
-| Feature | Photoshop | PhotoCraft | Status |
+| Feature | Photoshop | EvoPhoto | Status |
 |---|---|---|---|
 | Colour-managed canvas (document → monitor profile) | yes | yes, folded into the GPU 3D LUT | done |
 | Monitor profile detection | per display, live | macOS per display at launch; others sRGB or a chosen .icc | partial |
@@ -49,7 +49,7 @@ HDR display to verify.
 
 ## Input devices
 
-| Feature | Photoshop | PhotoCraft | Status |
+| Feature | Photoshop | EvoPhoto | Status |
 |---|---|---|---|
 | Trackpad pinch zoom, two-finger pan | yes | yes; pinch scrolls instead in 0.6.0 (#2463) | partial |
 | Trackpad rotate (Rotate View) | yes | yes (`rotate_view.rs`) | done |

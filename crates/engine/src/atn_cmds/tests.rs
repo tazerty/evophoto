@@ -1,6 +1,6 @@
 use super::*;
-use photocraft_psd::atn::{AtnAction, AtnEvent, AtnFile, AtnItem};
-use photocraft_psd::descriptor::{Descriptor, Id, ReferenceItem, UnicodeString, Value as D};
+use evophoto_psd::atn::{AtnAction, AtnEvent, AtnFile, AtnItem};
+use evophoto_psd::descriptor::{Descriptor, Id, ReferenceItem, UnicodeString, Value as D};
 use serde_json::json;
 
 #[test]
@@ -65,11 +65,11 @@ fn item(event: &str, label: &str, d: Option<Descriptor>) -> AtnItem {
 }
 
 fn b64(bytes: &[u8]) -> String {
-    photocraft_paint::tile::b64_encode(bytes)
+    evophoto_paint::tile::b64_encode(bytes)
 }
 
 /// A set with a mapped filter, an adjustment layer, selection steps, a layer by name, a Stop,
-/// a Play, a tool selection (no document effect) and an event PhotoCraft has no command for.
+/// a Play, a tool selection (no document effect) and an event EvoPhoto has no command for.
 fn sample() -> AtnFile {
     let levels = desc("Lvls").with(
         "Adjs",
@@ -163,7 +163,7 @@ fn layer_comp_apply_round_trips_by_name() {
         assert_eq!(loaded["unsupported"], json!([]), "{loaded}");
         let saved = s.execute("actions.save", json!({"set": "Comps"})).unwrap();
         assert_eq!(saved["skipped"], json!([]));
-        let bytes = photocraft_paint::tile::b64_decode(saved["data"].as_str().unwrap()).unwrap();
+        let bytes = evophoto_paint::tile::b64_decode(saved["data"].as_str().unwrap()).unwrap();
         let file = atn::parse(&bytes).unwrap();
         assert_eq!(file.actions[0].items[0].event, AtnEvent::Name("applyComp".into()));
         assert_eq!(file.actions[0].items[0].descriptor, Some(descriptor));
@@ -209,7 +209,7 @@ fn layer_comp_apply_unknown_references_are_kept_and_stop_playback() {
     assert!(played["failed"]["error"].as_str().unwrap().contains("Apply Layer Comp"), "{played}");
     assert_eq!(*s.active().unwrap().doc, *before);
     let saved = s.execute("actions.save", json!({"set": "Comps"})).unwrap();
-    let bytes = photocraft_paint::tile::b64_decode(saved["data"].as_str().unwrap()).unwrap();
+    let bytes = evophoto_paint::tile::b64_decode(saved["data"].as_str().unwrap()).unwrap();
     let file = atn::parse(&bytes).unwrap();
     assert_eq!(file.actions[0].items.len(), items.len());
     for (saved, original) in file.actions[0].items.iter().zip(&items) {
@@ -355,7 +355,7 @@ fn save_round_trips_through_photoshop_events() {
     let r = s.execute("actions.save", json!({"set": "Test Set"})).unwrap();
     assert_eq!(r["actions"], json!(["Soften", "Finish"]));
     assert_eq!(r["skipped"], json!([]));
-    let saved = photocraft_paint::tile::b64_decode(r["data"].as_str().unwrap()).unwrap();
+    let saved = evophoto_paint::tile::b64_decode(r["data"].as_str().unwrap()).unwrap();
     let file = atn::parse(&saved).unwrap();
     assert_eq!(file.name.to_string_lossy(), "Test Set");
     assert_eq!(file.actions[0].function_key, 3);
@@ -393,7 +393,7 @@ fn a_selective_color_step_in_the_scalar_form_keeps_its_values() {
         s.actions.list.push(Action::new("A", vec![("image.adjustments.selectiveColor".into(), params)]));
         let r = s.execute("actions.save", json!({"action": "A"})).unwrap();
         assert_eq!(r["skipped"], json!([]));
-        let imported = import(&photocraft_paint::tile::b64_decode(r["data"].as_str().unwrap()).unwrap()).unwrap();
+        let imported = import(&evophoto_paint::tile::b64_decode(r["data"].as_str().unwrap()).unwrap()).unwrap();
         imported.actions[0].steps[0].1.clone()
     };
 
@@ -979,7 +979,7 @@ fn save_preserves_the_kind_of_unsupported_atn_events() {
     let mut session = Session::new();
     session.execute("actions.load", json!({"data": b64(&atn::write(&source).unwrap())})).unwrap();
     let saved = session.execute("actions.save", json!({"set": "S"})).unwrap();
-    let bytes = photocraft_paint::tile::b64_decode(saved["data"].as_str().unwrap()).unwrap();
+    let bytes = evophoto_paint::tile::b64_decode(saved["data"].as_str().unwrap()).unwrap();
     let round_trip = atn::parse(&bytes).unwrap();
 
     assert_eq!(
@@ -1076,7 +1076,7 @@ fn retouching_set_events_map_to_their_commands() {
     // event stay unsupported rather than play with other values.
     let unsupported: Vec<(&str, usize)> = imp.unsupported.iter().map(|u| (u.event.as_str(), u.step)).collect();
     assert_eq!(unsupported, [("colorRange", 4), ("colorRange", 5), ("set", 8), ("someFutureEvent", 12)]);
-    // A legacy PhotoCraft export's `Yllw` yellows still read.
+    // A legacy EvoPhoto export's `Yllw` yellows still read.
     let legacy = desc("null").with("ClrC", D::List(vec![D::Descriptor(desc("ClrC").with("Clrs", enm("Clrs", "Yllw")).with("Cyn ", pct(5.0)))]));
     assert_eq!(selective_from(&legacy), Some(json!({"yellows": [5.0, 0.0, 0.0, 0.0]})));
     // The mask of a named layer is not the target layer's mask: it stays unsupported.
@@ -1544,7 +1544,7 @@ fn select_document_by_offset_imports_plays_and_saves_back() {
     let first = s.actions.list.clone();
     let r = s.execute("actions.save", json!({"set": "Template"})).unwrap();
     assert_eq!(r["skipped"], json!([]));
-    let saved = photocraft_paint::tile::b64_decode(r["data"].as_str().unwrap()).unwrap();
+    let saved = evophoto_paint::tile::b64_decode(r["data"].as_str().unwrap()).unwrap();
     let file = atn::parse(&saved).unwrap();
     let offsets: Vec<i32> = file.actions[0]
         .items
@@ -1667,7 +1667,7 @@ fn distressing_and_remove_white_shapes_import_and_play() {
     let r = s.execute("actions.play", json!({"action": "Remove White"})).unwrap();
     assert!(r.get("failed").is_none(), "{r}");
     let d = &s.active().unwrap().doc;
-    assert_eq!(d.mode, photocraft_color::ColorMode::Grayscale);
+    assert_eq!(d.mode, evophoto_color::ColorMode::Grayscale);
     let l = d.layers.last().unwrap();
     assert!(!d.is_background(l.id), "Layer From Background");
     let surf = l.surface().unwrap();
@@ -1732,7 +1732,7 @@ fn remove_white_clears_the_targeted_layer_not_the_converted_background() {
     assert!(r.get("failed").is_none(), "{r}");
     let st = s.active().unwrap();
     assert_eq!(st.active_layer.map(|l| l.0), Some(art), "the art layer stays targeted");
-    let art = st.doc.layer(photocraft_doc::LayerId(art)).unwrap().surface().unwrap();
+    let art = st.doc.layer(evophoto_doc::LayerId(art)).unwrap().surface().unwrap();
     assert!(art.sample_channel(2, 2, 1) < 0.01, "the art's white is cleared");
     assert!(art.sample_channel(20, 15, 1) > 0.99, "the black stays");
     let bottom = st.doc.layers.first().unwrap();
@@ -1777,7 +1777,7 @@ fn events_photoshop_only_runs_by_name_export_by_name_and_old_codes_still_import(
         }
     }
 
-    // A whole set of Photoshop-shaped steps (names, FltI) and old PhotoCraft-shaped ones
+    // A whole set of Photoshop-shaped steps (names, FltI) and old EvoPhoto-shaped ones
     // (legacy codes) loads to the same commands.
     let blur = |event: &str| item(event, "Box Blur", Some(desc("null").with("Rds ", px(3.0))));
     let surface = |event: &str| item(event, "Surface Blur", Some(desc("null").with("Rds ", px(5.0)).with("Thsh", long(15.0))));
@@ -1793,7 +1793,7 @@ fn events_photoshop_only_runs_by_name_export_by_name_and_old_codes_still_import(
     assert_eq!(s.actions.list[1].steps[1].1, json!({"radius": 5, "threshold": 15}));
     // Saving them writes the ids Photoshop runs, never the old codes.
     let saved = s.execute("actions.save", json!({"set": "S"})).unwrap();
-    let file = atn::parse(&photocraft_paint::tile::b64_decode(saved["data"].as_str().unwrap()).unwrap()).unwrap();
+    let file = atn::parse(&evophoto_paint::tile::b64_decode(saved["data"].as_str().unwrap()).unwrap()).unwrap();
     let events: Vec<String> = file.actions.iter().flat_map(|a| a.items.iter().map(|i| i.event.id())).collect();
     assert_eq!(events, ["boxblur", "surfaceBlur", "FltI", "FltI", "boxblur", "surfaceBlur", "FltI"]);
 
@@ -1827,7 +1827,7 @@ fn photo_filter_saves_under_the_name_photoshop_runs() {
     s.execute("actions.stop", json!({})).unwrap();
     let saved = s.execute("actions.save", json!({"action": "Filter"})).unwrap();
     assert_eq!(saved["skipped"], json!([]), "{saved}");
-    let file = atn::parse(&photocraft_paint::tile::b64_decode(saved["data"].as_str().unwrap()).unwrap()).unwrap();
+    let file = atn::parse(&evophoto_paint::tile::b64_decode(saved["data"].as_str().unwrap()).unwrap()).unwrap();
     let step = &file.actions[0].items[0];
     assert_eq!(step.event, AtnEvent::Name("photoFilter".into()), "never the code PhtF");
     assert_eq!(step.dictionary, "Photo Filter".as_bytes());
@@ -1836,7 +1836,7 @@ fn photo_filter_saves_under_the_name_photoshop_runs() {
         assert!(d.get(key).is_some(), "the descriptor keeps {key}: {d:?}");
     }
 
-    // A Photoshop-authored step (by name) and an old PhotoCraft one (`PhtF`) both load to the
+    // A Photoshop-authored step (by name) and an old EvoPhoto one (`PhtF`) both load to the
     // command, and saving them again writes the name.
     let data =
         set_of("S", vec![("Photoshop", vec![item("photoFilter", "Photo Filter", Some(d.clone()))]), ("Legacy", vec![item("PhtF", "Photo Filter", Some(d))])]);
@@ -1852,7 +1852,7 @@ fn photo_filter_saves_under_the_name_photoshop_runs() {
     }
     let resaved = t.execute("actions.save", json!({"set": "S"})).unwrap();
     assert_eq!(resaved["skipped"], json!([]), "{resaved}");
-    let file = atn::parse(&photocraft_paint::tile::b64_decode(resaved["data"].as_str().unwrap()).unwrap()).unwrap();
+    let file = atn::parse(&evophoto_paint::tile::b64_decode(resaved["data"].as_str().unwrap()).unwrap()).unwrap();
     let events: Vec<String> = file.actions.iter().flat_map(|a| a.items.iter().map(|i| i.event.id())).collect();
     assert_eq!(events, ["photoFilter", "photoFilter"]);
 
@@ -1881,7 +1881,7 @@ fn photo_filter_saves_under_the_name_photoshop_runs() {
 
 /// A Black & White adjustment layer saves with Photoshop's `BanW` class (#8481): measured in
 /// Photoshop, a Make whose type is `BlnW` is refused. Photoshop's own `BanW` Make loads, and so
-/// does the `BlnW` one PhotoCraft wrote before.
+/// does the `BlnW` one EvoPhoto wrote before.
 #[test]
 fn black_white_adjustment_layer_saves_as_photoshops_class_and_old_class_still_imports() {
     let id = "layer.newAdjustmentLayer.blackWhite";
@@ -1890,7 +1890,7 @@ fn black_white_adjustment_layer_saves_as_photoshops_class_and_old_class_still_im
     s.actions.list.push(Action::new("BW", vec![(id.into(), params.clone())]));
     let r = s.execute("actions.save", json!({"action": "BW"})).unwrap();
     assert_eq!(r["skipped"], json!([]));
-    let saved = photocraft_paint::tile::b64_decode(r["data"].as_str().unwrap()).unwrap();
+    let saved = evophoto_paint::tile::b64_decode(r["data"].as_str().unwrap()).unwrap();
     let file = atn::parse(&saved).unwrap();
     let make = file.actions[0].items[0].descriptor.as_ref().unwrap();
     let kind = get_obj(make, "Usng").and_then(|u| get_obj(u, "Type")).unwrap();
@@ -1900,7 +1900,7 @@ fn black_white_adjustment_layer_saves_as_photoshops_class_and_old_class_still_im
     assert_eq!(r["unsupported"], json!([]), "{r}");
     assert_eq!(t.actions.list[0].steps, vec![(id.to_string(), params)]);
 
-    // Photoshop's minimal Make (no settings) and an old PhotoCraft Make with a setting both load,
+    // Photoshop's minimal Make (no settings) and an old EvoPhoto Make with a setting both load,
     // the setting kept; near misses stay Photoshop steps.
     let make = |class: &str| {
         let kind = if class == "BlnW" { desc(class).with("Rd  ", long(17.0)) } else { desc(class) };
@@ -1938,7 +1938,7 @@ fn smart_blur_quality_uses_photoshop_codes() {
     }
 
     // Photoshop-shaped steps (each quality and mode, as Photoshop stores them) and the codes
-    // PhotoCraft wrote before this fix read as the right quality.
+    // EvoPhoto wrote before this fix read as the right quality.
     let cases = [
         ("SBQH", "SBMN", "high", "normal"),
         ("SBQM", "SBMO", "medium", "overlayEdge"),
@@ -1967,7 +1967,7 @@ fn smart_blur_quality_uses_photoshop_codes() {
         desc("null"),
     ];
     let items: Vec<AtnItem> = odd.iter().map(|d| item("SmrB", "Smart Blur", Some(d.clone()))).collect();
-    let imported = import(&photocraft_paint::tile::b64_decode(&set_of("Odd", vec![("Odd", items)])).unwrap()).unwrap();
+    let imported = import(&evophoto_paint::tile::b64_decode(&set_of("Odd", vec![("Odd", items)])).unwrap()).unwrap();
     let steps = &imported.actions[0].steps;
     assert_eq!(steps.len(), odd.len());
     assert_eq!(steps[0].0, PHOTOSHOP_STEP, "an unknown quality is kept verbatim");
@@ -2304,7 +2304,7 @@ fn numeric_layer_references_refuse_silent_fallback_to_current_selection() {
     s.execute("file.new", json!({"width": 8, "height": 8})).unwrap();
 
     let parse_first_desc = |v: &Value| -> Descriptor {
-        let bytes = photocraft_paint::tile::b64_decode(v["data"].as_str().unwrap()).unwrap();
+        let bytes = evophoto_paint::tile::b64_decode(v["data"].as_str().unwrap()).unwrap();
         let file = atn::parse(&bytes).unwrap();
         file.actions[0].items[0].descriptor.clone().unwrap()
     };
@@ -2428,7 +2428,7 @@ fn emboss_saves_as_photoshops_event_and_loads_back() {
     s.actions.list.push(Action::new("Pore", vec![("filter.stylize.emboss".into(), params.clone())]));
     let r = s.execute("actions.save", json!({"action": "Pore"})).unwrap();
     assert_eq!(r["skipped"], json!([]));
-    let saved = photocraft_paint::tile::b64_decode(r["data"].as_str().unwrap()).unwrap();
+    let saved = evophoto_paint::tile::b64_decode(r["data"].as_str().unwrap()).unwrap();
     let file = atn::parse(&saved).unwrap();
     let step = &file.actions[0].items[0];
     assert_eq!(step.event.id(), "Embs");
@@ -2442,7 +2442,7 @@ fn emboss_saves_as_photoshops_event_and_loads_back() {
 }
 
 /// A filter recorded against a layer mask must not export as a plain filter that edits the
-/// layer's pixels on replay: Photoshop's descriptor has no field for PhotoCraft's `target`.
+/// layer's pixels on replay: Photoshop's descriptor has no field for EvoPhoto's `target`.
 #[test]
 fn add_noise_with_mask_target_is_not_exported_as_pixel_filter() {
     let masked = Action {
@@ -2513,7 +2513,7 @@ fn function_keys_keep_shift_and_command() {
     assert_eq!(shortcuts.get("actions.play:Soften").map(String::as_str), Some("Shift+F3"));
     assert_eq!(shortcuts.get("actions.play:Finish").map(String::as_str), Some("Cmd+Shift+F5"));
     let r = s.execute("actions.save", json!({"set": "Test Set"})).unwrap();
-    let saved = atn::parse(&photocraft_paint::tile::b64_decode(r["data"].as_str().unwrap()).unwrap()).unwrap();
+    let saved = atn::parse(&evophoto_paint::tile::b64_decode(r["data"].as_str().unwrap()).unwrap()).unwrap();
     let keys: Vec<_> = saved.actions.iter().map(|a| (a.function_key, a.shift, a.command)).collect();
     assert_eq!(keys, [(3, true, false), (5, true, true)]);
 
@@ -2594,7 +2594,7 @@ fn apply_image_numeric_source_selectors_are_refused() {
     assert!(export("S", &[&a], &[], false).is_err());
 }
 
-/// A param a PhotoCraft step leaves out exports as PhotoCraft's default wherever Photoshop plays
+/// A param a EvoPhoto step leaves out exports as EvoPhoto's default wherever Photoshop plays
 /// the missing key differently (checked against Photoshop): Canvas Size anchors top left,
 /// Apply Image blends Normal, Color Balance turns preserve luminosity off, and a Paint Bucket
 /// step without a tolerance doesn't play at all.
@@ -2966,7 +2966,7 @@ fn image_size_resample_none_keeps_ignoring_its_size_through_atn_export() {
 
 /// #8302, #8308: Hue/Saturation's hue is `H   ` in Photoshop's `Hst2`, both ways. It was written
 /// and read as `Hue `: exported actions failed in Photoshop, and Photoshop-recorded ones lost
-/// their hue on import with no warning. PhotoCraft's own older files (`Hue `) still read.
+/// their hue on import with no warning. EvoPhoto's own older files (`Hue `) still read.
 #[test]
 fn hue_saturation_uses_photoshops_hue_key() {
     let params = json!({"colorize": false, "hue": 30, "saturation": 20, "lightness": -7, "greens": {"hue": -12, "saturation": 0, "lightness": 0, "range": [75, 105, 135, 165]}});
@@ -2982,7 +2982,7 @@ fn hue_saturation_uses_photoshops_hue_key() {
     assert_eq!(get_num(&entries[1], "H   "), Some(-12.0), "a range's hue under H");
     assert!(entries.iter().all(|e| get_num(e, "Hue ").is_none()), "no Hue key");
 
-    // A Photoshop-recorded step (H) and an older PhotoCraft one (Hue ) both import with the hue.
+    // A Photoshop-recorded step (H) and an older EvoPhoto one (Hue ) both import with the hue.
     let step = |key: &str| {
         desc("null")
             .with("presetKind", enm("presetKindType", "presetKindCustom"))
@@ -3096,7 +3096,7 @@ fn saves_round_trip_through_photoshop_events() {
     assert_eq!(get_obj(items[1].descriptor.as_ref().unwrap(), "As  ").map(|f| trimmed(&f.class_id)).as_deref(), Some("WebPFormat"));
     assert_eq!(import(&bytes).unwrap().actions[0].steps, steps);
 
-    // A Save As PhotoCraft can't express in Photoshop's terms is skipped, never exported as a
+    // A Save As EvoPhoto can't express in Photoshop's terms is skipped, never exported as a
     // plain Save.
     let odd = Action::new("B", vec![("file.saveAs".to_string(), json!({"path": "/out/result.xcf"}))]);
     assert!(export("Saves", &[&odd], &[], false).is_err());

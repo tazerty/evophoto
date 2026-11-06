@@ -1,0 +1,19 @@
+[package]
+name = "evo-print"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "vendor/evo-libs"
+rust-version = "1.95"
+description = "System PDF print spooler for the Evo apps: CUPS and Windows"
+
+[dependencies]
+evo-winprint-gdi = { path = "../../winprint/evo-winprint-gdi" }
+
+[target."cfg(windows)".dependencies]
+winprint = { default-features = false, path = "../../winprint/winprint" }
+winsafe = { version = "0.0.29", default-features = false, features = ["winspool"] }
+tempfile = { version = "3" }
+roxmltree = { version = "0.20" }
+miniz_oxide = { version = "0.8" }
+

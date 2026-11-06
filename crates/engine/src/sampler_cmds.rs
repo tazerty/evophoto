@@ -2,12 +2,12 @@
 //! the Info panel, so a fixed position can be compared instead of chasing the live pointer.
 //!
 //! Points are per-document view state ([`crate::DocState::color_samplers`]): they belong to their
-//! document, are discarded when it closes, and are not saved to `.pcraft` or PSD. Placing, moving
+//! document, are discarded when it closes, and are not saved to `.evophoto` or PSD. Placing, moving
 //! and removing them changes no pixels and adds no History step, so they are not journaled. Each
 //! point reads one composite pixel (no averaging); its values match the Info panel's pointer
 //! readout (RGB 0–255 and colour-managed CMYK percentages, as in the Color Picker).
 
-use photocraft_doc::Document;
+use evophoto_doc::Document;
 use serde_json::{Value, json};
 
 use crate::commands::CommandSpec;
@@ -25,12 +25,12 @@ fn has_doc(s: &Session) -> std::result::Result<(), String> {
 }
 
 /// Colour-managed CMYK, in percent, as the Info panel shows it: the same conversion the Color
-/// Picker uses (`photocraft_color::convert::rgb_to_cmyk`: the CMYK profile active on this thread,
+/// Picker uses (`evophoto_color::convert::rgb_to_cmyk`: the CMYK profile active on this thread,
 /// else the built-in coated CMYK), so both panels agree (#8101). 32-bit samples can lie outside
 /// 0..1, so each channel is clamped first (NaN reads as 0), like the RGB readout.
 pub fn device_cmyk(r: f32, g: f32, b: f32) -> [i32; 4] {
     let unit = |v: f32| if v.is_nan() { 0.0 } else { v.clamp(0.0, 1.0) };
-    photocraft_color::convert::rgb_to_cmyk([unit(r), unit(g), unit(b)]).map(|v| (unit(v) * 100.0).round() as i32)
+    evophoto_color::convert::rgb_to_cmyk([unit(r), unit(g), unit(b)]).map(|v| (unit(v) * 100.0).round() as i32)
 }
 
 /// The Info-panel values for a sample point at document pixel `pos`: composite RGB 0–255 and
@@ -39,7 +39,7 @@ pub fn device_cmyk(r: f32, g: f32, b: f32) -> [i32; 4] {
 pub fn readout(doc: &Document, pos: [f64; 2]) -> ([i32; 3], [i32; 4]) {
     let rgba = crate::sample_cmds::sample_color(doc, None, pos[0], pos[1], 1, crate::sample_cmds::SampleLayers::All);
     let q = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as i32;
-    let cmyk = photocraft_color::convert::with_cmyk_space(photocraft_compose::cmyk_space(doc).as_ref(), || device_cmyk(rgba[0], rgba[1], rgba[2]));
+    let cmyk = evophoto_color::convert::with_cmyk_space(evophoto_compose::cmyk_space(doc).as_ref(), || device_cmyk(rgba[0], rgba[1], rgba[2]));
     ([q(rgba[0]), q(rgba[1]), q(rgba[2])], cmyk)
 }
 
@@ -84,7 +84,7 @@ fn change<R>(s: &mut Session, f: impl FnOnce(&mut DocState) -> Result<R>) -> Res
     if clean {
         st.saved_revision = st.revision;
     }
-    st.last_damage = Some(photocraft_geom::Rect::EMPTY);
+    st.last_damage = Some(evophoto_geom::Rect::EMPTY);
     Ok(r)
 }
 
@@ -203,9 +203,9 @@ pub fn specs() -> Vec<CommandSpec> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_color::{ColorMode, SampleType};
-    use photocraft_doc::{Layer, Size};
-    use photocraft_geom::Rect;
+    use evophoto_color::{ColorMode, SampleType};
+    use evophoto_doc::{Layer, Size};
+    use evophoto_geom::Rect;
 
     /// A 100×80 white document.
     fn session() -> Session {
@@ -251,7 +251,7 @@ mod tests {
         let mut s = session();
         s.edit("paint", |doc, _| {
             let surf = doc.layers[0].surface_mut().unwrap();
-            let black = photocraft_raster::from_rgba(&surf.format(), [0.0, 0.0, 0.0, 1.0]);
+            let black = evophoto_raster::from_rgba(&surf.format(), [0.0, 0.0, 0.0, 1.0]);
             surf.fill_rect(Rect::new(3, 3, 4, 4), &black);
             Ok(())
         })
@@ -262,7 +262,7 @@ mod tests {
         // Painting over the point changes its readout (the list is computed live).
         s.edit("paint", |doc, _| {
             let surf = doc.layers[0].surface_mut().unwrap();
-            let red = photocraft_raster::from_rgba(&surf.format(), [1.0, 0.0, 0.0, 1.0]);
+            let red = evophoto_raster::from_rgba(&surf.format(), [1.0, 0.0, 0.0, 1.0]);
             surf.fill_rect(Rect::new(3, 3, 4, 4), &red);
             Ok(())
         })
@@ -391,7 +391,7 @@ mod tests {
             let mut s = session();
             s.edit("paint", |doc, _| {
                 let surf = doc.layers[0].surface_mut().unwrap();
-                let black = photocraft_raster::from_rgba(&surf.format(), [0.0, 0.0, 0.0, 1.0]);
+                let black = evophoto_raster::from_rgba(&surf.format(), [0.0, 0.0, 0.0, 1.0]);
                 surf.fill_rect(Rect::new(3, 3, 4, 4), &black);
                 Ok(())
             })
@@ -413,7 +413,7 @@ mod tests {
             let mut s = session();
             s.edit("paint", |doc, _| {
                 let surf = doc.layers[0].surface_mut().unwrap();
-                let black = photocraft_raster::from_rgba(&surf.format(), [0.0, 0.0, 0.0, 1.0]);
+                let black = evophoto_raster::from_rgba(&surf.format(), [0.0, 0.0, 0.0, 1.0]);
                 surf.fill_rect(Rect::new(3, 3, 4, 4), &black);
                 Ok(())
             })
@@ -435,7 +435,7 @@ mod tests {
         let mut s = session();
         s.edit("paint", |doc, _| {
             let surf = doc.layers[0].surface_mut().unwrap();
-            let black = photocraft_raster::from_rgba(&surf.format(), [0.0, 0.0, 0.0, 1.0]);
+            let black = evophoto_raster::from_rgba(&surf.format(), [0.0, 0.0, 0.0, 1.0]);
             surf.fill_rect(Rect::new(50, 40, 51, 41), &black);
             Ok(())
         })
@@ -497,7 +497,7 @@ mod tests {
     #[test]
     fn device_cmyk_agrees_with_the_color_picker_conversion() {
         for rgb in [[1.0, 1.0, 1.0], [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 0.5, 0.5], [0.2, 0.6, 0.9], [1.0, 0.93, 0.0]] {
-            let picker = photocraft_color::convert::rgb_to_cmyk(rgb).map(|v| (v * 100.0).round() as i32);
+            let picker = evophoto_color::convert::rgb_to_cmyk(rgb).map(|v| (v * 100.0).round() as i32);
             assert_eq!(device_cmyk(rgb[0], rgb[1], rgb[2]), picker, "{rgb:?}");
         }
         assert_eq!(device_cmyk(1.0, 1.0, 1.0), [0, 0, 0, 0]);
@@ -524,7 +524,7 @@ mod tests {
         s.execute("file.new", json!({"width": 8, "height": 8, "depth": 32, "background": "white"})).unwrap();
         s.edit("paint", |doc, _| {
             let surf = doc.layers[0].surface_mut().unwrap();
-            let hdr = photocraft_raster::from_rgba(&surf.format(), [2.0, 2.0, 2.0, 1.0]);
+            let hdr = evophoto_raster::from_rgba(&surf.format(), [2.0, 2.0, 2.0, 1.0]);
             surf.fill_rect(Rect::new(3, 3, 4, 4), &hdr);
             Ok(())
         })

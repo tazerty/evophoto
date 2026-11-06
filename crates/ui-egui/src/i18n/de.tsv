@@ -12,7 +12,7 @@
 # Clean-room: every entry was written from the plain meaning of the English label using ordinary
 # German image-editing vocabulary (Ebene, Maske, Auswahl, Weichzeichnen ...). No proprietary
 # localisation resource, string table or product UI was consulted or copied; add entries the same
-# way. Product and technology names (PhotoCraft, OpenType, CMYK, Lab ...) stay in Latin
+# way. Product and technology names (EvoPhoto, OpenType, CMYK, Lab ...) stay in Latin
 # letters; the trailing "…" of dialog commands is kept. Plural rule: one|other (n != 1 -> other).
 
 # Layer Mask Display Options (the layer mask rubylith's colour and opacity)
@@ -1349,7 +1349,7 @@
 	Lumbra	Lumbra
 	Lumbra Manages Colors	Lumbra verwaltet die Farben
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — ein nativer Open-Source-Bildeditor, geschrieben in Rust.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	Basiert auf PhotoCraft, Open-Source-Software (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Basiert auf EvoPhoto, Open-Source-Software (MIT OR Apache-2.0).
 	Pin Depth:	Pin-Tiefe:
 	Pixel Length:	Pixel-Länge:
 	Pixels/Centimeter	Pixel/Zentimeter
@@ -2384,7 +2384,7 @@
 	Frequency	Frequenz
 	Use tablet pressure to change pen width	Tablettdruck zum Ändern der Stiftbreite verwenden
 
-# About ▸ Contributors / Models (credits, craftrules standards/contributors.md)
+# About ▸ Contributors / Models (credits, evorules standards/contributors.md)
 	About	Über
 	Contributors	Mitwirkende
 	Models	Modelle
@@ -3249,7 +3249,7 @@ curves	Smooth	Glätten
 	Sent to {printer}	An {printer} gesendet
 	set in Print Settings…	in den Druckeinstellungen festlegen…
 	ICO is limited to 256 × 256 pixels	ICO ist auf 256 × 256 Pixel begrenzt
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	Nach Updates suchen…
 	Lumbra Updates	Lumbra-Updates
 	Checking for updates…	Suche nach Updates…

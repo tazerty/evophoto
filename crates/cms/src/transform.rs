@@ -711,7 +711,7 @@ struct Entry {
 }
 
 /// Process-wide cache of transforms keyed by profile content and options. The key is the
-/// profiles' 64-bit hashes, which a crafted profile can share with another (#8613), so a hit
+/// profiles' 64-bit hashes, which a built profile can share with another (#8613), so a hit
 /// counts only when the bytes match too; a colliding pair gets its own, uncached transform.
 pub fn cached(src: &Profile, dst: &Profile, opts: TransformOptions) -> Result<Arc<Transform>, CmsError> {
     static CACHE: OnceLock<Mutex<HashMap<Key, Entry>>> = OnceLock::new();

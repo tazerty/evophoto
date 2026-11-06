@@ -1,4 +1,4 @@
-"""Portes Evora du build web de Lumbra (fork tazerty/photocraft).
+"""Portes Evora du build web de Lumbra (fork tazerty/evophoto).
 
 Usage : python3 -I evora/ci/gates.py <dossier du site empaqueté> <rapport.json>
 
@@ -8,7 +8,7 @@ résumé Markdown (GITHUB_STEP_SUMMARY) et un rapport JSON ; sort en erreur si u
 (les catalogues et les polices sont lus comme des données).
 
 Portes :
-  1. marques (E1, bloquante) : ArtCraft, getartcraft, discord.gg absents du site servi (tout le
+  1. marques (E1, bloquante) : nom amont, son site, ancien nom du moteur, discord.gg absents du site servi (tout le
      dossier sauf LICENSES/), des catalogues décompressés du build et des catalogues source ;
      ni manifeste web ni service worker ;
   2. hébergement (bloquante) : aucun .htaccess, _headers, *.conf, *.php, fichier caché ni lien
@@ -42,8 +42,13 @@ import zlib
 
 ROOT = pathlib.Path.cwd()
 I18N = ROOT / "crates/ui-egui/src/i18n"
-BRAND_TERMS = ["ArtCraft", "getartcraft", "discord.gg"]
-BRAND_INFO = ["artcraft", "discord", "PhotoCraft"]  # mesures (insensibles à la casse sauf PhotoCraft)
+# Le nom amont retiré n'est jamais écrit en clair dans le dépôt : il est reconstitué ici. Cette porte
+# voit ce que zero-terme.py ne peut pas lire : les catalogues compressés du build et leurs sources.
+REMOVED = "C" "raft"
+BRAND = "Art" + REMOVED
+OLD_ENGINE = "Photo" + REMOVED
+BRAND_TERMS = [BRAND, "get" + BRAND.lower(), "discord.gg", OLD_ENGINE]
+BRAND_INFO = [BRAND.lower(), "discord", "EvoPhoto"]  # mesures (insensibles à la casse sauf EvoPhoto)
 SENSITIVE = ["Lumetri", "Lightroom", "Acrobat", "Premiere Pro Compatible", "Premiere", "Adobe", "Cycore"]
 HOSTING = re.compile(r"(^|/)(\.htaccess|_headers|[^/]*\.conf|[^/]*\.php[0-9]?|[^/]*\.phtml)$", re.I)
 # Emoji_Presentation=Yes dans le plan multilingue de base (emoji-data.txt d'Unicode) ; au-delà de
@@ -142,7 +147,7 @@ def count(term: str, data: bytes, ci: bool = False) -> int:
 
 def inflated_catalogs() -> list[bytes]:
     """Catalogues tels que build.rs les a empaquetés (OUT_DIR du build courant), décompressés."""
-    found = sorted(glob.glob("target/**/photocraft-ui-egui-*/out/i18n/keys.deflate", recursive=True),
+    found = sorted(glob.glob("target/**/evophoto-ui-egui-*/out/i18n/keys.deflate", recursive=True),
                    key=lambda p: os.path.getmtime(p), reverse=True)
     if not found:
         return []
@@ -171,10 +176,10 @@ def gate_brand(pkg: pathlib.Path, entries) -> None:
         if any(rows[term]):
             fail(f"marque « {term} » présente : site servi {rows[term][0]}, catalogues du build {rows[term][1]}, catalogues source {rows[term][2]}")
     for term in BRAND_INFO:
-        ci = term != "PhotoCraft"
+        ci = term != "EvoPhoto"
         rows[term + (" (casse ignorée)" if ci else "")] = [count(term, served, ci), count(term, infl, ci), count(term, sources, ci)]
     if not inflated:
-        fail("catalogues décompressés du build introuvables (OUT_DIR de photocraft-ui-egui)")
+        fail("catalogues décompressés du build introuvables (OUT_DIR de evophoto-ui-egui)")
     # Ni manifeste web ni service worker (E1 : noms de cache du service worker).
     names = [p.name.lower() for p in files]
     sw = [n for n in names if n.endswith(".webmanifest") or n in ("manifest.json", "sw.js", "service-worker.js")]
@@ -212,8 +217,9 @@ def gate_licenses(pkg: pathlib.Path) -> None:
     if missing:
         fail(f"LICENSES/ incomplet : manquent {missing}")
     mention = (pkg / "LICENSES/MENTIONS.txt").read_text(encoding="utf-8") if (pkg / "LICENSES/MENTIONS.txt").exists() else ""
-    if "basé sur PhotoCraft par l'équipe ArtCraft" not in mention:
-        fail("LICENSES/MENTIONS.txt ne porte pas la mention « basé sur PhotoCraft par l'équipe ArtCraft »")
+    # La mention d'origine, seule place permise du nom amont (fichier juridique gardé tel quel).
+    if f"basé sur {OLD_ENGINE} par l'équipe {BRAND}" not in mention:
+        fail("LICENSES/MENTIONS.txt ne porte pas la mention d'origine (projet et équipe amont)")
     third = pkg / "LICENSES/THIRD-PARTY-RUST.html"
     crates = len(re.findall(r"<li>[^<]+ \d+\.\d+[^<]*</li>", third.read_text(encoding="utf-8"))) if third.exists() else 0
     report["licenses"] = {"files": have, "missing": missing, "thirdPartyCrateLines": crates}
@@ -308,7 +314,7 @@ def gate_emoji(entries) -> None:
             bad.append(f"U+{ord(ch):04X} {unicodedata.name(ch, '?')} ({why}), ex. « {e['example']} »")
     for b in bad:
         fail(f"émoji dans les catalogues affichés : {b}")
-    # Littéraux du code d'ui-egui et de photocraft-web (hors tests).
+    # Littéraux du code d'ui-egui et de evophoto-web (hors tests).
     code_bad = code_literal_audit(stack)
     strict = os.environ.get("EVORA_GATE_CODE_EMOJI", "report") == "block"
     for b in code_bad:
@@ -325,7 +331,7 @@ def gate_emoji(entries) -> None:
     for ch, e, font, why in rows:
         verdict = why or ("non émoji, police d'icônes d'egui avant les polices CJK" if font in EMOJI_FONTS else "texte")
         summary.append(f"| {ch} | U+{ord(ch):04X} | {e['count']} | {len(e['langs'])} | {font or '—'} | {verdict} |")
-    summary.append(f"\nLittéraux du code (ui-egui, photocraft-web, hors tests) : {len(code_bad)} refus ({'bloquant' if strict else 'mesure'}).\n")
+    summary.append(f"\nLittéraux du code (ui-egui, evophoto-web, hors tests) : {len(code_bad)} refus ({'bloquant' if strict else 'mesure'}).\n")
     for b in code_bad:
         summary.append(f"- {b}")
     summary.append("")
@@ -380,7 +386,7 @@ def rust_literals(src: str):
 
 def code_literal_audit(stack) -> list[str]:
     found = []
-    files = sorted(glob.glob("crates/ui-egui/src/**/*.rs", recursive=True)) + sorted(glob.glob("apps/photocraft-web/src/*.rs"))
+    files = sorted(glob.glob("crates/ui-egui/src/**/*.rs", recursive=True)) + sorted(glob.glob("apps/evophoto-web/src/*.rs"))
     for f in files:
         if f.endswith("_tests.rs") or f.endswith("/tests.rs") or "/tests/" in f:
             continue

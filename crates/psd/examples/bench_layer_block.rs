@@ -1,6 +1,6 @@
 //! Serialization of one 24 MP raw RGB layer in Lr16/Lr32, without compression or disk I/O.
-//! Run with `cargo run --release -p photocraft-psd --example bench_layer_block`.
-use photocraft_psd::*;
+//! Run with `cargo run --release -p evophoto-psd --example bench_layer_block`.
+use evophoto_psd::*;
 use std::hint::black_box;
 use std::time::Instant;
 

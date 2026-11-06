@@ -342,7 +342,7 @@ pub(crate) fn orientation(v: Option<u32>) -> u16 {
 /// A human-readable listing of every IFD and entry (debugging aid).
 pub(crate) fn dump(data: &[u8]) -> String {
     use std::fmt::Write;
-    // Caps so a crafted TIFF (many entries aliasing one large ASCII value) cannot expand a
+    // Caps so a built TIFF (many entries aliasing one large ASCII value) cannot expand a
     // small diagnostic input into a multi-gigabyte String.
     const MAX_ASCII_PREVIEW: usize = 256;
     const MAX_OUTPUT: usize = 1 << 20;

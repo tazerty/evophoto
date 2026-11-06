@@ -1,4 +1,4 @@
-// Test de fumée Evora du build web de Lumbra (fork tazerty/photocraft).
+// Test de fumée Evora du build web de Lumbra (fork tazerty/evophoto).
 //
 // Usage : node evora/ci/smoke.mjs <dossier du site> <csp-hashes.txt> <rapport.json>
 //
@@ -10,7 +10,7 @@
 // (--remote-debugging-pipe) : aucune dépendance npm, aucune action tierce.
 //
 // Réussite : le document du moteur s'exécute dans l'iframe sur l'origine A, eframe démarre (le
-// voile de chargement #photocraft_loading est retiré), le canvas #photocraft_canvas existe et a une
+// voile de chargement #evophoto_loading est retiré), le canvas #evophoto_canvas existe et a une
 // taille, et aucune erreur de page n'est relevée (exception, console.error, entrée de journal de
 // niveau erreur, violation CSP, plantage de cible) pendant le démarrage et les 3 s qui suivent.
 // Seule exception admise et comptée : le 404 de fonts/manifest.txt, que l'amont traite comme le cas
@@ -224,7 +224,7 @@ function cdp(proc) {
 
 const READY_PROBE = `(() => {
   const mark = () => {
-    if (window.__evoraReady === undefined && document.readyState !== 'loading' && !document.getElementById('photocraft_loading')) {
+    if (window.__evoraReady === undefined && document.readyState !== 'loading' && !document.getElementById('evophoto_loading')) {
       window.__evoraReady = performance.now();
     }
   };
@@ -233,8 +233,8 @@ const READY_PROBE = `(() => {
 })();`;
 
 const STATE = `JSON.stringify((() => {
-  const c = document.getElementById('photocraft_canvas');
-  const l = document.getElementById('photocraft_loading');
+  const c = document.getElementById('evophoto_canvas');
+  const l = document.getElementById('evophoto_loading');
   return { ready: window.__evoraReady ?? null, now: performance.now(), readyState: document.readyState, origin: location.origin,
     parent: (location.ancestorOrigins && location.ancestorOrigins[0]) || null, title: document.title,
     loading: l ? l.textContent.trim().slice(0, 300) : null,
@@ -244,7 +244,7 @@ const STATE = `JSON.stringify((() => {
 // Stockage du document moteur : clés localStorage et bases IndexedDB (E3, E5).
 const STORAGE = `(async () => {
   const keys = Object.keys(localStorage);
-  const prefsKey = keys.find((k) => k.endsWith('photocraft.preferences')) || null;
+  const prefsKey = keys.find((k) => k.endsWith('evophoto.preferences')) || null;
   let language = null;
   let theme = null;
   try {
@@ -492,15 +492,15 @@ async function main() {
   if (EXPECT_LANG && st.language !== EXPECT_LANG) problems.push(`langue imposée non appliquée : préférence ${st.language}, attendu ${EXPECT_LANG}`);
   if (URL_NS && !bench) {
     // Hors pont : noms de l'amont, le ?storageNs= de l'URL n'a aucun effet.
-    if (!st.keys.includes('photocraft.preferences')) problems.push(`hors pont : préférences absentes sous le nom de l'amont (clés : ${st.keys.join(', ')})`);
+    if (!st.keys.includes('evophoto.preferences')) problems.push(`hors pont : préférences absentes sous le nom de l'amont (clés : ${st.keys.join(', ')})`);
     const fromUrl = st.keys.filter((k) => k.startsWith(`${URL_NS}:`)).concat((st.dbs || []).filter((d) => d.startsWith(`${URL_NS}:`)));
     if (fromUrl.length) problems.push(`hors pont : l'espace de noms de l'URL a été appliqué (${fromUrl.join(', ')})`);
-    if (st.dbs && !st.dbs.includes('photocraft.presets')) problems.push(`hors pont : base des préréglages absente sous le nom de l'amont (bases : ${st.dbs.join(', ')})`);
+    if (st.dbs && !st.dbs.includes('evophoto.presets')) problems.push(`hors pont : base des préréglages absente sous le nom de l'amont (bases : ${st.dbs.join(', ')})`);
   }
   if (OLD_PURGE && URL_NS && !bench) {
     const after = report.oldPurge;
     if (!after) problems.push('hors pont : contrôle de l\'ancienne purge non exécuté');
-    else if (!after.keys.includes('photocraft.preferences') || (after.dbs && !after.dbs.includes('photocraft.presets'))) {
+    else if (!after.keys.includes('evophoto.preferences') || (after.dbs && !after.dbs.includes('evophoto.presets'))) {
       problems.push(`hors pont : l'ancien message de purge (sans pont) a encore effacé le stockage : ${JSON.stringify(after)}`);
     }
   }

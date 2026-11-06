@@ -6,11 +6,11 @@
 use egui::{Align2, Rect, RichText, Sense, Stroke, StrokeKind, pos2, vec2};
 use serde_json::{Map, Value, json};
 
-use photocraft_engine::prefs::UnitsAndRulers;
+use evophoto_engine::prefs::UnitsAndRulers;
 
 use crate::theme::Tokens;
 use crate::{icons, widgets};
-use photocraft_engine::document_preset_cmds::DocumentSettings;
+use evophoto_engine::document_preset_cmds::DocumentSettings;
 
 /// A blank-document preset: (name, width px, height px, ppi).
 pub type Preset = (&'static str, u32, u32, f32);
@@ -232,8 +232,8 @@ pub fn apply_preset(f: &mut Map<String, Value>, p: &Preset, units: &UnitsAndRule
 }
 
 /// The colour mode of the dialog's `mode` value.
-fn color_mode_of(mode: &str) -> Option<photocraft_color::ColorMode> {
-    use photocraft_color::ColorMode;
+fn color_mode_of(mode: &str) -> Option<evophoto_color::ColorMode> {
+    use evophoto_color::ColorMode;
     match mode {
         "rgb" => Some(ColorMode::Rgb),
         "gray" | "grayscale" => Some(ColorMode::Grayscale),
@@ -247,13 +247,13 @@ fn color_mode_of(mode: &str) -> Option<photocraft_color::ColorMode> {
 /// its profile's description), then the built-in and installed profiles of that space, as
 /// `file.new`'s `profile` values (an id or a path) with their labels.
 fn profile_options(
-    space: Option<photocraft_cms::ColorSpace>,
+    space: Option<evophoto_cms::ColorSpace>,
     working: &str,
-    installed: &[photocraft_engine::installed_profiles::InstalledProfile],
+    installed: &[evophoto_engine::installed_profiles::InstalledProfile],
 ) -> Vec<(String, String)> {
     let mut v = vec![("working".to_string(), crate::i18n::fmt(tl!("Working: {working}"), &[("working", working)]))];
     let Some(space) = space else { return v };
-    v.extend(photocraft_cms::Builtin::ALL.iter().filter(|b| b.profile().color_space == space).map(|b| (b.id().to_string(), b.description().to_string())));
+    v.extend(evophoto_cms::Builtin::ALL.iter().filter(|b| b.profile().color_space == space).map(|b| (b.id().to_string(), b.description().to_string())));
     v.extend(installed.iter().filter(|i| i.is_destination() && i.color_space == space).map(|i| (i.path.clone(), i.description.clone())));
     v
 }
@@ -319,7 +319,7 @@ const SWATCH: f32 = 22.0;
 
 /// The colour the new document's background starts with: white, black, the captured or current
 /// toolbox background colour, or a custom `"#rrggbb"`; `None` for Transparent.
-fn background_rgb(app: &crate::PhotocraftApp, f: &Map<String, Value>) -> Option<[f32; 3]> {
+fn background_rgb(app: &crate::EvoPhotoApp, f: &Map<String, Value>) -> Option<[f32; 3]> {
     let bg = get_s(f, "background", "white");
     match bg.as_str() {
         "transparent" => None,
@@ -338,7 +338,7 @@ fn background_rgb(app: &crate::PhotocraftApp, f: &Map<String, Value>) -> Option<
 }
 
 /// Restore a snapshot without replacing the new document's name or its clipboard offer.
-pub fn apply_saved_preset(f: &mut Map<String, Value>, preset: &photocraft_engine::document_preset_cmds::DocumentPreset) {
+pub fn apply_saved_preset(f: &mut Map<String, Value>, preset: &evophoto_engine::document_preset_cmds::DocumentPreset) {
     apply_settings(f, &preset.settings);
     f.insert("__savedPreset".into(), json!(preset.name));
 }
@@ -437,7 +437,7 @@ fn recent_cards(f: &Map<String, Value>, recent: &[DocumentSettings], units: &Uni
     cards
 }
 
-fn saved_presets(app: &mut crate::PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Value>) -> bool {
+fn saved_presets(app: &mut crate::EvoPhotoApp, ui: &mut egui::Ui, f: &mut Map<String, Value>) -> bool {
     let presets = app.session.presets.documents.clone();
     if presets.is_empty() {
         ui.label(tl!("No saved presets yet."));
@@ -479,7 +479,7 @@ fn saved_presets(app: &mut crate::PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<
     create
 }
 
-fn save_preset(app: &mut crate::PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Value>) {
+fn save_preset(app: &mut crate::EvoPhotoApp, ui: &mut egui::Ui, f: &mut Map<String, Value>) {
     ui.add_space(12.0);
     if f.get("__savingPreset").and_then(Value::as_bool) != Some(true) {
         if widgets::secondary_button(ui, tl!("Save Preset…"), 240.0).clicked() {
@@ -525,7 +525,7 @@ fn save_preset(app: &mut crate::PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<St
 
 /// Returns whether a preset double-click requested creation, after applying its settings.
 /// A recent category click can make egui count the preset double-click as a triple-click.
-pub fn body(app: &mut crate::PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Value>) -> bool {
+pub fn body(app: &mut crate::EvoPhotoApp, ui: &mut egui::Ui, f: &mut Map<String, Value>) -> bool {
     let t = Tokens::get(ui.ctx());
     // Headings and field labels are static, as in Photoshop: no text cursor over them, no
     // drag-selecting them (#8331). Text fields keep theirs.
@@ -748,9 +748,9 @@ pub fn body(app: &mut crate::PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<Strin
             small_label(ui, tl!("Color Profile"));
             {
                 let mode = get_s(f, "mode", "rgb");
-                let space = color_mode_of(&mode).map(photocraft_engine::color_cmds::mode_space);
+                let space = color_mode_of(&mode).map(evophoto_engine::color_cmds::mode_space);
                 let working = color_mode_of(&mode).map(|m| app.session.color.working(m).description.clone()).unwrap_or_default();
-                let installed = photocraft_engine::installed_profiles::installed();
+                let installed = evophoto_engine::installed_profiles::installed();
                 let opts = profile_options(space, &working, &installed);
                 let mut profile = get_s(f, "profile", "working");
                 if !opts.iter().any(|(v, _)| *v == profile) {
@@ -835,14 +835,14 @@ mod tests {
     /// #321: New Document offers the working space and the other profiles of the mode's space.
     #[test]
     fn color_profile_menu_lists_the_profiles_of_the_modes_space() {
-        use photocraft_cms::{Builtin, ColorSpace, ProfileClass};
-        use photocraft_engine::installed_profiles::InstalledProfile;
+        use evophoto_cms::{Builtin, ColorSpace, ProfileClass};
+        use evophoto_engine::installed_profiles::InstalledProfile;
         let installed = [
             InstalledProfile { path: "press.icc".into(), description: "Press".into(), class: ProfileClass::Output, color_space: ColorSpace::Cmyk },
             InstalledProfile { path: "panel.icc".into(), description: "Panel".into(), class: ProfileClass::Display, color_space: ColorSpace::Rgb },
         ];
         let values = |mode: &str| {
-            profile_options(color_mode_of(mode).map(photocraft_engine::color_cmds::mode_space), "sRGB", &installed)
+            profile_options(color_mode_of(mode).map(evophoto_engine::color_cmds::mode_space), "sRGB", &installed)
                 .into_iter()
                 .map(|(v, _)| v)
                 .collect::<Vec<_>>()
@@ -857,7 +857,7 @@ mod tests {
         // Every entry is one `file.new` takes for that mode.
         for mode in ["rgb", "gray", "cmyk", "lab"] {
             for v in values(mode).into_iter().filter(|v| !v.ends_with(".icc")) {
-                let mut s = photocraft_engine::Session::new();
+                let mut s = evophoto_engine::Session::new();
                 s.execute("file.new", json!({"width": 2, "height": 2, "mode": mode, "profile": v})).unwrap_or_else(|e| panic!("{mode} {v}: {e}"));
             }
         }
@@ -866,14 +866,14 @@ mod tests {
     /// A saved preset replaces the Color Profile picked before: its own, or the working space.
     #[test]
     fn applying_a_preset_replaces_the_picked_profile() {
-        let mut s = photocraft_engine::Session::new();
+        let mut s = evophoto_engine::Session::new();
         let base = json!({"width": 8, "height": 8, "mode": "cmyk", "unit": "px"});
         s.execute("document.presets.save", json!({"name": "Plain", "settings": base})).unwrap();
         let mut press = base.clone();
         press["profile"] = json!("coated-cmyk");
         s.execute("document.presets.save", json!({"name": "Press", "settings": press})).unwrap();
         let mut f = Map::new();
-        f.insert("profile".into(), json!(photocraft_cms::Builtin::AdobeRgbCompat.id()));
+        f.insert("profile".into(), json!(evophoto_cms::Builtin::AdobeRgbCompat.id()));
         apply_saved_preset(&mut f, &s.presets.documents[0]);
         assert!(!f.contains_key("profile"), "{f:?}");
         assert!(s.execute("file.new", command_params(&f)).is_ok());
@@ -914,20 +914,20 @@ mod tests {
     #[test]
     fn tiny_size_in_inches_is_not_changed_by_showing_it() {
         use egui_kittest::Harness;
-        let app = crate::PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let app = crate::EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         let mut f = crate::state::UiState::new_document_fields();
         for (k, v) in [("width", json!(1)), ("height", json!(1)), ("resolution", json!(300.0)), ("__unit", json!("in"))] {
             f.insert(k.into(), v);
         }
         let mut h = Harness::builder().with_size(vec2(1200.0, 800.0)).build_ui_state(
-            |ui, (app, f): &mut (crate::PhotocraftApp, Map<String, Value>)| {
+            |ui, (app, f): &mut (crate::EvoPhotoApp, Map<String, Value>)| {
                 if ui.ctx().fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                     body(app, ui, f);
                 }
             },
             (app, f),
         );
-        crate::PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+        crate::EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         h.run_steps(3);
         let p = command_params(&h.state().1);
         assert_eq!((p["width"].as_u64(), p["height"].as_u64()), (Some(1), Some(1)));
@@ -1063,7 +1063,7 @@ mod tests {
     #[test]
     fn clipboard_preset_comes_first_and_is_selected() {
         // Nothing on the clipboard: the dialog opens as before.
-        let mut app = crate::PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = crate::EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         let f = app.new_document_fields();
         assert_eq!(f, crate::state::UiState::new_document_fields());
         assert!(clipboard_preset(&f).is_none());
@@ -1089,7 +1089,7 @@ mod tests {
         assert_eq!(p["height"], 3508);
         assert_eq!(p["resolution"], 300.0);
         assert!(p.get("__preset").is_none() && p.get("__unit").is_none());
-        let mut s = photocraft_engine::Session::new();
+        let mut s = evophoto_engine::Session::new();
         s.execute("file.new", p).unwrap();
         let d = &s.active().unwrap().doc;
         assert_eq!((d.size.width, d.size.height, d.resolution_dpi), (2480, 3508, 300.0));
@@ -1097,7 +1097,7 @@ mod tests {
 
     #[test]
     fn saved_selection_restores_all_settings_but_keeps_the_document_name() {
-        let mut session = photocraft_engine::Session::new();
+        let mut session = evophoto_engine::Session::new();
         session
             .execute(
                 "document.presets.save",
@@ -1130,14 +1130,14 @@ mod tests {
     /// The real dialog (#254): a typed size must reach `file.new`, however it is confirmed.
     mod dialog {
         use super::super::{CATEGORIES, apply_preset};
-        use crate::PhotocraftApp;
+        use crate::EvoPhotoApp;
         use crate::state::{DialogKind, UiState};
         use egui::accesskit::Role;
         use egui_kittest::{Harness, kittest::Queryable};
         use std::sync::{Arc, Mutex};
 
         /// The real preference services, backed by an in-memory store shared across app restarts.
-        fn harness_with_store(store: &Arc<Mutex<Option<String>>>) -> Harness<'static, PhotocraftApp> {
+        fn harness_with_store(store: &Arc<Mutex<Option<String>>>) -> Harness<'static, EvoPhotoApp> {
             let (read, write) = (store.clone(), store.clone());
             let services = crate::Services {
                 load_prefs: Some(Box::new(move || read.lock().unwrap().clone())),
@@ -1147,7 +1147,7 @@ mod tests {
                 })),
                 ..Default::default()
             };
-            let app = PhotocraftApp::new(photocraft_engine::Session::new(), services);
+            let app = EvoPhotoApp::new(evophoto_engine::Session::new(), services);
             let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_ui_state(
                 |ui, app| {
                     crate::prefs_ui::tick(app, ui.ctx());
@@ -1155,7 +1155,7 @@ mod tests {
                 },
                 app,
             );
-            PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+            EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
             h.state_mut().ui.open_dialog(DialogKind::NewDocument, UiState::new_document_fields());
             h.run_steps(3);
             h
@@ -1185,7 +1185,7 @@ mod tests {
             assert_eq!(bg, "#336699");
             crate::dialogs::confirm(h.state_mut(), nd).unwrap();
             let doc = &h.state().session.active().unwrap().doc;
-            let px = photocraft_compose::flatten(doc).px[0];
+            let px = evophoto_compose::flatten(doc).px[0];
             assert!((px[0] * 255.0 - 51.0).abs() < 1.0 && (px[1] * 255.0 - 102.0).abs() < 1.0 && (px[2] * 255.0 - 153.0).abs() < 1.0, "{px:?}");
         }
 
@@ -1203,7 +1203,7 @@ mod tests {
             assert!((c[0] * 255.0 - 51.0).abs() < 1.0 && (c[1] * 255.0 - 102.0).abs() < 1.0 && (c[2] * 255.0 - 153.0).abs() < 1.0, "{c:?}");
         }
 
-        fn name_preset(h: &mut Harness<'static, PhotocraftApp>, name: &str) {
+        fn name_preset(h: &mut Harness<'static, EvoPhotoApp>, name: &str) {
             h.get_by_label("Save Preset…").click();
             h.run_steps(2);
             h.get_by_role_and_label(Role::TextInput, "Preset Name").click();
@@ -1284,19 +1284,19 @@ mod tests {
             assert_eq!(h.state().session.presets.documents.len(), 1);
         }
 
-        fn harness() -> Harness<'static, PhotocraftApp> {
-            let app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        fn harness() -> Harness<'static, EvoPhotoApp> {
+            let app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
             let mut h = Harness::builder()
                 .with_size(egui::vec2(1400.0, 900.0))
                 .with_step_dt(1.0 / 60.0)
                 .build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app);
-            PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+            EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
             h.state_mut().ui.open_dialog(DialogKind::NewDocument, UiState::new_document_fields());
             h.run_steps(3);
             h
         }
 
-        fn click_at(h: &mut Harness<'static, PhotocraftApp>, at: egui::Pos2) {
+        fn click_at(h: &mut Harness<'static, EvoPhotoApp>, at: egui::Pos2) {
             h.hover_at(at);
             h.run_steps(1);
             h.drag_at(at);
@@ -1306,7 +1306,7 @@ mod tests {
         }
 
         /// A finger tap at `at`. Events for one phase share a frame (`input_mut`), because `Harness::step` would otherwise run one frame per queued event and drop Touch before the click release (so `second_click` would not see touch).
-        fn touch_tap_at(h: &mut Harness<'static, PhotocraftApp>, at: egui::Pos2) {
+        fn touch_tap_at(h: &mut Harness<'static, EvoPhotoApp>, at: egui::Pos2) {
             let touch = |phase| egui::Event::Touch { device_id: egui::TouchDeviceId(1), id: egui::TouchId(1), phase, pos: at, force: None };
             let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
             h.input_mut().events.extend([egui::Event::PointerMoved(at), touch(egui::TouchPhase::Start), button(true)]);
@@ -1317,12 +1317,12 @@ mod tests {
         }
 
         /// The Width (0), Height (1) and Resolution (2) fields.
-        fn field(h: &Harness<'static, PhotocraftApp>, i: usize) -> egui::Rect {
+        fn field(h: &Harness<'static, EvoPhotoApp>, i: usize) -> egui::Rect {
             h.query_all_by_role(Role::SpinButton).nth(i).map(|n| n.rect()).expect("a size field")
         }
 
         /// Click into field `i` (which selects its text) and type `text`, as a user does.
-        fn type_into(h: &mut Harness<'static, PhotocraftApp>, i: usize, text: &str) {
+        fn type_into(h: &mut Harness<'static, EvoPhotoApp>, i: usize, text: &str) {
             let r = field(h, i);
             click_at(h, r.center());
             for c in text.chars() {
@@ -1331,28 +1331,28 @@ mod tests {
             }
         }
 
-        fn fields(h: &Harness<'static, PhotocraftApp>) -> serde_json::Map<String, serde_json::Value> {
+        fn fields(h: &Harness<'static, EvoPhotoApp>) -> serde_json::Map<String, serde_json::Value> {
             h.state().ui.dialogs.first().map(|d| d.fields.clone()).expect("the dialog is open")
         }
 
-        fn set_fields(h: &mut Harness<'static, PhotocraftApp>, f: serde_json::Map<String, serde_json::Value>) {
+        fn set_fields(h: &mut Harness<'static, EvoPhotoApp>, f: serde_json::Map<String, serde_json::Value>) {
             h.state_mut().ui.dialogs[0].fields = f;
             h.run_steps(2);
         }
 
-        fn enter(h: &mut Harness<'static, PhotocraftApp>) {
+        fn enter(h: &mut Harness<'static, EvoPhotoApp>) {
             h.key_press(egui::Key::Enter);
             h.run_steps(3);
         }
 
-        fn created(h: &Harness<'static, PhotocraftApp>) -> (u32, u32, f32) {
+        fn created(h: &Harness<'static, EvoPhotoApp>) -> (u32, u32, f32) {
             assert!(h.state().ui.dialogs.is_empty(), "the dialog closed");
             let d = &h.state().session.active().expect("a new document").doc;
             (d.size.width, d.size.height, d.resolution_dpi)
         }
 
         /// Preset cards paint their titles directly, without an accessibility label.
-        fn preset_title_at(h: &Harness<'static, PhotocraftApp>, title: &str) -> egui::Pos2 {
+        fn preset_title_at(h: &Harness<'static, EvoPhotoApp>, title: &str) -> egui::Pos2 {
             fn find(shape: &egui::Shape, title: &str) -> Option<egui::Pos2> {
                 match shape {
                     egui::Shape::Text(text) if text.galley.job.text == title => Some(text.visual_bounding_rect().center()),
@@ -1363,7 +1363,7 @@ mod tests {
             h.output().shapes.iter().find_map(|shape| find(&shape.shape, title)).expect("visible preset title")
         }
 
-        fn second_click_creates_once(h: &mut Harness<'static, PhotocraftApp>, at: egui::Pos2) {
+        fn second_click_creates_once(h: &mut Harness<'static, EvoPhotoApp>, at: egui::Pos2) {
             assert!(h.state().session.documents().is_empty(), "the first click only selects the preset");
             assert_eq!(h.state().ui.dialogs.len(), 1);
             // Two real pointer press/release pairs within egui's double-click interval.
@@ -1374,14 +1374,14 @@ mod tests {
             assert!(h.state().ui.views[0].fit_pending, "the normal Create path fits the new document");
         }
 
-        fn assert_pixel(h: &mut Harness<'static, PhotocraftApp>, expected: [f64; 4]) {
+        fn assert_pixel(h: &mut Harness<'static, EvoPhotoApp>, expected: [f64; 4]) {
             let pixel = h.state_mut().session.execute("document.pixel", serde_json::json!({"x":0,"y":0})).unwrap();
             for (actual, expected) in pixel.as_array().unwrap().iter().zip(expected) {
                 assert!((actual.as_f64().unwrap() - expected).abs() < 0.001, "background pixel: {pixel}");
             }
         }
 
-        fn cursor_over(h: &mut Harness<'static, PhotocraftApp>, at: egui::Pos2) -> egui::CursorIcon {
+        fn cursor_over(h: &mut Harness<'static, EvoPhotoApp>, at: egui::Pos2) -> egui::CursorIcon {
             h.hover_at(at);
             h.run_steps(2);
             h.output().platform_output.cursor_icon
@@ -1392,7 +1392,7 @@ mod tests {
         fn labels_show_the_arrow_and_only_text_fields_the_text_cursor() {
             use egui_kittest::kittest::NodeT;
             let mut h = harness();
-            let label_at = |h: &Harness<'static, PhotocraftApp>, text: &str| {
+            let label_at = |h: &Harness<'static, EvoPhotoApp>, text: &str| {
                 h.query_all_by_label(text)
                     .find(|n| n.accesskit_node().role() == Role::Label)
                     .map(|n| n.rect().center())
@@ -1432,7 +1432,7 @@ mod tests {
             assert_eq!(created(&h), (1200, 1800, 300.0));
             let doc = &h.state().session.active().unwrap().doc;
             assert_eq!(doc.name, "Portrait proof");
-            assert_eq!((doc.mode, doc.depth), (photocraft_doc::ColorMode::Cmyk, photocraft_doc::SampleType::U16));
+            assert_eq!((doc.mode, doc.depth), (evophoto_doc::ColorMode::Cmyk, evophoto_doc::SampleType::U16));
             assert_pixel(&mut h, [0.0; 4]);
         }
 
@@ -1482,7 +1482,7 @@ mod tests {
             second_click_creates_once(&mut h, at);
             assert_eq!(created(&h), (37, 23, 72.0));
             let doc = &h.state().session.active().unwrap().doc;
-            assert_eq!((doc.mode, doc.depth), (photocraft_doc::ColorMode::Grayscale, photocraft_doc::SampleType::U8));
+            assert_eq!((doc.mode, doc.depth), (evophoto_doc::ColorMode::Grayscale, evophoto_doc::SampleType::U8));
             assert_pixel(&mut h, [1.0; 4]);
         }
 
@@ -1513,7 +1513,7 @@ mod tests {
             assert_eq!(created(&h), (48, 32, 254.0));
             let doc = &h.state().session.active().unwrap().doc;
             assert_eq!(doc.name, "Current document name");
-            assert_eq!((doc.mode, doc.depth), (photocraft_doc::ColorMode::Rgb, photocraft_doc::SampleType::F32));
+            assert_eq!((doc.mode, doc.depth), (evophoto_doc::ColorMode::Rgb, evophoto_doc::SampleType::F32));
             assert_pixel(&mut h, [0.125, 0.375, 0.625, 1.0]);
         }
 

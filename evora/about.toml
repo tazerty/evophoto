@@ -1,5 +1,5 @@
-# cargo-about : licences des crates Rust embarquées dans le build web de Lumbra (fork Evora de
-# storytold/photocraft). Produit LICENSES/THIRD-PARTY-RUST.html dans l'artefact. Même liste de
+# cargo-about : licences des crates Rust embarquées dans le build web de Lumbra (moteur
+# tazerty/evophoto). Produit LICENSES/THIRD-PARTY-RUST.html dans l'artefact. Même liste de
 # licences que evora/deny.toml, dans l'ordre de préférence (la première qui satisfait l'expression
 # d'une crate est retenue).
 accepted = [

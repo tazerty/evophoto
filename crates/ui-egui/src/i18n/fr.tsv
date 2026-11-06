@@ -15,7 +15,7 @@
 # particular not the French localisation of Adobe Photoshop. Add entries the same way.
 # Conventions: menus are nouns (Fichier, Édition, Image ...), commands are infinitives (Ouvrir…,
 # Enregistrer sous…), sentence case. French typography: a no-break space (U+00A0) before
-# « : ; ? ! » and "%", and inside guillemets « … ». Product and technology names (PhotoCraft,
+# « : ; ? ! » and "%", and inside guillemets « … ». Product and technology names (EvoPhoto,
 # OpenType, Lab ...) stay as they are; RGB/CMYK read RVB/CMJN; the trailing "…" of
 # dialog commands is kept.
 
@@ -1335,7 +1335,7 @@
 	Lumbra	Lumbra
 	Lumbra Manages Colors	Lumbra gère les couleurs
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — un éditeur d'images natif et libre, écrit en Rust.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	Basé sur PhotoCraft, logiciel libre (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Basé sur EvoPhoto, logiciel libre (MIT OR Apache-2.0).
 	Pin Depth:	Profondeur de l'épingle :
 	Pixel Length:	Longueur en pixels :
 	Pixels/Centimeter	Pixels/centimètre
@@ -2769,7 +2769,7 @@ cameraRaw	Blending	Fusion
 	Use tablet pressure to change pen width	Utiliser la pression de la tablette pour modifier la largeur de la plume
 
 
-# About ▸ Contributors / Models (credits, craftrules standards/contributors.md)
+# About ▸ Contributors / Models (credits, evorules standards/contributors.md)
 	About	À propos
 	Contributors	Contributeurs
 	Models	Modèles
@@ -3243,7 +3243,7 @@ curves	Smooth	Lisser
 	Sent to {printer}	Envoyé à {printer}
 	set in Print Settings…	défini dans les paramètres d’impression…
 	ICO is limited to 256 × 256 pixels	Le format ICO est limité à 256 × 256 pixels
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	Rechercher des mises à jour…
 	Lumbra Updates	Mises à jour de Lumbra
 	Checking for updates…	Recherche de mises à jour…
@@ -3934,7 +3934,7 @@ curves	Smooth	Lisser
 	Multiple Flames One Direction	Plusieurs flammes dans une direction
 	Multiple Flames Path Directions	Plusieurs flammes selon les directions du tracé
 	Multiple Flames Various Length	Plusieurs flammes de longueurs variées
-	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run PhotoCraft under XWayland with `WAYLAND_DISPLAY= photocraft`.	Le glisser-déposer natif de fichiers n'est pas encore pris en charge sous Wayland. Utilisez Fichier › Ouvrir, ou lancez PhotoCraft sous XWayland avec `WAYLAND_DISPLAY= photocraft`.
+	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run EvoPhoto under XWayland with `WAYLAND_DISPLAY= evophoto`.	Le glisser-déposer natif de fichiers n'est pas encore pris en charge sous Wayland. Utilisez Fichier › Ouvrir, ou lancez EvoPhoto sous XWayland avec `WAYLAND_DISPLAY= evophoto`.
 	Neon Glow	Lueur néon
 	Neutralize	Neutraliser
 	New Brush Preset	Nouveau préréglage de pinceau
@@ -4054,7 +4054,7 @@ curves	Smooth	Lisser
 	Push Left	Pixels poussés vers la gauche
 	Pyramids	Pyramides
 	Quit	Quitter
-	Quit PhotoCraft	Quitter PhotoCraft
+	Quit EvoPhoto	Quitter EvoPhoto
 	Quit {app}	Quitter {app}
 	Radial Blur	Flou radial
 	Radius X	Rayon X

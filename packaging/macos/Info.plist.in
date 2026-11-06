@@ -33,13 +33,13 @@
     <string>vi</string>
   </array>
   <key>CFBundleDisplayName</key>
-  <string>PhotoCraft</string>
+  <string>EvoPhoto</string>
   <key>CFBundleName</key>
-  <string>PhotoCraft</string>
+  <string>EvoPhoto</string>
   <key>CFBundleExecutable</key>
-  <string>PhotoCraft</string>
+  <string>EvoPhoto</string>
   <key>CFBundleIdentifier</key>
-  <string>ai.storyteller.photocraft</string>
+  <string>ai.storyteller.evophoto</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
@@ -50,12 +50,12 @@
   <string>@SHORT_VERSION@</string>
   <key>CFBundleVersion</key>
   <string>@SHORT_VERSION@</string>
-  <key>PhotoCraftVersion</key>
+  <key>EvoPhotoVersion</key>
   <string>@VERSION@</string>
-  <key>PhotoCraftBuildCommit</key>
+  <key>EvoPhotoBuildCommit</key>
   <string>@BUILD_SHA@</string>
   <key>CFBundleIconFile</key>
-  <string>PhotoCraft</string>
+  <string>EvoPhoto</string>
   <key>LSApplicationCategoryType</key>
   <string>public.app-category.graphics-design</string>
   <!-- Must match MACOSX_DEPLOYMENT_TARGET in package.sh. Big Sur is the first release on
@@ -69,29 +69,29 @@
   <key>NSRequiresAquaSystemAppearance</key>
   <false/>
   <key>NSHumanReadableCopyright</key>
-  <string>Copyright © the PhotoCraft authors. MIT OR Apache-2.0.</string>
+  <string>Copyright © the EvoPhoto authors. MIT OR Apache-2.0.</string>
 
-  <!-- PhotoCraft's own format. -->
+  <!-- EvoPhoto's own format. -->
   <key>UTExportedTypeDeclarations</key>
   <array>
     <dict>
       <key>UTTypeIdentifier</key>
-      <string>ai.storyteller.photocraft.document</string>
+      <string>ai.storyteller.evophoto.document</string>
       <key>UTTypeDescription</key>
-      <string>PhotoCraft Document</string>
+      <string>EvoPhoto Document</string>
       <key>UTTypeConformsTo</key>
       <array>
         <string>public.data</string>
         <string>public.image</string>
       </array>
       <key>UTTypeIconFile</key>
-      <string>PhotoCraft</string>
+      <string>EvoPhoto</string>
       <key>UTTypeTagSpecification</key>
       <dict>
         <key>public.filename-extension</key>
-        <array><string>pcraft</string></array>
+        <array><string>evophoto</string></array>
         <key>public.mime-type</key>
-        <array><string>application/x-photocraft</string></array>
+        <array><string>application/x-evophoto</string></array>
       </dict>
     </dict>
   </array>
@@ -100,7 +100,7 @@
   <array>
     <dict>
       <key>UTTypeIdentifier</key>
-      <string>ai.storyteller.photocraft.ora</string>
+      <string>ai.storyteller.evophoto.ora</string>
       <key>UTTypeDescription</key>
       <string>OpenRaster Image</string>
       <key>UTTypeConformsTo</key>
@@ -115,7 +115,7 @@
     </dict>
     <dict>
       <key>UTTypeIdentifier</key>
-      <string>ai.storyteller.photocraft.kra</string>
+      <string>ai.storyteller.evophoto.kra</string>
       <key>UTTypeDescription</key>
       <string>Krita Document</string>
       <key>UTTypeConformsTo</key>
@@ -130,7 +130,7 @@
     </dict>
     <dict>
       <key>UTTypeIdentifier</key>
-      <string>ai.storyteller.photocraft.pdn</string>
+      <string>ai.storyteller.evophoto.pdn</string>
       <key>UTTypeDescription</key>
       <string>Paint.NET Document</string>
       <key>UTTypeConformsTo</key>
@@ -161,7 +161,7 @@
     </dict>
     <dict>
       <key>UTTypeIdentifier</key>
-      <string>ai.storyteller.photocraft.qoi</string>
+      <string>ai.storyteller.evophoto.qoi</string>
       <key>UTTypeDescription</key>
       <string>QOI Image</string>
       <key>UTTypeConformsTo</key>
@@ -181,15 +181,15 @@
   <array>
     <dict>
       <key>CFBundleTypeName</key>
-      <string>PhotoCraft Document</string>
+      <string>EvoPhoto Document</string>
       <key>CFBundleTypeRole</key>
       <string>Editor</string>
       <key>LSHandlerRank</key>
       <string>Owner</string>
       <key>CFBundleTypeIconFile</key>
-      <string>PhotoCraft</string>
+      <string>EvoPhoto</string>
       <key>LSItemContentTypes</key>
-      <array><string>ai.storyteller.photocraft.document</string></array>
+      <array><string>ai.storyteller.evophoto.document</string></array>
     </dict>
     <dict>
       <key>CFBundleTypeName</key>
@@ -225,10 +225,10 @@
         <string>com.ilm.openexr-image</string>
         <string>public.radiance</string>
         <string>public.avif</string>
-        <string>ai.storyteller.photocraft.qoi</string>
-        <string>ai.storyteller.photocraft.pdn</string>
-        <string>ai.storyteller.photocraft.ora</string>
-        <string>ai.storyteller.photocraft.kra</string>
+        <string>ai.storyteller.evophoto.qoi</string>
+        <string>ai.storyteller.evophoto.pdn</string>
+        <string>ai.storyteller.evophoto.ora</string>
+        <string>ai.storyteller.evophoto.kra</string>
       </array>
     </dict>
   </array>

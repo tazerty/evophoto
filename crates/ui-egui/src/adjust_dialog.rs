@@ -10,7 +10,7 @@
 
 use serde_json::{Map, Value, json};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::adjust_editors::{self, EditorCx};
 use crate::tone::{self, HistSource};
 
@@ -18,8 +18,8 @@ const PREFIX: &str = "image.adjustments.";
 const CURVE_PICKER: &str = "__curvePicker";
 const CURVE_PICKER_BASE: &str = "__curvePickerBase";
 
-fn picker(value: Option<&Value>) -> Option<photocraft_engine::adjust_params::CurvesEyedropper> {
-    use photocraft_engine::adjust_params::CurvesEyedropper;
+fn picker(value: Option<&Value>) -> Option<evophoto_engine::adjust_params::CurvesEyedropper> {
+    use evophoto_engine::adjust_params::CurvesEyedropper;
     match value.and_then(Value::as_str) {
         Some("black") => Some(CurvesEyedropper::Black),
         Some("gray") => Some(CurvesEyedropper::NeutralGray),
@@ -28,9 +28,9 @@ fn picker(value: Option<&Value>) -> Option<photocraft_engine::adjust_params::Cur
     }
 }
 
-pub(crate) fn picker_supported(mode: photocraft_doc::ColorMode, eyedropper: photocraft_engine::adjust_params::CurvesEyedropper) -> bool {
-    use photocraft_engine::adjust_params::CurvesEyedropper;
-    mode == photocraft_doc::ColorMode::Rgb || (mode == photocraft_doc::ColorMode::Grayscale && eyedropper != CurvesEyedropper::NeutralGray)
+pub(crate) fn picker_supported(mode: evophoto_doc::ColorMode, eyedropper: evophoto_engine::adjust_params::CurvesEyedropper) -> bool {
+    use evophoto_engine::adjust_params::CurvesEyedropper;
+    mode == evophoto_doc::ColorMode::Rgb || (mode == evophoto_doc::ColorMode::Grayscale && eyedropper != CurvesEyedropper::NeutralGray)
 }
 
 /// The kind of an adjustment dialog with Set Black/Neutral Gray/White Point eyedroppers (Levels,
@@ -40,7 +40,7 @@ fn picker_kind(fields: &Map<String, Value>) -> Option<&str> {
 }
 
 /// Whether the top modal has a supported Levels or Curves eyedropper armed.
-pub fn picker_armed(app: &PhotocraftApp) -> bool {
+pub fn picker_armed(app: &EvoPhotoApp) -> bool {
     let Some(dialog) = app.ui.dialogs.last().filter(|d| picker_kind(&d.fields).is_some()) else { return false };
     let Some(eyedropper) = picker(dialog.fields.get(CURVE_PICKER)) else { return false };
     app.session.active().is_some_and(|s| picker_supported(s.doc.mode, eyedropper))
@@ -49,7 +49,7 @@ pub fn picker_armed(app: &PhotocraftApp) -> bool {
 /// Sample the committed merged document through the regular canvas sampler and update only the
 /// open Levels or Curves dialog. Returns true when an armed picker consumed the pointer event,
 /// even if the point was outside the image or transparent.
-pub fn sample_at(app: &mut PhotocraftApp, x: f64, y: f64) -> bool {
+pub fn sample_at(app: &mut EvoPhotoApp, x: f64, y: f64) -> bool {
     let Some((id, kind, eyedropper, base)) = app.ui.dialogs.last().and_then(|dialog| {
         let kind = picker_kind(&dialog.fields)?.to_string();
         let eyedropper = picker(dialog.fields.get(CURVE_PICKER))?;
@@ -63,8 +63,8 @@ pub fn sample_at(app: &mut PhotocraftApp, x: f64, y: f64) -> bool {
         return true;
     }
     let Some(sample) = crate::canvas::composite_color(app, x, y) else { return true };
-    let params = match photocraft_engine::adjust_params::adjustment_eyedropper(&kind, &base, eyedropper, sample, mode) {
-        Ok(adjustment) => photocraft_engine::adjust_params::to_params(&adjustment),
+    let params = match evophoto_engine::adjust_params::adjustment_eyedropper(&kind, &base, eyedropper, sample, mode) {
+        Ok(adjustment) => evophoto_engine::adjust_params::to_params(&adjustment),
         Err(error) => {
             app.ui.status = error.to_string();
             return true;
@@ -80,7 +80,7 @@ pub fn sample_at(app: &mut PhotocraftApp, x: f64, y: f64) -> bool {
 }
 
 /// Whether the top modal is the Curves dialog.
-pub fn curves_on_top(app: &PhotocraftApp) -> bool {
+pub fn curves_on_top(app: &EvoPhotoApp) -> bool {
     app.ui.dialogs.last().is_some_and(|d| d.fields.get("__adjust").and_then(Value::as_str) == Some("curves"))
 }
 
@@ -92,7 +92,7 @@ pub fn curves_on_top(app: &PhotocraftApp) -> bool {
 /// The pixel comes from the same merged composite as the eyedroppers. Returns true when Curves is
 /// on top: the click is the dialog's even when nothing is added (pencil curve, Lab or CMYK, a mask
 /// or saved channel target, outside the image, a full curve).
-pub fn add_point_at(app: &mut PhotocraftApp, ctx: &egui::Context, x: f64, y: f64, every_channel: bool) -> bool {
+pub fn add_point_at(app: &mut EvoPhotoApp, ctx: &egui::Context, x: f64, y: f64, every_channel: bool) -> bool {
     if !curves_on_top(app) {
         return false;
     }
@@ -101,7 +101,7 @@ pub fn add_point_at(app: &mut PhotocraftApp, ctx: &egui::Context, x: f64, y: f64
         return true;
     }
     let Some(mode) = app.session.active().map(|s| s.doc.mode) else { return true };
-    if !matches!(mode, photocraft_doc::ColorMode::Rgb | photocraft_doc::ColorMode::Grayscale) {
+    if !matches!(mode, evophoto_doc::ColorMode::Rgb | evophoto_doc::ColorMode::Grayscale) {
         app.ui.status = tl!("Unavailable in this color mode").into();
         return true;
     }
@@ -136,8 +136,8 @@ pub fn add_point_at(app: &mut PhotocraftApp, ctx: &egui::Context, x: f64, y: f64
         let input = (level.clamp(0.0, 1.0) * 255.0).round();
         let field = if key.is_empty() { "points" } else { key };
         let mut pts = adjust_editors::read_curve(&values, field);
-        let curve: Vec<_> = pts.iter().map(|q| photocraft_doc::adjust::CurvePoint { input: q[0] / 255.0, output: q[1] / 255.0 }).collect();
-        let lut = photocraft_compose::adjust::curve_lut(&curve);
+        let curve: Vec<_> = pts.iter().map(|q| evophoto_doc::adjust::CurvePoint { input: q[0] / 255.0, output: q[1] / 255.0 }).collect();
+        let lut = evophoto_compose::adjust::curve_lut(&curve);
         let at = (input / 255.0 * lut.len().saturating_sub(1) as f32).round() as usize;
         let Some(output) = lut.get(at).map(|o| (o * 255.0).round()) else { continue };
         let before = pts.len();
@@ -183,8 +183,8 @@ pub(crate) fn picker_button(ui: &mut egui::Ui, selected: bool, enabled: bool, to
     response
 }
 
-fn picker_controls(ui: &mut egui::Ui, fields: &mut Map<String, Value>, mode: photocraft_doc::ColorMode) {
-    use photocraft_engine::adjust_params::CurvesEyedropper;
+fn picker_controls(ui: &mut egui::Ui, fields: &mut Map<String, Value>, mode: evophoto_doc::ColorMode) {
+    use evophoto_engine::adjust_params::CurvesEyedropper;
     let current = picker(fields.get(CURVE_PICKER));
     let mut chosen = None;
     ui.horizontal(|ui| {
@@ -202,7 +202,7 @@ fn picker_controls(ui: &mut egui::Ui, fields: &mut Map<String, Value>, mode: pho
                 chosen = Some((id, eyedropper));
             }
         }
-        if !matches!(mode, photocraft_doc::ColorMode::Rgb | photocraft_doc::ColorMode::Grayscale) {
+        if !matches!(mode, evophoto_doc::ColorMode::Rgb | evophoto_doc::ColorMode::Grayscale) {
             ui.label(egui::RichText::new(tl!("Unavailable in this color mode")).color(tokens.text_faint).size(11.0));
         }
     });
@@ -236,7 +236,7 @@ pub fn resets(fields: &Map<String, Value>) -> bool {
 
 /// Alt+Cancel (Reset): engine defaults for the kind; Color Balance keeps Preserve Luminosity and
 /// shows Midtones (Photoshop 25.4). Dialog stays open.
-pub fn reset(app: &PhotocraftApp, ctx: &egui::Context, fields: &mut Map<String, Value>) {
+pub fn reset(app: &EvoPhotoApp, ctx: &egui::Context, fields: &mut Map<String, Value>) {
     if !owns(fields) {
         return;
     }
@@ -244,8 +244,8 @@ pub fn reset(app: &PhotocraftApp, ctx: &egui::Context, fields: &mut Map<String, 
     let mode = curve_mode(app, &kind);
     // Color Balance: Photoshop keeps the user's Preserve Luminosity across Reset.
     let preserve = if kind == "colorBalance" { fields.get("preserveLuminosity").cloned() } else { None };
-    let Ok(defaults) = photocraft_engine::adjust_params::default_for(&kind, mode) else { return };
-    let values = photocraft_engine::adjust_params::to_params(&defaults);
+    let Ok(defaults) = evophoto_engine::adjust_params::default_for(&kind, mode) else { return };
+    let values = evophoto_engine::adjust_params::to_params(&defaults);
     // Replace parameter keys; keep private `__` chrome (preview, command, …).
     fields.retain(|k, _| k.starts_with("__"));
     if let Value::Object(v) = values {
@@ -262,18 +262,18 @@ pub fn reset(app: &PhotocraftApp, ctx: &egui::Context, fields: &mut Map<String, 
 }
 
 /// Opens the dialog for `command` with the kind's neutral settings.
-pub fn open(app: &mut PhotocraftApp, command: &str) -> Option<u64> {
+pub fn open(app: &mut EvoPhotoApp, command: &str) -> Option<u64> {
     let kind = command.strip_prefix(PREFIX).filter(|k| adjust_editors::has_editor(k))?;
-    let spec = photocraft_engine::commands::find(command)?;
+    let spec = evophoto_engine::commands::find(command)?;
     let mode = curve_mode(app, kind);
-    let defaults = photocraft_engine::adjust_params::default_for(kind, mode).ok()?;
+    let defaults = evophoto_engine::adjust_params::default_for(kind, mode).ok()?;
     let mut fields = Map::new();
     fields.insert("__command".into(), json!(command));
     fields.insert("__label".into(), json!(spec.label));
     fields.insert("__adjust".into(), json!(kind));
     fields.insert("__filter".into(), json!(true));
     fields.insert("__preview".into(), json!(true));
-    if let Value::Object(p) = photocraft_engine::adjust_params::to_params(&defaults) {
+    if let Value::Object(p) = evophoto_engine::adjust_params::to_params(&defaults) {
         fields.extend(p);
     }
     Some(app.ui.open_dialog(crate::state::DialogKind::Command, fields))
@@ -282,13 +282,13 @@ pub fn open(app: &mut PhotocraftApp, command: &str) -> Option<u64> {
 /// Opens the dialog for `command` at the settings last confirmed in it (Photoshop's ⌥ plus the
 /// adjustment's shortcut, ⌥⌘L / ⌥⌘M, #8900), or at the neutral ones when there are none or they
 /// don't fit the current colour mode.
-pub fn open_last(app: &mut PhotocraftApp, command: &str) -> Option<u64> {
+pub fn open_last(app: &mut EvoPhotoApp, command: &str) -> Option<u64> {
     let id = open(app, command)?;
     let kind = command.strip_prefix(PREFIX).unwrap_or_default();
     let mode = curve_mode(app, kind);
     let Some(last) = app.session.prefs().dialogs.get(command).cloned() else { return Some(id) };
-    let Ok(adjustment) = photocraft_engine::adjust_params::from_params(kind, &last, None, mode) else { return Some(id) };
-    if let (Some(dialog), Value::Object(values)) = (app.ui.dialog_mut(id), photocraft_engine::adjust_params::to_params(&adjustment)) {
+    let Ok(adjustment) = evophoto_engine::adjust_params::from_params(kind, &last, None, mode) else { return Some(id) };
+    if let (Some(dialog), Value::Object(values)) = (app.ui.dialog_mut(id), evophoto_engine::adjust_params::to_params(&adjustment)) {
         dialog.fields.retain(|k, _| k.starts_with("__"));
         dialog.fields.extend(values);
     }
@@ -297,7 +297,7 @@ pub fn open_last(app: &mut PhotocraftApp, command: &str) -> Option<u64> {
 
 /// Remember an adjustment dialog's settings after a successful OK, for [`open_last`]. Editing a
 /// smart filter's settings is not a use of the dialog's own (as `filter_dialog::remember`).
-pub(crate) fn remember(app: &mut PhotocraftApp, fields: &Map<String, Value>) {
+pub(crate) fn remember(app: &mut EvoPhotoApp, fields: &Map<String, Value>) {
     if fields.contains_key("__smartFilter") {
         return;
     }
@@ -308,21 +308,21 @@ pub(crate) fn remember(app: &mut PhotocraftApp, fields: &Map<String, Value>) {
 
 /// The Curves dialog's single-channel target: the Channels panel's, plus the Layers panel's mask
 /// selection — both ways of selecting a mask must give the same dropdown (#5335).
-fn isolated(app: &PhotocraftApp) -> Option<photocraft_engine::channel_cmds::IsolatedCurveChannel> {
+fn isolated(app: &EvoPhotoApp) -> Option<evophoto_engine::channel_cmds::IsolatedCurveChannel> {
     let mask = app.layer_mask_targeted();
-    app.session.active().and_then(|st| photocraft_engine::channel_cmds::isolated_curve_channel_for(st, mask))
+    app.session.active().and_then(|st| evophoto_engine::channel_cmds::isolated_curve_channel_for(st, mask))
 }
 
 /// The colour mode the Levels/Curves dialog seeds and parses in: a mask, saved channel or
 /// Quick Mask holds gray levels whatever the document's mode, so its curve is a neutral one
 /// and the fields carry no Lab or CMYK records (#5335).
-fn curve_mode(app: &PhotocraftApp, kind: &str) -> photocraft_doc::ColorMode {
-    let mode = app.session.active().map_or(photocraft_doc::ColorMode::Rgb, |s| s.doc.mode);
-    if kind == "curves" && isolated(app).is_some_and(|c| c.gray.is_some()) { photocraft_doc::ColorMode::Grayscale } else { mode }
+fn curve_mode(app: &EvoPhotoApp, kind: &str) -> evophoto_doc::ColorMode {
+    let mode = app.session.active().map_or(evophoto_doc::ColorMode::Rgb, |s| s.doc.mode);
+    if kind == "curves" && isolated(app).is_some_and(|c| c.gray.is_some()) { evophoto_doc::ColorMode::Grayscale } else { mode }
 }
 
 /// Dialog body: the kind's editor over the fields, then the Preview checkbox.
-pub fn body(app: &mut PhotocraftApp, ui: &mut egui::Ui, fields: &mut Map<String, Value>) {
+pub fn body(app: &mut EvoPhotoApp, ui: &mut egui::Ui, fields: &mut Map<String, Value>) {
     let kind = fields.get("__adjust").and_then(Value::as_str).unwrap_or_default().to_string();
     let mode = curve_mode(app, &kind);
     if matches!(kind.as_str(), "levels" | "curves") {
@@ -334,7 +334,7 @@ pub fn body(app: &mut PhotocraftApp, ui: &mut egui::Ui, fields: &mut Map<String,
         .get("__smartFilter")
         .and_then(|f| f.get("layer"))
         .and_then(Value::as_u64)
-        .map(photocraft_doc::LayerId)
+        .map(evophoto_doc::LayerId)
         .or_else(|| app.session.active().and_then(|s| s.active_layer));
     let isolated_curve = isolated(app);
     // Only Curves gets an isolated single-channel target here; Levels keeps its usual fields.
@@ -390,29 +390,29 @@ mod tests {
     use egui_kittest::Harness;
     use egui_kittest::kittest::{NodeT, Queryable};
 
-    fn app_with_image() -> PhotocraftApp {
-        let mut s = photocraft_engine::Session::new();
+    fn app_with_image() -> EvoPhotoApp {
+        let mut s = evophoto_engine::Session::new();
         s.execute("file.new", json!({"width": 64, "height": 48})).unwrap();
         s.execute("select.rect", json!({"x": 0, "y": 0, "width": 32, "height": 48})).unwrap();
         s.execute("edit.fill", json!({"color": "#b04020"})).unwrap();
         s.execute("select.deselect", json!({})).unwrap();
-        PhotocraftApp::new(s, crate::Services::default())
+        EvoPhotoApp::new(s, crate::Services::default())
     }
 
-    fn app_in_mode(mode: &str) -> PhotocraftApp {
-        let mut session = photocraft_engine::Session::new();
+    fn app_in_mode(mode: &str) -> EvoPhotoApp {
+        let mut session = evophoto_engine::Session::new();
         session.execute("file.new", json!({"width": 32, "height": 24, "mode": mode})).unwrap();
-        PhotocraftApp::new(session, crate::Services::default())
+        EvoPhotoApp::new(session, crate::Services::default())
     }
 
-    fn arm(app: &mut PhotocraftApp, id: u64, picker: &str) {
+    fn arm(app: &mut EvoPhotoApp, id: u64, picker: &str) {
         let base = app.ui.dialog_mut(id).map(|dialog| crate::filter_dialog::params_of(&dialog.fields)).unwrap();
         let dialog = app.ui.dialog_mut(id).unwrap();
         dialog.fields.insert(CURVE_PICKER.into(), json!(picker));
         dialog.fields.insert(CURVE_PICKER_BASE.into(), base);
     }
 
-    fn channel_points(app: &PhotocraftApp, key: &str) -> Vec<[f64; 2]> {
+    fn channel_points(app: &EvoPhotoApp, key: &str) -> Vec<[f64; 2]> {
         app.ui
             .dialogs
             .last()
@@ -448,14 +448,14 @@ mod tests {
             let cmd = format!("image.adjustments.{kind}");
             let mut harness =
                 Harness::builder().with_size(egui::vec2(1200.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app_with_image());
-            PhotocraftApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
+            EvoPhotoApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
             let id = open(harness.state_mut(), &cmd).unwrap();
             harness.run_steps(3);
             let before = harness.state().session.active().unwrap().revision;
             let steps = harness.state().session.active().unwrap().history.past_len();
             // Change the settings the way automation does.
-            let sample = photocraft_engine::adjust_params::to_params(
-                &photocraft_engine::adjust_params::from_params(kind, &sample_params(kind), None, photocraft_doc::ColorMode::Rgb).unwrap(),
+            let sample = evophoto_engine::adjust_params::to_params(
+                &evophoto_engine::adjust_params::from_params(kind, &sample_params(kind), None, evophoto_doc::ColorMode::Rgb).unwrap(),
             );
             let d = harness.state_mut().ui.dialog_mut(id).unwrap();
             if let Value::Object(p) = sample {
@@ -480,13 +480,13 @@ mod tests {
         }
     }
 
-    fn color_balance_dialog() -> (Harness<'static, PhotocraftApp>, u64) {
+    fn color_balance_dialog() -> (Harness<'static, EvoPhotoApp>, u64) {
         // Real frame times: a double-click's two clicks must land within the double-click time.
         let mut h = Harness::builder()
             .with_size(egui::vec2(1200.0, 900.0))
             .with_step_dt(1.0 / 60.0)
             .build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app_with_image());
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+        EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         let id = open(h.state_mut(), "image.adjustments.colorBalance").unwrap();
         let d = h.state_mut().ui.dialog_mut(id).unwrap();
         for (k, v) in
@@ -498,11 +498,11 @@ mod tests {
         (h, id)
     }
 
-    fn field(h: &Harness<'static, PhotocraftApp>, id: u64, key: &str) -> Value {
+    fn field(h: &Harness<'static, EvoPhotoApp>, id: u64, key: &str) -> Value {
         h.state().ui.dialogs.iter().find(|d| d.id == id).map(|d| d.fields.get(key).cloned().unwrap_or(Value::Null)).unwrap_or(Value::Null)
     }
 
-    fn input(h: &mut Harness<'static, PhotocraftApp>, mods: egui::Modifiers, events: &[egui::Event]) {
+    fn input(h: &mut Harness<'static, EvoPhotoApp>, mods: egui::Modifiers, events: &[egui::Event]) {
         h.event(egui::Event::ModifiersChanged(mods));
         h.run_steps(1);
         for e in events {
@@ -566,7 +566,7 @@ mod tests {
     fn levels_alt_reset_restores_defaults() {
         use egui_kittest::kittest::Queryable;
         let mut h = Harness::builder().with_size(egui::vec2(1200.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app_with_image());
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+        EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         let id = open(h.state_mut(), "image.adjustments.levels").unwrap();
         h.state_mut().ui.dialog_mut(id).unwrap().fields.insert("inBlack".into(), json!(30));
         h.state_mut().ui.dialog_mut(id).unwrap().fields.insert("gamma".into(), json!(1.3));
@@ -581,7 +581,7 @@ mod tests {
         input(&mut h, egui::Modifiers::ALT, &[egui::Event::PointerMoved(reset.center()), click(true), click(false)]);
         assert!(h.state().ui.dialogs.iter().any(|d| d.id == id), "Reset keeps the dialog open");
         let defaults =
-            photocraft_engine::adjust_params::to_params(&photocraft_engine::adjust_params::default_for("levels", photocraft_doc::ColorMode::Rgb).unwrap());
+            evophoto_engine::adjust_params::to_params(&evophoto_engine::adjust_params::default_for("levels", evophoto_doc::ColorMode::Rgb).unwrap());
         assert_eq!(field(&h, id, "inBlack"), defaults["inBlack"]);
         assert_eq!(field(&h, id, "gamma"), defaults["gamma"]);
     }
@@ -613,7 +613,7 @@ mod tests {
             for theme in crate::theme::ThemeKind::ALL {
                 for size in [egui::vec2(1280.0, 900.0), egui::vec2(900.0, 720.0)] {
                     let mut h = Harness::builder().with_size(size).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app_with_image());
-                    PhotocraftApp::setup_context(&h.ctx, theme);
+                    EvoPhotoApp::setup_context(&h.ctx, theme);
                     let id = open(h.state_mut(), "image.adjustments.curves").unwrap();
                     h.run_steps(4);
                     let window = h.ctx.memory(|m| m.area_rect(egui::Id::new(("dialog", id)))).unwrap();
@@ -634,9 +634,9 @@ mod tests {
     #[test]
     fn curves_dialog_resizes_with_its_graph_and_reopens_at_that_size() {
         let mut h = Harness::builder().with_size(egui::vec2(1600.0, 1100.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app_with_image());
-        PhotocraftApp::setup_context(&h.ctx, Default::default());
-        let graph = |h: &Harness<'_, PhotocraftApp>| h.ctx.data(|d| d.get_temp::<egui::Rect>(dialog_mem("curves").with("curves-graph"))).unwrap();
-        let window = |h: &Harness<'_, PhotocraftApp>, id: u64| h.ctx.memory(|m| m.area_rect(egui::Id::new(("dialog", id)))).unwrap();
+        EvoPhotoApp::setup_context(&h.ctx, Default::default());
+        let graph = |h: &Harness<'_, EvoPhotoApp>| h.ctx.data(|d| d.get_temp::<egui::Rect>(dialog_mem("curves").with("curves-graph"))).unwrap();
+        let window = |h: &Harness<'_, EvoPhotoApp>, id: u64| h.ctx.memory(|m| m.area_rect(egui::Id::new(("dialog", id)))).unwrap();
         let id = open(h.state_mut(), "image.adjustments.curves").unwrap();
         h.run_steps(4);
         let (opened, small) = (window(&h, id), graph(&h));
@@ -675,7 +675,7 @@ mod tests {
     #[test]
     fn curves_graph_never_pushes_the_dialog_off_a_short_window() {
         let mut h = Harness::builder().with_size(egui::vec2(1600.0, 700.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app_with_image());
-        PhotocraftApp::setup_context(&h.ctx, Default::default());
+        EvoPhotoApp::setup_context(&h.ctx, Default::default());
         h.ctx.data_mut(|m| m.insert_persisted(egui::Id::new(("dialog-place", "image.adjustments.curves")).with("size"), egui::vec2(1200.0, 1200.0)));
         let id = open(h.state_mut(), "image.adjustments.curves").unwrap();
         h.run_steps(5);
@@ -711,7 +711,7 @@ mod tests {
     fn cancel_leaves_the_document_untouched() {
         let mut harness =
             Harness::builder().with_size(egui::vec2(1200.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app_with_image());
-        PhotocraftApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
+        EvoPhotoApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
         let id = open(harness.state_mut(), "image.adjustments.curves").unwrap();
         harness.run_steps(2);
         harness.state_mut().ui.dialog_mut(id).unwrap().fields.insert("points".into(), json!([[0, 255], [255, 0]]));
@@ -728,7 +728,7 @@ mod tests {
     fn gradient_map_dialog_handles_preview_without_committing_until_ok() {
         use egui_kittest::kittest::Queryable;
         let mut h = Harness::builder().with_size(egui::vec2(1200.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app_with_image());
-        PhotocraftApp::setup_context(&h.ctx, Default::default());
+        EvoPhotoApp::setup_context(&h.ctx, Default::default());
         let id = open(h.state_mut(), "image.adjustments.gradientMap").unwrap();
         h.run_steps(4);
         let doc = h.state().session.active().unwrap().doc.clone();
@@ -757,7 +757,7 @@ mod tests {
     #[test]
     fn curves_pencil_drag_draws_the_map_and_confirm_applies_it() {
         let mut h = Harness::builder().with_size(egui::vec2(1200.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app_with_image());
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+        EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         let steps = h.state().session.active().unwrap().history.past_len();
         let id = open(h.state_mut(), "image.adjustments.curves").unwrap();
         let fields = &mut h.state_mut().ui.dialog_mut(id).unwrap().fields;
@@ -788,7 +788,7 @@ mod tests {
     fn curves_pointer_drag_previews_until_confirm_and_cancel_preserves_document() {
         for confirm in [false, true] {
             let mut h = Harness::builder().with_size(egui::vec2(1200.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app_with_image());
-            PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+            EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
             let original = h.state().session.active().unwrap().doc.clone();
             let steps = h.state().session.active().unwrap().history.past_len();
             let id = open(h.state_mut(), "image.adjustments.curves").unwrap();
@@ -865,7 +865,7 @@ mod tests {
     fn curves_picker_controls_arm_and_disable_by_document_mode() {
         let harness = |app| {
             let mut h = Harness::builder().with_size(egui::vec2(1200.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app);
-            PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+            EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
             open(h.state_mut(), "image.adjustments.curves").unwrap();
             h.run_steps(3);
             h
@@ -894,9 +894,9 @@ mod tests {
 
     #[test]
     fn curves_picker_rejects_outside_and_transparent_samples() {
-        let mut s = photocraft_engine::Session::new();
+        let mut s = evophoto_engine::Session::new();
         s.execute("file.new", json!({"width": 32, "height": 24, "background": "transparent"})).unwrap();
-        let mut app = PhotocraftApp::new(s, crate::Services::default());
+        let mut app = EvoPhotoApp::new(s, crate::Services::default());
         let id = open(&mut app, "image.adjustments.curves").unwrap();
         arm(&mut app, id, "white");
         let before = crate::filter_dialog::params_of(&app.ui.dialog_mut(id).unwrap().fields);
@@ -937,19 +937,19 @@ mod tests {
 
     #[test]
     fn curves_picker_modes_and_depths_are_explicit() {
-        use photocraft_engine::adjust_params::CurvesEyedropper;
-        assert!(picker_supported(photocraft_doc::ColorMode::Rgb, CurvesEyedropper::NeutralGray));
-        assert!(picker_supported(photocraft_doc::ColorMode::Grayscale, CurvesEyedropper::Black));
-        assert!(picker_supported(photocraft_doc::ColorMode::Grayscale, CurvesEyedropper::White));
-        assert!(!picker_supported(photocraft_doc::ColorMode::Grayscale, CurvesEyedropper::NeutralGray));
-        assert!(!picker_supported(photocraft_doc::ColorMode::Cmyk, CurvesEyedropper::Black));
-        assert!(!picker_supported(photocraft_doc::ColorMode::Lab, CurvesEyedropper::White));
+        use evophoto_engine::adjust_params::CurvesEyedropper;
+        assert!(picker_supported(evophoto_doc::ColorMode::Rgb, CurvesEyedropper::NeutralGray));
+        assert!(picker_supported(evophoto_doc::ColorMode::Grayscale, CurvesEyedropper::Black));
+        assert!(picker_supported(evophoto_doc::ColorMode::Grayscale, CurvesEyedropper::White));
+        assert!(!picker_supported(evophoto_doc::ColorMode::Grayscale, CurvesEyedropper::NeutralGray));
+        assert!(!picker_supported(evophoto_doc::ColorMode::Cmyk, CurvesEyedropper::Black));
+        assert!(!picker_supported(evophoto_doc::ColorMode::Lab, CurvesEyedropper::White));
 
         for depth in [8, 16, 32] {
-            let mut s = photocraft_engine::Session::new();
+            let mut s = evophoto_engine::Session::new();
             s.execute("file.new", json!({"width": 16, "height": 16, "depth": depth})).unwrap();
             s.execute("edit.fill", json!({"color": [0.3142, 0.4821, 0.7137]})).unwrap();
-            let mut app = PhotocraftApp::new(s, crate::Services::default());
+            let mut app = EvoPhotoApp::new(s, crate::Services::default());
             let sampled = crate::canvas::composite_color(&mut app, 4.0, 4.0).unwrap();
             let id = open(&mut app, "image.adjustments.curves").unwrap();
             arm(&mut app, id, "gray");
@@ -972,7 +972,7 @@ mod tests {
         }
     }
 
-    fn pointer_down(app: &mut PhotocraftApp, ctx: &egui::Context, x: f64, y: f64, modifiers: Value) {
+    fn pointer_down(app: &mut EvoPhotoApp, ctx: &egui::Context, x: f64, y: f64, modifiers: Value) {
         let (request, _receiver) =
             crate::control::ControlRequest::new("ui.pointer", json!({"events": [{"kind": "down", "x": x, "y": y}], "modifiers": modifiers}));
         let _ = crate::control::handle(app, ctx, &request);
@@ -980,8 +980,8 @@ mod tests {
 
     /// The Curves curve `pts` (0-255 levels) as a 256-entry 0-255 map.
     fn curve_levels(pts: &[[f64; 2]]) -> Vec<f32> {
-        let cp: Vec<_> = pts.iter().map(|q| photocraft_doc::adjust::CurvePoint { input: q[0] as f32 / 255.0, output: q[1] as f32 / 255.0 }).collect();
-        let lut = photocraft_compose::adjust::curve_lut(&cp);
+        let cp: Vec<_> = pts.iter().map(|q| evophoto_doc::adjust::CurvePoint { input: q[0] as f32 / 255.0, output: q[1] as f32 / 255.0 }).collect();
+        let lut = evophoto_compose::adjust::curve_lut(&cp);
         (0..256).map(|k| lut[(k as f32 / 255.0 * (lut.len() - 1) as f32).round() as usize] * 255.0).collect()
     }
 
@@ -1198,16 +1198,16 @@ mod tests {
     }
 
     /// Curves open in a harness over `app`.
-    fn curves_harness(app: PhotocraftApp) -> Harness<'static, PhotocraftApp> {
+    fn curves_harness(app: EvoPhotoApp) -> Harness<'static, EvoPhotoApp> {
         let mut h = Harness::builder().with_size(egui::vec2(1200.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app);
-        PhotocraftApp::setup_context(&h.ctx, Default::default());
+        EvoPhotoApp::setup_context(&h.ctx, Default::default());
         open(h.state_mut(), "image.adjustments.curves").unwrap();
         h.run_steps(4);
         h
     }
 
     /// The Channel popup's selected value (its option labels are what it shows).
-    fn popup_channels(h: &mut Harness<'static, PhotocraftApp>) -> Vec<String> {
+    fn popup_channels(h: &mut Harness<'static, EvoPhotoApp>) -> Vec<String> {
         h.query_all_by_role(egui::accesskit::Role::ComboBox).filter_map(|n| n.value().map(|s| s.to_string())).collect()
     }
 }

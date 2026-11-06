@@ -3,16 +3,16 @@ use egui_kittest::{Harness, kittest::Queryable};
 use serde_json::json;
 
 use crate::{
-    PhotocraftApp,
+    EvoPhotoApp,
     smart_filter_dialog::tests::{app, smart},
 };
 
 /// The app with a recorded Smart Object, in a `width`-point dock and the given theme, ready to click.
-fn harness(width: f32, scale: f32, theme: crate::theme::ThemeKind) -> Harness<'static, PhotocraftApp> {
+fn harness(width: f32, scale: f32, theme: crate::theme::ThemeKind) -> Harness<'static, EvoPhotoApp> {
     let (app, _) = app(8, "rgb");
     let mut h =
         Harness::builder().with_size(vec2(1200.0, 850.0)).with_pixels_per_point(scale).with_step_dt(1.0 / 60.0).with_max_steps(64).build_eframe(move |cc| {
-            PhotocraftApp::setup_context(&cc.egui_ctx, theme);
+            EvoPhotoApp::setup_context(&cc.egui_ctx, theme);
             app
         });
     let ctx = h.ctx.clone();
@@ -26,7 +26,7 @@ fn harness(width: f32, scale: f32, theme: crate::theme::ThemeKind) -> Harness<'s
 }
 
 /// Click `at` with the primary button, hovering first so the row reacts.
-fn click(h: &mut Harness<'_, PhotocraftApp>, at: egui::Pos2) {
+fn click(h: &mut Harness<'_, EvoPhotoApp>, at: egui::Pos2) {
     h.hover_at(at);
     h.run_steps(1);
     h.event(egui::Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE });
@@ -132,7 +132,7 @@ fn smart_and_layer_masks_have_separate_thumbnail_cache_entries() {
     let ctx = egui::Context::default();
     let first = app.mask_thumb(&ctx, &doc, layer, mask);
     let mut other = mask.clone();
-    other.surface.fill_rect(photocraft_geom::Rect::new(0, 0, 64, 48), &[0.0]);
+    other.surface.fill_rect(evophoto_geom::Rect::new(0, 0, 64, 48), &[0.0]);
     let second = app.mask_thumb_kind(&ctx, &doc, layer, &other, crate::mask_thumbs_ui::THUMB_SMART_MASK);
     assert_ne!(first, second);
     assert_eq!(first, app.mask_thumb(&ctx, &doc, layer, mask));
@@ -144,14 +144,14 @@ fn ctrl_i_uses_existing_invert_command_and_undo_redo_keep_the_source() {
     let mut h = harness(290.0, 1.0, Default::default());
     let layer = h.state().session.active().unwrap().active_layer.unwrap();
     let before = smart(h.state(), layer).clone();
-    let source = photocraft_engine::smart_cmds::contents_of(&h.state().session.active().unwrap().doc, layer).unwrap();
+    let source = evophoto_engine::smart_cmds::contents_of(&h.state().session.active().unwrap().doc, layer).unwrap();
     let steps = h.state().session.active().unwrap().history.past_len();
     h.key_press_modifiers(Modifiers::COMMAND, egui::Key::I);
     h.run_steps(4);
     let sm = smart(h.state(), layer);
     assert_eq!(sm.smart_filters.len(), 3);
     assert_eq!(sm.smart_filters[2].command, "image.adjustments.invert");
-    assert_eq!(photocraft_engine::smart_cmds::contents_of(&h.state().session.active().unwrap().doc, layer).unwrap(), source);
+    assert_eq!(evophoto_engine::smart_cmds::contents_of(&h.state().session.active().unwrap().doc, layer).unwrap(), source);
     assert_ne!(sm.cache.as_ref().unwrap().pixel(8, 8), before.cache.as_ref().unwrap().pixel(8, 8));
     assert_eq!(h.state().session.active().unwrap().history.past_len(), steps + 1);
     h.state_mut().run("edit.undo", json!({})).unwrap();

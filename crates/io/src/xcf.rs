@@ -10,7 +10,7 @@
 //! profile), the embedded ICC profile, resolution, guides, the comment, extra channels and the
 //! saved selection; indexed images open as RGB. Text, vector and link layers open as their pixels;
 //! non-destructive layer effects, paths and floating selections are reported, not applied.
-//! Write: not supported (GIMP's own format; `.pcraft` keeps everything PhotoCraft holds).
+//! Write: not supported (GIMP's own format; `.evophoto` keeps everything EvoPhoto holds).
 //!
 //! The reader is written from the specification and from files GIMP 3.2 writes; no GIMP code.
 
@@ -21,11 +21,11 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::sync::Arc;
 
-use photocraft_codecs::f16;
-use photocraft_color::{BlendMode, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::{AlphaChannel, Document, LabelColor, Layer, LayerContent, LayerMask};
-use photocraft_geom::{Rect, Size};
-use photocraft_raster::{Interrupt, Surface};
+use evophoto_codecs::f16;
+use evophoto_color::{BlendMode, ColorMode, PixelFormat, SampleType};
+use evophoto_doc::{AlphaChannel, Document, LabelColor, Layer, LayerContent, LayerMask};
+use evophoto_geom::{Rect, Size};
+use evophoto_raster::{Interrupt, Surface};
 
 use crate::ora::Warnings;
 use crate::{ImportResult, IoError};
@@ -311,7 +311,7 @@ fn parasites(data: &[u8]) -> Vec<(String, Vec<u8>)> {
     let mut out: Vec<(String, Vec<u8>)> = Vec::new();
     // Map each name to its output slot so duplicate replacement is O(1). The parasite
     // records are file-controlled, so scanning `out` with iter_mut().find() per record is
-    // O(n^2) and lets a crafted payload with many distinct names stall import. The map
+    // O(n^2) and lets a built payload with many distinct names stall import. The map
     // preserves insertion order and last-value-wins behavior.
     let mut index: HashMap<String, usize> = HashMap::new();
     while c.pos < data.len() {
@@ -797,13 +797,13 @@ pub(crate) fn import(name: &str, bytes: &[u8], ctl: &Interrupt<'_>) -> Result<Im
             if icc.is_some() {
                 image.warnings.note("the linear-light image's own profile was replaced by linear gray");
             }
-            Some(photocraft_cms::builtin::linear_gray().to_bytes())
+            Some(evophoto_cms::builtin::linear_gray().to_bytes())
         }
         (true, icc, _) => {
             if icc.is_some() {
                 image.warnings.note("the linear-light image's own profile was replaced by linear sRGB");
             }
-            Some(photocraft_cms::Builtin::LinearSrgb.profile().to_bytes())
+            Some(evophoto_cms::Builtin::LinearSrgb.profile().to_bytes())
         }
         (false, Some(icc), _) => Some(Arc::new(icc)),
         (false, None, _) => None,
@@ -815,19 +815,19 @@ pub(crate) fn import(name: &str, bytes: &[u8], ctl: &Interrupt<'_>) -> Result<Im
         image.warnings.note(&format!("{path_count} path(s) were not imported"));
     }
     // GIMP clips a layer in any mode but Normal to the layers beneath it, so it shows nothing where
-    // they are transparent; PhotoCraft (like Photoshop) shows it there. Only tell when there is
+    // they are transparent; EvoPhoto (like Photoshop) shows it there. Only tell when there is
     // transparency to show through: a bottom layer that is not opaque.
     if image.clipped_to_backdrop > 0 && document.layers.first().is_some_and(|l| !l.locks.transparency || l.is_group()) {
         image.warnings.note(&format!(
-            "{} layer(s) use a mode GIMP clips to the layers beneath; where those are transparent GIMP shows nothing and PhotoCraft shows the layer",
+            "{} layer(s) use a mode GIMP clips to the layers beneath; where those are transparent GIMP shows nothing and EvoPhoto shows the layer",
             image.clipped_to_backdrop
         ));
     }
-    // GIMP blends and composites in linear light by default (since 2.10); PhotoCraft, like
+    // GIMP blends and composites in linear light by default (since 2.10); EvoPhoto, like
     // Photoshop, in the document's own encoding, so semi-transparent edges and most blend modes
     // render a little differently. Layers set to a perceptual space in GIMP match.
     if !precision.linear && linear_compositing {
-        image.warnings.note("GIMP composites this image in linear light; PhotoCraft composites in gamma-encoded RGB, so blends and soft edges differ slightly");
+        image.warnings.note("GIMP composites this image in linear light; EvoPhoto composites in gamma-encoded RGB, so blends and soft edges differ slightly");
     }
     if document.layers.is_empty() {
         image.warnings.note("the XCF file has no layers");
@@ -928,7 +928,7 @@ impl<'a> Image<'a> {
         let mut composite_mode = 0i32;
         let mut composite_space = 0i32;
         let mut blend_space = 0i32;
-        let mut locks = photocraft_doc::Locks::default();
+        let mut locks = evophoto_doc::Locks::default();
         let mut tag = LabelColor::None;
         for p in &lprops {
             let v = be_u32(p.data).unwrap_or(0);

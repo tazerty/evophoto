@@ -13,7 +13,7 @@
 # Clean-room: every entry was written from the plain meaning of the English label using ordinary
 # Polish image-editing vocabulary (warstwa, maska, zaznaczenie, pędzel, rozmycie, krycie ...). No
 # proprietary localisation resource, string table or product UI was consulted or copied; add
-# entries the same way. Product and technology names (PhotoCraft, OpenType, CMYK, Lab ...)
+# entries the same way. Product and technology names (EvoPhoto, OpenType, CMYK, Lab ...)
 # stay in Latin letters; the trailing "…" of dialog commands is kept.
 # Conventions: menus are nouns (Plik, Edycja, Obraz ...), commands are infinitives (Otwórz…,
 # Zapisz jako…), sentence case as in the English source. Quotes: „…”.
@@ -1116,7 +1116,7 @@
 	Draw with the Pen tool (P) or make a work path from a selection.	Rysuj narzędziem Pióro (P) lub utwórz ścieżkę roboczą z zaznaczenia.
 	Drop an image or PSD anywhere to open it.	Upuść obraz lub plik PSD w dowolnym miejscu, aby go otworzyć.
 	Native file drag-and-drop is unavailable	Natywne przeciąganie plików jest niedostępne
-	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= photocraft`.	Natywne przeciąganie plików nie jest jeszcze obsługiwane w Waylandzie. Użyj Plik › Otwórz lub uruchom Lumbra w XWayland poleceniem `WAYLAND_DISPLAY= photocraft`.
+	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= evophoto`.	Natywne przeciąganie plików nie jest jeszcze obsługiwane w Waylandzie. Użyj Plik › Otwórz lub uruchom Lumbra w XWayland poleceniem `WAYLAND_DISPLAY= evophoto`.
 	Duplicate Layers…	Duplikuj warstwy…
 	Duplicate style	Duplikuj styl
 	Edit Toolbar…	Edytuj pasek narzędzi…
@@ -1366,7 +1366,7 @@
 	Lumbra	Lumbra
 	Lumbra Manages Colors	Kolorami zarządza Lumbra
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — natywny edytor obrazów o otwartym kodzie źródłowym, napisany w Rust.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	Na podstawie PhotoCraft, oprogramowania o otwartym kodzie źródłowym (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Na podstawie EvoPhoto, oprogramowania o otwartym kodzie źródłowym (MIT OR Apache-2.0).
 	Pin Depth:	Głębokość szpilki:
 	Pixel Length:	Długość w pikselach:
 	Pixels/Centimeter	Pikseli/centymetr
@@ -3849,7 +3849,7 @@ curves	Smooth	Wygładź
 	Sent to {printer}	Wysłano do {printer}
 	set in Print Settings…	ustawiane w ustawieniach druku…
 	ICO is limited to 256 × 256 pixels	ICO jest ograniczony do 256 × 256 pikseli
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	Sprawdź aktualizacje…
 	Lumbra Updates	Aktualizacje Lumbra
 	Checking for updates…	Sprawdzanie aktualizacji…

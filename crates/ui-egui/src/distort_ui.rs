@@ -10,12 +10,12 @@
 use std::sync::Arc;
 
 use egui::{Color32, ColorImage};
-use photocraft_doc::{DocId, Document, LayerContent, LayerId};
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use evophoto_doc::{DocId, Document, LayerContent, LayerId};
+use evophoto_geom::Rect;
+use evophoto_raster::Surface;
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::canvas::{ToolEvent, ViewXform};
 
 /// Runtime state of the distortion modes (not serialisable: textures, solvers).
@@ -30,7 +30,7 @@ pub struct Distort {
     /// Filter Gallery dialog (gallery_ui).
     pub gallery: Option<crate::gallery_ui::GalleryDialog>,
     /// The document the open sessions belong to, noted by [`drop_foreign`] on the first frame they are open.
-    owner: Option<photocraft_doc::DocId>,
+    owner: Option<evophoto_doc::DocId>,
 }
 
 impl Distort {
@@ -52,7 +52,7 @@ impl Distort {
 }
 
 /// The active layer's pixels (a pixel layer, or a smart object's rendering) and its id.
-pub(crate) fn active_pixels(app: &PhotocraftApp) -> Result<(LayerId, Surface, bool), String> {
+pub(crate) fn active_pixels(app: &EvoPhotoApp) -> Result<(LayerId, Surface, bool), String> {
     let st = app.session.active().ok_or("no document")?;
     let id = st.active_layer.ok_or("no active layer")?;
     let l = st.doc.layer(id).ok_or("no layer")?;
@@ -94,7 +94,7 @@ pub(crate) fn surface_image(surf: &Surface, r: Rect, max_side: usize) -> ColorIm
 /// The menu id of the open full-window workspace (Liquify, Content-Aware Fill, Filter Gallery,
 /// Adaptive Wide Angle). These are modal: other menu commands wait for OK or Cancel
 /// (`menus::modal_allows`).
-pub(crate) fn modal_workspace(app: &PhotocraftApp) -> Option<&'static str> {
+pub(crate) fn modal_workspace(app: &EvoPhotoApp) -> Option<&'static str> {
     if app.distort.liquify.is_some() {
         Some("filter.liquify")
     } else if app.distort.caf.is_some() {
@@ -102,24 +102,24 @@ pub(crate) fn modal_workspace(app: &PhotocraftApp) -> Option<&'static str> {
     } else if app.distort.gallery.is_some() {
         Some("filter.filterGallery")
     } else if app.wide_angle.is_some() {
-        Some(photocraft_engine::lens_cmds::WIDE)
+        Some(evophoto_engine::lens_cmds::WIDE)
     } else {
         None
     }
 }
 
-fn active_doc(app: &PhotocraftApp) -> Option<DocId> {
+fn active_doc(app: &EvoPhotoApp) -> Option<DocId> {
     app.session.active().map(|st| st.doc.id)
 }
 
-fn on_doc(app: &PhotocraftApp, document: DocId) -> bool {
+fn on_doc(app: &EvoPhotoApp, document: DocId) -> bool {
     active_doc(app) == Some(document)
 }
 
 /// Drops Liquify / Puppet / Perspective Warp / Vanishing Point / Filter Gallery when the
 /// document they were opened on is no longer active, so they cannot steal undo, block layer
 /// delete, or draw another document's pixels (#5115).
-pub fn cancel_stale(app: &mut PhotocraftApp) {
+pub fn cancel_stale(app: &mut EvoPhotoApp) {
     let active = active_doc(app);
     if app.distort.liquify.as_ref().is_some_and(|d| Some(d.document) != active) {
         crate::liquify_ui::cancel(app);
@@ -139,7 +139,7 @@ pub fn cancel_stale(app: &mut PhotocraftApp) {
 }
 
 /// The document shown on the canvas while Puppet or Perspective Warp previews a layer.
-pub fn display_doc(app: &PhotocraftApp, idx: usize) -> Option<(Arc<Document>, u64)> {
+pub fn display_doc(app: &EvoPhotoApp, idx: usize) -> Option<(Arc<Document>, u64)> {
     if app.session.active_index() != Some(idx) {
         return None;
     }
@@ -158,7 +158,7 @@ pub fn display_doc(app: &PhotocraftApp, idx: usize) -> Option<(Arc<Document>, u6
 }
 
 /// Menu / control routing. `Some` when this module handles the invocation.
-pub fn menu(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: &Value) -> Option<Result<Value, String>> {
+pub fn menu(app: &mut EvoPhotoApp, ctx: &egui::Context, id: &str, params: &Value) -> Option<Result<Value, String>> {
     let empty = params.as_object().is_none_or(|o| o.is_empty());
     let ui = params.get("ui");
     match id {
@@ -188,7 +188,7 @@ pub fn menu(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: &Val
 }
 
 /// Pointer events (document coordinates) while a mode is active. True when consumed.
-pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers) -> bool {
+pub fn pointer(app: &mut EvoPhotoApp, ev: ToolEvent, mods: egui::Modifiers) -> bool {
     cancel_stale(app);
     if app.distort.caf.is_some() {
         crate::caf_ui::pointer(app, ev, mods);
@@ -215,7 +215,7 @@ pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers) ->
 
 /// Keyboard: ↩ commits, Esc cancels (and Liquify's own shortcuts). True when the key handling
 /// of the rest of the app should be skipped.
-pub fn keys(app: &mut PhotocraftApp, ctx: &egui::Context) -> bool {
+pub fn keys(app: &mut EvoPhotoApp, ctx: &egui::Context) -> bool {
     use egui::{Key, Modifiers};
     cancel_stale(app);
     let enter = |ctx: &egui::Context| ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
@@ -285,7 +285,7 @@ pub fn keys(app: &mut PhotocraftApp, ctx: &egui::Context) -> bool {
 /// The warped (or pasted) pixels of the open on-canvas mode: image content, which the canvas
 /// draws right after the document and under the grid and guides (#7781), as Free Transform's
 /// preview is (#5086). Its pins, planes and meshes are [`draw_overlay`], drawn over the guides.
-pub fn draw_content(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform) {
+pub fn draw_content(app: &EvoPhotoApp, painter: &egui::Painter, xf: &ViewXform) {
     if let Some(p) = &app.distort.puppet {
         crate::puppet_ui::draw_content(p, painter, xf);
     }
@@ -298,7 +298,7 @@ pub fn draw_content(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform
 }
 
 /// Canvas overlay for the on-canvas modes: pins, planes and meshes over the guides.
-pub fn draw_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform) {
+pub fn draw_overlay(app: &EvoPhotoApp, painter: &egui::Painter, xf: &ViewXform) {
     if let Some(p) = &app.distort.puppet
         && on_doc(app, p.document)
     {
@@ -317,7 +317,7 @@ pub fn draw_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform
 }
 
 /// Options bar for the on-canvas modes. True when drawn.
-pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) -> bool {
+pub fn options_bar(app: &mut EvoPhotoApp, ui: &mut egui::Ui) -> bool {
     cancel_stale(app);
     if app.distort.puppet.is_some() {
         crate::puppet_ui::options_bar(app, ui);
@@ -336,7 +336,7 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) -> bool {
 
 /// Drops the open sessions once the active document is not the one they were started on (closed, or another one
 /// opened or switched to). Without this, Puppet Warp's preview of the old document replaced the new document's canvas (#5092).
-pub fn drop_foreign(app: &mut PhotocraftApp) {
+pub fn drop_foreign(app: &mut EvoPhotoApp) {
     let current = app.session.active().map(|s| s.doc.id);
     if !app.distort.active() && app.distort.gallery.is_none() {
         app.distort.owner = None;
@@ -355,7 +355,7 @@ pub fn drop_foreign(app: &mut PhotocraftApp) {
 }
 
 /// Full-window dialogs (Liquify, Content-Aware Fill, Filter Gallery).
-pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut EvoPhotoApp, ctx: &egui::Context) {
     cancel_stale(app);
     drop_foreign(app);
     if app.distort.caf.is_some() {
@@ -370,7 +370,7 @@ pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
 }
 
 /// Screen distance (document px) that counts as "on" a handle at the current zoom.
-pub(crate) fn tolerance(app: &PhotocraftApp) -> f64 {
+pub(crate) fn tolerance(app: &EvoPhotoApp) -> f64 {
     let z = app.point_zoom().max(0.01);
     8.0 / f64::from(z)
 }
@@ -378,10 +378,10 @@ pub(crate) fn tolerance(app: &PhotocraftApp) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_geom::Rect;
+    use evophoto_geom::Rect;
     use serde_json::json;
 
-    fn paint_bar(app: &mut PhotocraftApp) {
+    fn paint_bar(app: &mut EvoPhotoApp) {
         app.session
             .edit("paint", |doc, active| {
                 doc.layer_mut(active.unwrap()).unwrap().surface_mut().unwrap().fill_rect(Rect::new(20, 30, 80, 50), &[1.0, 0.0, 0.0, 1.0]);
@@ -395,7 +395,7 @@ mod tests {
     #[test]
     fn switching_documents_drops_puppet_and_restores_undo_and_delete() {
         let ctx = egui::Context::default();
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
         app.session.execute("file.new", json!({"width": 100, "height": 80, "depth": 8})).unwrap();
         app.session.execute("layer.new.layer", json!({})).unwrap();
         paint_bar(&mut app);
@@ -424,7 +424,7 @@ mod tests {
     #[test]
     fn committed_puppet_is_one_undo_step_and_the_layer_stays_deletable() {
         let ctx = egui::Context::default();
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
         app.session.execute("file.new", json!({"width": 100, "height": 80, "depth": 8})).unwrap();
         app.session.execute("layer.new.layer", json!({})).unwrap();
         paint_bar(&mut app);
@@ -449,7 +449,7 @@ mod tests {
     #[test]
     fn switching_documents_drops_liquify() {
         let ctx = egui::Context::default();
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
         app.session.execute("file.new", json!({"width": 100, "height": 80, "depth": 8})).unwrap();
         app.session.execute("layer.new.layer", json!({})).unwrap();
         paint_bar(&mut app);

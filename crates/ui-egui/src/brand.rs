@@ -5,14 +5,14 @@
 //! display scale.
 
 use egui::{Color32, Context, Id, Rect, TextureHandle, TextureOptions, Ui, pos2};
-use photocraft_codecs::{ChannelLayout, SampleType};
+use evophoto_codecs::{ChannelLayout, SampleType};
 
 /// 128 px: sharp at 20 pt on a 3× display, and the mipmaps keep it clean at 1×.
 const ICON_PNG: &[u8] = include_bytes!("../../../assets/evora/lumbra-mark-128.png");
 
 /// The icon's pixels (one transparent pixel if it couldn't be decoded, which a test rules out).
 fn decode() -> egui::ColorImage {
-    let rgba = photocraft_codecs::decode(ICON_PNG).ok().map(|img| img.convert(ChannelLayout::Rgba, SampleType::U8));
+    let rgba = evophoto_codecs::decode(ICON_PNG).ok().map(|img| img.convert(ChannelLayout::Rgba, SampleType::U8));
     match rgba {
         Some(img) if img.data().len() == img.width() as usize * img.height() as usize * 4 => {
             egui::ColorImage::from_rgba_unmultiplied([img.width() as usize, img.height() as usize], img.data())
@@ -23,19 +23,19 @@ fn decode() -> egui::ColorImage {
 
 /// The icon texture, uploaded on first use and kept in the context.
 fn texture(ctx: &Context) -> TextureHandle {
-    let id = Id::new("photocraft-brand-mark");
+    let id = Id::new("evophoto-brand-mark");
     if let Some(tex) = ctx.data(|d| d.get_temp::<TextureHandle>(id)) {
         return tex;
     }
     let options = TextureOptions { mipmap_mode: Some(egui::TextureFilter::Linear), ..TextureOptions::LINEAR };
-    let tex = ctx.load_texture("photocraft-brand-mark", decode(), options);
+    let tex = ctx.load_texture("evophoto-brand-mark", decode(), options);
     ctx.data_mut(|d| d.insert_temp(id, tex.clone()));
     tex
 }
 
 /// Where the mark was painted this frame (tests and screenshots).
 fn rect_id() -> Id {
-    Id::new("photocraft-brand-mark-rect")
+    Id::new("evophoto-brand-mark-rect")
 }
 
 /// Paint the mark into `r` (square).
@@ -67,8 +67,8 @@ mod tests {
     #[test]
     fn the_title_bar_paints_the_icon_from_one_cached_texture() {
         let ctx = Context::default();
-        crate::PhotocraftApp::setup_context(&ctx, crate::theme::ThemeKind::ALL[0]);
-        let mut app = crate::PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        crate::EvoPhotoApp::setup_context(&ctx, crate::theme::ThemeKind::ALL[0]);
+        let mut app = crate::EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         // The system title bar hides the in-app mark (the OS draws its own icon), so paint the
         // app-drawn bar here.
         app.custom_titlebar = true;

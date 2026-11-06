@@ -49,9 +49,9 @@ fn kept(doc: &Arc<Document>, bytes: usize) -> Kept {
 #[test]
 fn kept_composites_come_back_only_for_the_exact_state_and_stay_bounded() {
     use eframe::wgpu::TextureFormat::{Rgba8Unorm, Rgba16Float};
-    let mut a = Document::new("kept", photocraft_geom::Size::new(2000, 1500), photocraft_doc::ColorMode::Rgb, photocraft_doc::SampleType::U8);
-    let mut layer = photocraft_doc::Layer::raster("one", a.pixel_format());
-    if let photocraft_doc::LayerContent::Raster(s) = &mut layer.content {
+    let mut a = Document::new("kept", evophoto_geom::Size::new(2000, 1500), evophoto_doc::ColorMode::Rgb, evophoto_doc::SampleType::U8);
+    let mut layer = evophoto_doc::Layer::raster("one", a.pixel_format());
+    if let evophoto_doc::LayerContent::Raster(s) = &mut layer.content {
         s.fill_rect(Rect::new(0, 0, 300, 300), &[0.2, 0.4, 0.6, 1.0]);
     }
     a.layers.push(layer);
@@ -70,9 +70,9 @@ fn kept_composites_come_back_only_for_the_exact_state_and_stay_bounded() {
     // Any change to what the composite depends on misses.
     let hidden = changed(&|d| d.layers[0].visible = false);
     let faded = changed(&|d| d.layers[0].opacity = 0.5);
-    let multiplied = changed(&|d| d.layers[0].blend = photocraft_color::BlendMode::Multiply);
+    let multiplied = changed(&|d| d.layers[0].blend = evophoto_color::BlendMode::Multiply);
     let painted = changed(&|d| {
-        if let photocraft_doc::LayerContent::Raster(s) = &mut d.layers[0].content {
+        if let evophoto_doc::LayerContent::Raster(s) = &mut d.layers[0].content {
             s.fill_rect(Rect::new(10, 10, 11, 11), &[1.0, 0.0, 0.0, 1.0]);
         }
     });
@@ -115,7 +115,7 @@ fn kept_composites_come_back_only_for_the_exact_state_and_stay_bounded() {
 }
 
 struct Gpu {
-    harness: egui_kittest::Harness<'static, PhotocraftApp>,
+    harness: egui_kittest::Harness<'static, EvoPhotoApp>,
     observer: GpuCanvas,
 }
 
@@ -130,8 +130,8 @@ fn gpu_app() -> Option<Gpu> {
             .with_max_steps(64)
             .wgpu_setup(crate::gpu_canvas::wgpu_setup())
             .build_eframe(move |cc| {
-                PhotocraftApp::setup_context(&cc.egui_ctx, Default::default());
-                let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+                EvoPhotoApp::setup_context(&cc.egui_ctx, Default::default());
+                let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
                 if let Some(rs) = cc.wgpu_render_state.as_ref() {
                     *observer_out.lock().expect("observer") = Some(GpuCanvas::new(rs));
                     app.set_wgpu(rs.clone());
@@ -150,7 +150,7 @@ fn gpu_app() -> Option<Gpu> {
 
 /// A document the wgpu compositor leaves to the CPU (knockout on its top layer, which also has
 /// Blend If).
-fn cpu_only_document(app: &mut PhotocraftApp, w: u32, h: u32) -> DocId {
+fn cpu_only_document(app: &mut EvoPhotoApp, w: u32, h: u32) -> DocId {
     app.run("file.new", json!({"width": w, "height": h, "background": "#336699"})).expect("new");
     app.run("layer.new.layer", json!({})).expect("layer");
     app.run("edit.fill", json!({"color": "#cc8844"})).expect("fill");
@@ -188,7 +188,7 @@ fn assert_matches_synchronous(g: &mut Gpu, doc: DocId) {
 
 #[test]
 fn a_full_cpu_refresh_draws_in_the_background_with_the_synchronous_pixels() {
-    let _gpu = photocraft_testkit::gpu_lock();
+    let _gpu = evophoto_testkit::gpu_lock();
     let Some(mut g) = gpu_app() else { return };
     let doc = cpu_only_document(g.harness.state_mut(), 2600, 1700);
     g.harness.step();
@@ -202,7 +202,7 @@ fn a_full_cpu_refresh_draws_in_the_background_with_the_synchronous_pixels() {
 
 #[test]
 fn an_edit_during_a_redraw_is_not_overwritten_by_blocks_drawn_before_it() {
-    let _gpu = photocraft_testkit::gpu_lock();
+    let _gpu = evophoto_testkit::gpu_lock();
     let Some(mut g) = gpu_app() else { return };
     // 4×3 blocks: the worker can't hand them all over before the next frame.
     let doc = cpu_only_document(g.harness.state_mut(), 4096, 3072);
@@ -224,7 +224,7 @@ fn an_edit_during_a_redraw_is_not_overwritten_by_blocks_drawn_before_it() {
 
 #[test]
 fn an_edit_damaging_most_of_a_large_document_is_drawn_in_the_background_too() {
-    let _gpu = photocraft_testkit::gpu_lock();
+    let _gpu = evophoto_testkit::gpu_lock();
     let Some(mut g) = gpu_app() else { return };
     let doc = cpu_only_document(g.harness.state_mut(), 2600, 1700);
     settle(&mut g);
@@ -242,7 +242,7 @@ fn an_edit_damaging_most_of_a_large_document_is_drawn_in_the_background_too() {
 
 #[test]
 fn showing_a_hidden_layer_again_reuses_the_redraw_from_before_it_was_hidden() {
-    let _gpu = photocraft_testkit::gpu_lock();
+    let _gpu = evophoto_testkit::gpu_lock();
     let Some(mut g) = gpu_app() else { return };
     let doc = cpu_only_document(g.harness.state_mut(), 2600, 1700);
     let layer = g.harness.state().session.active().and_then(|st| st.active_layer).expect("layer");
@@ -270,7 +270,7 @@ fn showing_a_hidden_layer_again_reuses_the_redraw_from_before_it_was_hidden() {
 /// now, not what it left when the redraw began.
 #[test]
 fn a_redraw_finishing_after_memory_usage_drops_keeps_nothing_over_it() {
-    let _gpu = photocraft_testkit::gpu_lock();
+    let _gpu = evophoto_testkit::gpu_lock();
     let Some(mut g) = gpu_app() else { return };
     let doc = cpu_only_document(g.harness.state_mut(), 4096, 3072);
     g.harness.step();
@@ -283,7 +283,7 @@ fn a_redraw_finishing_after_memory_usage_drops_keeps_nothing_over_it() {
 
 #[test]
 fn closing_the_document_stops_its_redraw() {
-    let _gpu = photocraft_testkit::gpu_lock();
+    let _gpu = evophoto_testkit::gpu_lock();
     let Some(mut g) = gpu_app() else { return };
     let doc = cpu_only_document(g.harness.state_mut(), 4096, 3072);
     g.harness.step();
@@ -295,7 +295,7 @@ fn closing_the_document_stops_its_redraw() {
 
 #[test]
 fn hiding_a_large_layer_over_the_gpu_budget_redraws_in_the_background() {
-    let _gpu = photocraft_testkit::gpu_lock();
+    let _gpu = evophoto_testkit::gpu_lock();
     let Some(mut g) = gpu_app() else { return };
     // A layer covering most, but not all, of the document: hiding it damages a large rect that
     // isn't the whole canvas.

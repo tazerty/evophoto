@@ -1,6 +1,6 @@
 //! Content-Aware Move drags and its Transform On Drop box shown with the result: once the pointer
 //! (or the box) rests for a moment, the move is computed as a background job
-//! ([`photocraft_engine::retouch_cmds::content_aware_move_preview`]: a smaller sampling window than
+//! ([`evophoto_engine::retouch_cmds::content_aware_move_preview`]: a smaller sampling window than
 //! the command) and the canvas shows the document with it. A selection too large to solve at once
 //! shows a coarse result first (solved scaled down), then the exact one, computed as a second job.
 //! Any change of the offset, scale or rotation cancels the jobs and starts the wait again, so the
@@ -10,12 +10,12 @@
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
-use photocraft_doc::{DocId, Document};
-use photocraft_engine::jobs::JobCtx;
-use photocraft_engine::retouch_cmds::ContentAwarePreview;
+use evophoto_doc::{DocId, Document};
+use evophoto_engine::jobs::JobCtx;
+use evophoto_engine::retouch_cmds::ContentAwarePreview;
 use serde_json::Value;
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::state::Tool;
 
 /// Preview keys: `BASE + n`, one per result shown (see `canvas::display_doc`).
@@ -28,7 +28,7 @@ const POLL_MS: u64 = 40;
 struct Running {
     key: String,
     ctx: JobCtx,
-    rx: Receiver<photocraft_engine::Result<Document>>,
+    rx: Receiver<evophoto_engine::Result<Document>>,
     /// The full-resolution job that follows a coarse one.
     refine: Option<ContentAwarePreview>,
     /// This job refines a coarse preview already shown: its failure leaves that one shown.
@@ -65,7 +65,7 @@ impl Drop for CamPreview {
 
 /// `paint.contentAwareMove`'s params for what the pointer or the box has now; `None` without a
 /// move to preview.
-fn wanted(app: &mut PhotocraftApp) -> Option<Value> {
+fn wanted(app: &mut EvoPhotoApp) -> Option<Value> {
     if app.ui.tool != Tool::ContentAwareMove || cfg!(target_arch = "wasm32") {
         return None;
     }
@@ -88,14 +88,14 @@ fn wanted(app: &mut PhotocraftApp) -> Option<Value> {
 
 /// The document to show for the move on document `idx`: with the move applied, once its preview
 /// has been computed for the current offset and transform.
-pub(crate) fn display_doc(app: &mut PhotocraftApp, idx: usize) -> Option<(Arc<Document>, u64)> {
+pub(crate) fn display_doc(app: &mut EvoPhotoApp, idx: usize) -> Option<(Arc<Document>, u64)> {
     if app.session.active_index() != Some(idx) {
         return None;
     }
     step(app, crate::gpu_canvas::now_ms())
 }
 
-fn step(app: &mut PhotocraftApp, now: f64) -> Option<(Arc<Document>, u64)> {
+fn step(app: &mut EvoPhotoApp, now: f64) -> Option<(Arc<Document>, u64)> {
     let Some(params) = wanted(app) else {
         app.cam_preview = None;
         return None;
@@ -131,7 +131,7 @@ fn step(app: &mut PhotocraftApp, now: f64) -> Option<(Arc<Document>, u64)> {
                 match (result, r) {
                     (Ok(d), Some(r)) => {
                         // Duotone documents display through their inks.
-                        let d = photocraft_engine::mode_cmds::display_document(&d).unwrap_or(d);
+                        let d = evophoto_engine::mode_cmds::display_document(&d).unwrap_or(d);
                         p.shown = Some((r.key.clone(), Arc::new(d)));
                         p.serial += 1;
                         // A coarse result: the exact one follows.
@@ -168,8 +168,8 @@ fn step(app: &mut PhotocraftApp, now: f64) -> Option<(Arc<Document>, u64)> {
 }
 
 /// Compute the preview of `params` on a worker thread.
-fn start(app: &PhotocraftApp, params: &Value, key: String) -> Option<Running> {
-    let job = photocraft_engine::retouch_cmds::content_aware_move_preview(&app.session, params).ok()?;
+fn start(app: &EvoPhotoApp, params: &Value, key: String) -> Option<Running> {
+    let job = evophoto_engine::retouch_cmds::content_aware_move_preview(&app.session, params).ok()?;
     spawn(job, key, false)
 }
 
@@ -189,7 +189,7 @@ fn spawn(job: ContentAwarePreview, key: String, refining: bool) -> Option<Runnin
 }
 
 /// Keep frames coming while a preview waits out its debounce or computes.
-pub(crate) fn wake(app: &PhotocraftApp, ctx: &egui::Context) {
+pub(crate) fn wake(app: &EvoPhotoApp, ctx: &egui::Context) {
     let Some(p) = &app.cam_preview else { return };
     if p.running.is_some() {
         ctx.request_repaint_after(std::time::Duration::from_millis(POLL_MS));
@@ -200,7 +200,7 @@ pub(crate) fn wake(app: &PhotocraftApp, ctx: &egui::Context) {
 }
 
 /// Whether the canvas shows a preview.
-pub(crate) fn showing(app: &PhotocraftApp) -> bool {
+pub(crate) fn showing(app: &EvoPhotoApp) -> bool {
     app.cam_preview.as_ref().is_some_and(|p| p.shown.as_ref().is_some_and(|s| s.0 == p.key))
 }
 
@@ -216,7 +216,7 @@ mod tests {
 
     #[test]
     fn the_drag_previews_the_move_after_it_rests_and_never_touches_the_document() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 100, "height": 60})).unwrap();
         app.run("paint.pencil", json!({"points": [[16, 30], [28, 30]], "size": 4, "color": "#0000ff"})).unwrap();
         app.run("select.lasso", json!({"points": [[6, 14], [38, 14], [38, 46], [6, 46]]})).unwrap();
@@ -259,7 +259,7 @@ mod tests {
 
     #[test]
     fn the_transform_on_drop_box_previews_the_dropped_patch() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 100, "height": 60})).unwrap();
         app.run("paint.pencil", json!({"points": [[16, 30], [28, 30]], "size": 4, "color": "#0000ff"})).unwrap();
         app.run("select.lasso", json!({"points": [[6, 14], [38, 14], [38, 46], [6, 46]]})).unwrap();
@@ -287,7 +287,7 @@ mod tests {
     }
 
     /// Step until the canvas shows a preview with a key past `after`, or give up after a while.
-    fn wait_for(app: &mut PhotocraftApp, now: &mut f64, after: u64) -> Option<(Arc<Document>, u64)> {
+    fn wait_for(app: &mut EvoPhotoApp, now: &mut f64, after: u64) -> Option<(Arc<Document>, u64)> {
         for _ in 0..6000 {
             if let Some(shown) = step(app, *now).filter(|s| s.1 > after) {
                 return Some(shown);
@@ -300,7 +300,7 @@ mod tests {
 
     #[test]
     fn a_large_selection_shows_a_coarse_result_then_the_exact_one() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 600, "height": 400})).unwrap();
         app.run("paint.pencil", json!({"points": [[150, 160], [170, 160]], "size": 12, "color": "#0000ff"})).unwrap();
         app.run("select.rect", json!({"x": 10, "y": 10, "width": 300, "height": 300})).unwrap();
@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn a_failed_preview_is_not_retried() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 100, "height": 60})).unwrap();
         app.run("select.rect", json!({"x": 6, "y": 14, "width": 32, "height": 32})).unwrap();
         app.run("layer.lockLayers", json!({"pixels": true})).unwrap();

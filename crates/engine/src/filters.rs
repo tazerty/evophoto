@@ -1,13 +1,13 @@
-//! `filter.*` commands (Photoshop's Filter menu) backed by `photocraft-algo`.
+//! `filter.*` commands (Photoshop's Filter menu) backed by `evophoto-algo`.
 //!
 //! Every command acts on the active pixel layer (or the cached pixels of a
 //! smart object, recording a smart filter), respects the selection, and is
 //! undoable. `filter.lastFilter` re-runs the most recent filter command.
 
-use photocraft_algo::{
+use evophoto_algo::{
     self as algo, Distribution, FilterParams, PolarMode, Preserve, RadialMethod, RadialQuality, RippleSize, SpherizeMode, UndefinedAreas, WaveType,
 };
-use photocraft_doc::{LayerContent, SmartFilter};
+use evophoto_doc::{LayerContent, SmartFilter};
 use serde_json::{Value, json};
 
 use crate::commands::CommandSpec;
@@ -180,11 +180,11 @@ pub fn params_for(id: &str, p: &Value) -> Option<FilterParams> {
 pub fn apply_filter_to_surface(
     id: &str,
     params: &Value,
-    surf: &photocraft_raster::Surface,
-    bounds: photocraft_geom::Rect,
-    selection: Option<&photocraft_raster::Surface>,
-    canvas: photocraft_geom::Rect,
-) -> Result<Option<photocraft_raster::Surface>> {
+    surf: &evophoto_raster::Surface,
+    bounds: evophoto_geom::Rect,
+    selection: Option<&evophoto_raster::Surface>,
+    canvas: evophoto_geom::Rect,
+) -> Result<Option<evophoto_raster::Surface>> {
     // Replays bypass command dispatch; nested paths must still obey the requesting session's
     // authority, including adjustment LUTs and plug-ins, before any resolver can read them.
     crate::jobs::authorize_render_command(id, params)?;
@@ -210,7 +210,7 @@ pub fn apply_filter_to_surface(
     if crate::filters_ext::resolve_map_path(&mut fp, params).is_err() {
         return Ok(None);
     }
-    let sel_bounds = selection.map(photocraft_raster::Surface::content_bounds);
+    let sel_bounds = selection.map(evophoto_raster::Surface::content_bounds);
     let content = surf.content_bounds();
     let area = algo::output_area(&fp, content, bounds, sel_bounds);
     Ok(Some(algo::apply_in(surf, &fp, area, bounds, selection, canvas.union(&content))))
@@ -242,7 +242,7 @@ pub(crate) fn run_filter(s: &mut Session, id: &str, p: &Value) -> Result<Value> 
     let mut fp = params_for(id, p).ok_or_else(|| EngineError::Other(format!("unknown filter {id}")))?;
     crate::filters_ext::resolve(s, &mut fp, p)?;
     let layer = match p.get("layer").and_then(Value::as_u64) {
-        Some(l) => photocraft_doc::LayerId(l),
+        Some(l) => evophoto_doc::LayerId(l),
         None => s.active().and_then(|d| d.active_layer).ok_or(EngineError::Other("no active layer".into()))?,
     };
     let label = preset(id).map_or(fp.label(), |(name, _)| name).to_string();
@@ -260,11 +260,11 @@ pub(crate) fn run_filter(s: &mut Session, id: &str, p: &Value) -> Result<Value> 
         s,
         &label,
         move |doc, _, ctx| {
-            let filter = |surf: &photocraft_raster::Surface, fp: &FilterParams, area, bounds, sel: Option<&photocraft_raster::Surface>, extent| {
+            let filter = |surf: &evophoto_raster::Surface, fp: &FilterParams, area, bounds, sel: Option<&evophoto_raster::Surface>, extent| {
                 ctx.stage(0.0, 1.0, &msg, |ctl| algo::apply_in_with(surf, fp, area, bounds, sel, extent, ctl)).ok_or(EngineError::Cancelled)
             };
             let selection = doc.selection.clone();
-            let sel_bounds = selection.as_ref().map(photocraft_raster::Surface::content_bounds);
+            let sel_bounds = selection.as_ref().map(evophoto_raster::Surface::content_bounds);
             // Distortions centre on the selection when there is one, else the canvas. Clouds and
             // Fibers place and size their pattern by the canvas either way; the selection masks them.
             let doc_bounds = doc.bounds();
@@ -307,9 +307,9 @@ pub(crate) fn run_filter(s: &mut Session, id: &str, p: &Value) -> Result<Value> 
                     // document on each re-render.
                     let params = match &fp {
                         FilterParams::Displace { map: Some(map), .. }
-                            if photocraft_io::smart_map::displace_embedded_map(&params).is_none() && crate::filters_ext::map_path(&params).is_none() =>
+                            if evophoto_io::smart_map::displace_embedded_map(&params).is_none() && crate::filters_ext::map_path(&params).is_none() =>
                         {
-                            photocraft_io::smart_map::displace_embed_map(&params, map).ok_or_else(|| {
+                            evophoto_io::smart_map::displace_embed_map(&params, map).ok_or_else(|| {
                                 EngineError::Other(
                                     "Displace: the displacement map is too large to keep in a Smart Object's filter: rasterize the layer first".into(),
                                 )
@@ -318,7 +318,7 @@ pub(crate) fn run_filter(s: &mut Session, id: &str, p: &Value) -> Result<Value> 
                         _ => params.clone(),
                     };
                     // Non-destructive: record the filter and re-render the smart object from its source.
-                    let sf = SmartFilter { command: id.clone(), params, blend: photocraft_color::BlendMode::Normal, opacity: 1.0, visible: true };
+                    let sf = SmartFilter { command: id.clone(), params, blend: evophoto_color::BlendMode::Normal, opacity: 1.0, visible: true };
                     return crate::smart_cmds::add_smart_filter(doc, layer, sf, selection.as_ref()).map(|()| fp);
                 }
                 _ => return Err(EngineError::Other("not a pixel layer".into())),
@@ -342,8 +342,8 @@ pub(crate) fn run_filter(s: &mut Session, id: &str, p: &Value) -> Result<Value> 
 /// own, and `cancelled` is asked before each one: on a 24 MP layer (a Background, whose
 /// transparency is locked) a serial pass took about 400 ms that a cancelled job had to sit out
 /// (#6205). `Err(Cancelled)` leaves `new` holding all its tiles, some of them not yet fixed.
-pub(crate) fn keep_alpha(old: &photocraft_raster::Surface, new: &mut photocraft_raster::Surface, cancelled: &(dyn Fn() -> bool + Sync)) -> Result<()> {
-    use photocraft_raster::Surface;
+pub(crate) fn keep_alpha(old: &evophoto_raster::Surface, new: &mut evophoto_raster::Surface, cancelled: &(dyn Fn() -> bool + Sync)) -> Result<()> {
+    use evophoto_raster::Surface;
     use rayon::prelude::*;
     if old.format() != new.format() || !new.format().alpha {
         return Ok(());
@@ -354,7 +354,7 @@ pub(crate) fn keep_alpha(old: &photocraft_raster::Surface, new: &mut photocraft_
     let default = new.default_pixel();
     // Each changed tile alone in a surface (a tile `new` lacks is taken as its default pixel, as
     // `write_region` would create it).
-    let mut tiles: Vec<(photocraft_geom::Rect, Surface)> = coords
+    let mut tiles: Vec<(evophoto_geom::Rect, Surface)> = coords
         .iter()
         .map(|c| {
             let mut s = Surface::with_default(fmt, &default);
@@ -512,7 +512,7 @@ mod tests {
     fn active_pixels(s: &Session) -> Vec<f32> {
         let d = s.active().unwrap();
         let l = d.doc.layer(d.active_layer.unwrap()).unwrap();
-        l.surface().unwrap().read_region(photocraft_geom::Rect::new(0, 0, 48, 32))
+        l.surface().unwrap().read_region(evophoto_geom::Rect::new(0, 0, 48, 32))
     }
 
     fn mask_session(reveal_selection: bool) -> Session {
@@ -794,7 +794,7 @@ mod tests {
         assert_ne!(active_pixels(&s), before, "the active layer is filtered");
         let d = s.active().unwrap();
         let l = d.doc.layer(first).unwrap();
-        assert_eq!(l.surface().unwrap().read_region(photocraft_geom::Rect::new(0, 0, 48, 32)), first_once, "the first layer is left alone");
+        assert_eq!(l.surface().unwrap().read_region(evophoto_geom::Rect::new(0, 0, 48, 32)), first_once, "the first layer is left alone");
     }
 
     #[test]
@@ -821,7 +821,7 @@ mod tests {
             // A white dot on black.
             s.edit("dot", |doc, active| {
                 let surf = doc.layer_mut(active.unwrap()).unwrap().surface_mut().unwrap();
-                surf.fill_rect(photocraft_geom::Rect::new(0, 0, 48, 32), &[0.0, 0.0, 0.0, 1.0]);
+                surf.fill_rect(evophoto_geom::Rect::new(0, 0, 48, 32), &[0.0, 0.0, 0.0, 1.0]);
                 surf.write_pixel(24, 16, &[1.0, 1.0, 1.0, 1.0]);
                 Ok(())
             })
@@ -850,17 +850,17 @@ mod tests {
 
     #[test]
     fn smart_object_records_smart_filter() {
-        use photocraft_doc::{Layer, SmartObject, SmartSource};
+        use evophoto_doc::{Layer, SmartObject, SmartSource};
         let mut s = session();
         s.edit("smart", |doc, active| {
-            let mut cache = photocraft_raster::Surface::new(doc.pixel_format());
-            cache.fill_rect(photocraft_geom::Rect::new(0, 0, 10, 10), &[1.0, 0.0, 0.0, 1.0]);
+            let mut cache = evophoto_raster::Surface::new(doc.pixel_format());
+            cache.fill_rect(evophoto_geom::Rect::new(0, 0, 10, 10), &[1.0, 0.0, 0.0, 1.0]);
             let l = Layer::new(
                 "so",
                 LayerContent::Smart(SmartObject {
-                    contents_id: photocraft_doc::SmartContentsId::fresh(),
+                    contents_id: evophoto_doc::SmartContentsId::fresh(),
                     source: SmartSource::Linked { path: String::new() },
-                    transform: photocraft_geom::Affine::IDENTITY,
+                    transform: evophoto_geom::Affine::IDENTITY,
                     smart_filters: vec![],
                     cache: Some(cache),
                     psd_raw: None,
@@ -885,7 +885,7 @@ mod tests {
     }
 
     /// The serial `keep_alpha` before #6205, kept as the oracle for the parallel one.
-    fn keep_alpha_serial(old: &photocraft_raster::Surface, new: &mut photocraft_raster::Surface) {
+    fn keep_alpha_serial(old: &evophoto_raster::Surface, new: &mut evophoto_raster::Surface) {
         if old.format() != new.format() || !new.format().alpha {
             return;
         }
@@ -908,10 +908,10 @@ mod tests {
 
     /// A layer before and after a filter: tiles the filter changed, one it left shared, one it
     /// emptied (only in `old`) and one it added (only in `new`).
-    fn alpha_pair(sample: photocraft_color::SampleType) -> (photocraft_raster::Surface, photocraft_raster::Surface) {
-        use photocraft_geom::Rect;
-        use photocraft_raster::Surface;
-        let fmt = photocraft_color::PixelFormat { mode: photocraft_color::ColorMode::Rgb, sample, alpha: true };
+    fn alpha_pair(sample: evophoto_color::SampleType) -> (evophoto_raster::Surface, evophoto_raster::Surface) {
+        use evophoto_geom::Rect;
+        use evophoto_raster::Surface;
+        let fmt = evophoto_color::PixelFormat { mode: evophoto_color::ColorMode::Rgb, sample, alpha: true };
         let pattern = |r: Rect, k: f32| -> Vec<f32> {
             (0..r.width() as usize * r.height() as usize * 4).map(|i| ((i as f32 * 0.37 + k).sin() * 0.5 + 0.5).clamp(0.0, 1.0)).collect()
         };
@@ -921,7 +921,7 @@ mod tests {
         let mut new = old.clone();
         let changed = Rect::new(-40, -20, 400, 300);
         new.write_region(changed, &pattern(changed, 1.3));
-        let emptied = photocraft_geom::TileCoord::containing(600, 100).rect();
+        let emptied = evophoto_geom::TileCoord::containing(600, 100).rect();
         drop(new.take_tiles(emptied));
         let added = Rect::new(800, 0, 900, 50);
         new.write_region(added, &pattern(added, 2.1));
@@ -930,7 +930,7 @@ mod tests {
 
     #[test]
     fn keep_alpha_matches_the_serial_pass_at_every_depth() {
-        use photocraft_color::SampleType;
+        use evophoto_color::SampleType;
         for sample in [SampleType::U8, SampleType::U16, SampleType::F32] {
             let (old, new) = alpha_pair(sample);
             let mut want = new.clone();
@@ -944,7 +944,7 @@ mod tests {
 
     #[test]
     fn keep_alpha_stops_when_cancelled_and_keeps_the_tiles() {
-        let (old, new) = alpha_pair(photocraft_color::SampleType::U8);
+        let (old, new) = alpha_pair(evophoto_color::SampleType::U8);
         let mut got = new.clone();
         let calls = std::sync::atomic::AtomicUsize::new(0);
         let cancel = || calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst) >= 2;
@@ -967,7 +967,7 @@ mod tests {
         s.edit("square", |doc, active| {
             let fmt = doc.pixel_format();
             let surf = doc.layer_mut(active.unwrap()).unwrap().surface_mut().unwrap();
-            surf.fill_rect(photocraft_geom::Rect::new(10, 10, 20, 12), &photocraft_raster::from_rgba(&fmt, [1.0, 0.0, 0.0, 1.0]));
+            surf.fill_rect(evophoto_geom::Rect::new(10, 10, 20, 12), &evophoto_raster::from_rgba(&fmt, [1.0, 0.0, 0.0, 1.0]));
             Ok(())
         })
         .unwrap();
@@ -982,7 +982,7 @@ mod tests {
             let LayerContent::Smart(sm) = &d.doc.layer(d.active_layer.unwrap()).unwrap().content else { panic!("not a smart object") };
             (sm.smart_filters[0].params.clone(), sm.cache.as_ref().unwrap().read_region(d.doc.bounds()))
         };
-        let first_value = |params: &Value| photocraft_io::smart_map::displace_embedded_map(params).expect("an embedded map").data[0];
+        let first_value = |params: &Value| evophoto_io::smart_map::displace_embedded_map(params).expect("an embedded map").data[0];
 
         s.execute("filter.distort.displace", json!({"horizontal": 10, "vertical": 0, "mapDocument": 0})).unwrap();
         let (params, displaced) = smart(&s);

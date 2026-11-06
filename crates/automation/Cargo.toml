@@ -1,6 +1,6 @@
 [package]
-name = "photocraft-automation"
-description = "MCP server (rmcp) over the PhotoCraft engine, plus a bridge to a running GUI"
+name = "evophoto-automation"
+description = "MCP server (rmcp) over the EvoPhoto engine, plus a bridge to a running GUI"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,12 +10,12 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-photocraft-doc = { workspace = true }
-photocraft-compose = { workspace = true }
-photocraft-codecs = { workspace = true }
-photocraft-io = { workspace = true }
-photocraft-format = { path = "../format" }
-photocraft-engine = { workspace = true }
+evophoto-doc = { workspace = true }
+evophoto-compose = { workspace = true }
+evophoto-codecs = { workspace = true }
+evophoto-io = { workspace = true }
+evophoto-format = { path = "../format" }
+evophoto-engine = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -29,7 +29,7 @@ clap = { workspace = true }
 
 [dev-dependencies]
 # Synthetic camera raws (#7789).
-photocraft-raw = { workspace = true, features = ["testgen"] }
+evophoto-raw = { workspace = true, features = ["testgen"] }
 rmcp = { version = "3.5", default-features = false, features = ["client", "server", "macros", "transport-io"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "sync", "net", "io-util", "time"] }
 

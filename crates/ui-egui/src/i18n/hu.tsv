@@ -12,7 +12,7 @@
 # Clean-room: every entry was written from the plain meaning of the English label using ordinary
 # Hungarian image-editing vocabulary (réteg, maszk, kijelölés ...). No proprietary localisation
 # resource, string table or product UI was consulted or copied; add entries the same way.
-# Product and technology names (PhotoCraft, OpenType, CMYK, Lab ...) stay in Latin
+# Product and technology names (EvoPhoto, OpenType, CMYK, Lab ...) stay in Latin
 # letters; the trailing "…" of dialog commands is kept. Plural rule: a count is followed by the
 # singular noun in Hungarian, so every @plural entry has a single form.
 
@@ -2891,7 +2891,7 @@ cameraRaw	Yellow	Sárga
 	Lumbra keeps retrying; until a save succeeds, preference changes are lost when it closes.	A Lumbra tovább próbálkozik; amíg a mentés nem sikerül, a beállítások módosításai bezáráskor elvesznek.
 	Lumbra Manages Colors	A Lumbra kezeli a színeket
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra – nyílt forráskódú, natív képszerkesztő Rust nyelven.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	A PhotoCraft nyílt forráskódú szoftveren alapul (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	A EvoPhoto nyílt forráskódú szoftveren alapul (MIT OR Apache-2.0).
 	Picas	Pica
 	Pixels	Pixel
 	Pixels/Centimeter	Pixel/centiméter
@@ -3886,7 +3886,7 @@ cameraRaw	Yellow	Sárga
 	Modify Date	Módosítás dátuma
 	Mouse Controls	Egérvezérlés
 	Mouse Coordinates	Egérkoordináták
-	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= photocraft`.	A fájlok natív behúzása Waylanden még nem támogatott. Használd a Fájl › Megnyitás parancsot, vagy futtasd a Lumbrát XWaylanden: `WAYLAND_DISPLAY= photocraft`.
+	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= evophoto`.	A fájlok natív behúzása Waylanden még nem támogatott. Használd a Fájl › Megnyitás parancsot, vagy futtasd a Lumbrát XWaylanden: `WAYLAND_DISPLAY= evophoto`.
 	New channel only	Csak új csatorna
 	New document…     ⌘N	Új dokumentum…     ⌘N
 	New Layer from Brush	Új réteg ecsetből

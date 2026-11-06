@@ -345,22 +345,22 @@ fn write_cursor_preview() {
             }
         }
     }
-    let image = photocraft_codecs::Image::from_u8(width as u32, height as u32, photocraft_codecs::ChannelLayout::Rgba, rgba).unwrap();
-    let png = photocraft_codecs::encode(&image, photocraft_codecs::Format::Png, &Default::default()).unwrap();
+    let image = evophoto_codecs::Image::from_u8(width as u32, height as u32, evophoto_codecs::ChannelLayout::Rgba, rgba).unwrap();
+    let png = evophoto_codecs::encode(&image, evophoto_codecs::Format::Png, &Default::default()).unwrap();
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/tool-cursor-preview.png");
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(path, png).unwrap();
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn harness() -> Harness<'static, crate::PhotocraftApp> {
-    let mut app = crate::PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+fn harness() -> Harness<'static, crate::EvoPhotoApp> {
+    let mut app = crate::EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("tools.setBrush", json!({"brush": {"size": 40, "hardness": 1.0}})).unwrap();
     app.ui.tool = crate::Tool::Brush;
     app.sync_views();
     let mut h = Harness::builder().with_size(vec2(600.0, 500.0)).build_ui_state(
-        |ui, app: &mut crate::PhotocraftApp| {
+        |ui, app: &mut crate::EvoPhotoApp| {
             let ctx = ui.ctx().clone();
             if !ctx.fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                 return;
@@ -373,7 +373,7 @@ fn harness() -> Harness<'static, crate::PhotocraftApp> {
         },
         app,
     );
-    crate::PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+    crate::EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
     h.run_steps(4);
     h.event(Event::PointerMoved(h.state().last_canvas_rect.center()));
     h.run_steps(3);
@@ -404,10 +404,10 @@ fn brush_cursor_follows_pen_orientation_6350() {
         save_pen_cursor_image(&format!("{control}-turned"), &turned);
         let pen = h.state().stylus.sample().expect("simulated pen reaches the canvas");
         assert_eq!((pen.tilt_y, pen.rotation), (-45.0, 90.0));
-        let point = photocraft_paint::StrokePoint { tilt_y: pen.tilt_y, rotation: pen.rotation, ..Default::default() };
-        let step = photocraft_paint::dynamics::StepInput { point, direction: 0.0, initial_direction: 0.0, step: 0 };
+        let point = evophoto_paint::StrokePoint { tilt_y: pen.tilt_y, rotation: pen.rotation, ..Default::default() };
+        let step = evophoto_paint::dynamics::StepInput { point, direction: 0.0, initial_direction: 0.0, step: 0 };
         let mut dabs = Vec::new();
-        photocraft_paint::dynamics::DabBuilder::new(&h.state().session.tools.brush).build(&step, &mut dabs);
+        evophoto_paint::dynamics::DabBuilder::new(&h.state().session.tools.brush).build(&step, &mut dabs);
         assert_eq!(dabs.len(), 1);
         assert!((dabs[0].angle.to_degrees() - 90.0).abs() < 0.001, "painted dab turns: {control}");
         assert_ne!(initial.rgba, turned.rgba, "cursor must follow pen orientation: {control}");
@@ -444,13 +444,13 @@ fn round_cursor_shows_brush_projection_6350() {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn save_pen_cursor_image(name: &str, cursor: &egui::CustomCursorImage) {
-    let Some(dir) = std::env::var_os("PHOTOCRAFT_CURSOR_OUTPUT") else { return };
+    let Some(dir) = std::env::var_os("EVOPHOTO_CURSOR_OUTPUT") else { return };
     let dir = std::path::PathBuf::from(dir);
     std::fs::create_dir_all(&dir).unwrap();
     let image =
-        photocraft_codecs::Image::from_u8(u32::from(cursor.size[0]), u32::from(cursor.size[1]), photocraft_codecs::ChannelLayout::Rgba, cursor.rgba.to_vec())
+        evophoto_codecs::Image::from_u8(u32::from(cursor.size[0]), u32::from(cursor.size[1]), evophoto_codecs::ChannelLayout::Rgba, cursor.rgba.to_vec())
             .unwrap();
-    let png = photocraft_codecs::encode(&image, photocraft_codecs::Format::Png, &Default::default()).unwrap();
+    let png = evophoto_codecs::encode(&image, evophoto_codecs::Format::Png, &Default::default()).unwrap();
     std::fs::write(dir.join(format!("{name}.png")), png).unwrap();
 }
 

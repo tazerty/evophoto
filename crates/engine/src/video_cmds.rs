@@ -1,11 +1,11 @@
 //! Layer › Video Layers (and Rasterize › Video). A video layer holds a stack of frames; the
 //! layer's displayed raster content is the frame at the timeline playhead, kept in sync by [`sync`]
 //! after any edit or navigation. Paint, fills and filters edit that displayed content, so [`store`]
-//! writes it back into the playhead's frame before anything re-syncs. Headless and scriptable. Frame persistence in `.pcraft` is a
+//! writes it back into the playhead's frame before anything re-syncs. Headless and scriptable. Frame persistence in `.evophoto` is a
 //! follow-up; a saved document keeps the current frame as the layer's content.
 
-use photocraft_doc::{Document, Layer, LayerContent, Timeline, VideoData};
-use photocraft_raster::Surface;
+use evophoto_doc::{Document, Layer, LayerContent, Timeline, VideoData};
+use evophoto_raster::Surface;
 use serde_json::{Value, json};
 
 use crate::commands::CommandSpec;
@@ -106,7 +106,7 @@ fn edit_video(s: &mut Session, label: &str, f: impl FnOnce(&mut VideoData, usize
     Ok(json!({"frames": count}))
 }
 
-fn blank_of(fmt: photocraft_color::PixelFormat) -> Surface {
+fn blank_of(fmt: evophoto_color::PixelFormat) -> Surface {
     Surface::new(fmt)
 }
 
@@ -253,12 +253,12 @@ fn fps_from_delays(delays: &[u32]) -> Option<f32> {
     best.map(|(d, _)| 1000.0 / d as f32)
 }
 
-/// `photocraft_io::import_gif_frames` / `import_webp_frames`.
+/// `evophoto_io::import_gif_frames` / `import_webp_frames`.
 type ImportFrames = fn(
     &str,
     &[u8],
-    &mut dyn FnMut(photocraft_doc::Document, u32) -> std::result::Result<(), photocraft_io::IoError>,
-) -> std::result::Result<usize, photocraft_io::IoError>;
+    &mut dyn FnMut(evophoto_doc::Document, u32) -> std::result::Result<(), evophoto_io::IoError>,
+) -> std::result::Result<usize, evophoto_io::IoError>;
 
 /// Frame storage one footage import may keep (whole tiles, all frames together).
 const MAX_FOOTAGE_BYTES: u64 = 2 << 30;
@@ -266,12 +266,12 @@ const MAX_FOOTAGE_BYTES: u64 = 2 << 30;
 /// Load frames from `path`: a single image (1 frame, or every frame of an animated GIF or WebP), or a
 /// directory of images (sorted = an image sequence). Each becomes a full raster frame in the
 /// document's format.
-fn load_frames(path: &str, fmt: photocraft_color::PixelFormat) -> Result<Footage> {
+fn load_frames(path: &str, fmt: evophoto_color::PixelFormat) -> Result<Footage> {
     let p = std::path::Path::new(path);
     let is_img = |f: &std::path::Path| {
         matches!(
             f.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()).as_deref(),
-            Some("png" | "jpg" | "jpeg" | "tif" | "tiff" | "webp" | "bmp" | "gif" | "tga" | "exr" | "pcraft" | "psd")
+            Some("png" | "jpg" | "jpeg" | "tif" | "tiff" | "webp" | "bmp" | "gif" | "tga" | "exr" | "evophoto" | "psd")
         )
     };
     let files: Vec<std::path::PathBuf> = if p.is_dir() {
@@ -297,7 +297,7 @@ fn load_frames(path: &str, fmt: photocraft_color::PixelFormat) -> Result<Footage
         if frames.len() >= crate::timeline_cmds::MAX_DURATION {
             return Err(format!("the footage has more than {} frames", crate::timeline_cmds::MAX_DURATION));
         }
-        let tile = u64::from(photocraft_geom::TILE_SIZE.unsigned_abs()).pow(2) * surface.format().bytes_per_pixel() as u64;
+        let tile = u64::from(evophoto_geom::TILE_SIZE.unsigned_abs()).pow(2) * surface.format().bytes_per_pixel() as u64;
         kept_bytes = kept_bytes.saturating_add(tile.saturating_mul(surface.tile_count() as u64));
         if kept_bytes > MAX_FOOTAGE_BYTES {
             return Err(format!("the footage needs more than {} MiB of frames", MAX_FOOTAGE_BYTES >> 20));
@@ -309,9 +309,9 @@ fn load_frames(path: &str, fmt: photocraft_color::PixelFormat) -> Result<Footage
         let bytes = std::fs::read(f).map_err(|e| EngineError::Other(format!("read `{}`: {e}", f.display())))?;
         let name = f.to_string_lossy();
         // A GIF (a still one is its only frame) or an animated WebP brings every frame.
-        let animation = match photocraft_codecs::detect(&bytes) {
-            Some(photocraft_codecs::Format::Gif) => Some(photocraft_io::import_gif_frames as ImportFrames),
-            Some(photocraft_codecs::Format::WebP) if photocraft_codecs::webp_is_animated(&bytes) => Some(photocraft_io::import_webp_frames as ImportFrames),
+        let animation = match evophoto_codecs::detect(&bytes) {
+            Some(evophoto_codecs::Format::Gif) => Some(evophoto_io::import_gif_frames as ImportFrames),
+            Some(evophoto_codecs::Format::WebP) if evophoto_codecs::webp_is_animated(&bytes) => Some(evophoto_io::import_webp_frames as ImportFrames),
             _ => None,
         };
         if let Some(import) = animation {
@@ -319,7 +319,7 @@ fn load_frames(path: &str, fmt: photocraft_color::PixelFormat) -> Result<Footage
             let done = import(&name, &bytes, &mut |doc, delay_ms| {
                 if let Err(msg) = keep(&mut frames, crate::file_cmds::flattened(&doc, fmt)) {
                     over = Some(msg);
-                    return Err(photocraft_io::IoError::Cancelled);
+                    return Err(evophoto_io::IoError::Cancelled);
                 }
                 delays.push(delay_ms);
                 Ok(())
@@ -333,7 +333,7 @@ fn load_frames(path: &str, fmt: photocraft_color::PixelFormat) -> Result<Footage
         let mut doc = crate::file_cmds::import(&name, &bytes)?;
         // A Targa's alpha opens as a channel (as in Photoshop); a frame's alpha is transparency.
         if f.extension().is_some_and(|e| e.eq_ignore_ascii_case("tga")) {
-            photocraft_io::tga_alpha_channel_to_transparency(&mut doc);
+            evophoto_io::tga_alpha_channel_to_transparency(&mut doc);
         }
         keep(&mut frames, crate::file_cmds::flattened_checked(&doc, fmt, "layer.videoLayers.newVideoLayerFromFile")?)
             .map_err(|msg| EngineError::Other(format!("`{}`: {msg}", f.display())))?;
@@ -365,7 +365,7 @@ fn new_from_file(s: &mut Session, p: &Value) -> Result<Value> {
         let mut l = Layer::raster(name, fmt);
         let mut v = VideoData::new(frames, fps);
         v.original_frames = Some(v.frames.clone());
-        v.source = photocraft_doc::VideoSource::File { path: path.clone() };
+        v.source = evophoto_doc::VideoSource::File { path: path.clone() };
         l.video = Some(v);
         let id = doc.insert_above(*active, l);
         *active = Some(id);
@@ -386,7 +386,7 @@ fn replace_footage(s: &mut Session, p: &Value) -> Result<Value> {
     edit_video(s, "Replace Footage", move |v, _| {
         v.original_frames = Some(frames.clone());
         v.frames = frames;
-        v.source = photocraft_doc::VideoSource::File { path: path.clone() };
+        v.source = evophoto_doc::VideoSource::File { path: path.clone() };
         Ok(())
     })
 }
@@ -413,7 +413,7 @@ fn reload_frame(s: &mut Session, _p: &Value) -> Result<Value> {
             .ok_or_else(|| EngineError::BadParams { cmd: "layer.videoLayers.reloadFrame".into(), msg: "not a video layer".into() })?;
         (v.source.clone(), st.doc.pixel_format())
     };
-    let photocraft_doc::VideoSource::File { path } = src else {
+    let evophoto_doc::VideoSource::File { path } = src else {
         return Err(EngineError::BadParams { cmd: "layer.videoLayers.reloadFrame".into(), msg: "this layer has no file source to reload".into() });
     };
     // The footage path is stored in the document.
@@ -523,7 +523,7 @@ pub fn render_video_with(
                 return Err(cancelled());
             }
         }
-        let gif = photocraft_codecs::web::encode_gif_animated(w as u32, h as u32, &gframes, true).map_err(|e| EngineError::Other(e.to_string()))?;
+        let gif = evophoto_codecs::web::encode_gif_animated(w as u32, h as u32, &gframes, true).map_err(|e| EngineError::Other(e.to_string()))?;
         let name = format!("{stem}.gif");
         write(&name, &gif)?;
         if !progress(frames, frames) {
@@ -535,7 +535,7 @@ pub fn render_video_with(
 
     // Image sequence.
     // PSD / PSB frames would embed the files linked smart objects name: not for a restricted session.
-    let opts = photocraft_io::ExportOptions { read_linked_files: s.authorize.is_none(), ..Default::default() };
+    let opts = evophoto_io::ExportOptions { read_linked_files: s.authorize.is_none(), ..Default::default() };
     let mut files = Vec::new();
     for f in 0..frames {
         let mut doc = base.clone();
@@ -544,7 +544,7 @@ pub fn render_video_with(
         }
         sync(&mut doc);
         let path = format!("{stem}_{f:04}.{format}");
-        let bytes = photocraft_io::export(&doc, format, &opts).map(|r| r.bytes).map_err(|e| EngineError::Other(format!("render frame {f}: {e}")))?;
+        let bytes = evophoto_io::export(&doc, format, &opts).map(|r| r.bytes).map_err(|e| EngineError::Other(format!("render frame {f}: {e}")))?;
         write(&path, &bytes)?;
         files.push(path);
         if !progress(f + 1, frames) {
@@ -557,8 +557,8 @@ pub fn render_video_with(
 /// One animated GIF frame from straight RGBA pixels, as Save for Web's GIF does (#3061): pixels
 /// under 50 % opacity get the frame's transparent index, the rest are drawn opaque, and the
 /// palette is built from the visible pixels with one entry kept for transparency.
-fn gif_frame(mut px: Vec<[f32; 4]>, w: usize, delay_cs: u16) -> Result<photocraft_codecs::web::GifFrame> {
-    use photocraft_algo::quantize::{self, Dither, Forced, PaletteKind};
+fn gif_frame(mut px: Vec<[f32; 4]>, w: usize, delay_cs: u16) -> Result<evophoto_codecs::web::GifFrame> {
+    use evophoto_algo::quantize::{self, Dither, Forced, PaletteKind};
     let transparent = px.iter().any(|p| p[3] < 0.5);
     let visible: Vec<[f32; 4]> = px.iter().filter(|p| p[3] >= 0.5).map(|p| [p[0], p[1], p[2], 1.0]).collect();
     // A fully transparent frame still needs a palette.
@@ -570,7 +570,7 @@ fn gif_frame(mut px: Vec<[f32; 4]>, w: usize, delay_cs: u16) -> Result<photocraf
         pal.len() - 1
     });
     let indices = quantize::quantize(&mut px, w, &pal, Dither::None, 1.0, t);
-    Ok(photocraft_codecs::web::GifFrame { indices, palette: pal, transparent: t.map(|i| i as u8), delay_cs })
+    Ok(evophoto_codecs::web::GifFrame { indices, palette: pal, transparent: t.map(|i| i as u8), delay_cs })
 }
 
 macro_rules! spec {

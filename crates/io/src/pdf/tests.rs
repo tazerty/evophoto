@@ -1,10 +1,10 @@
 //! PDF export: structure, pixel oracle, colour modes and refusal paths.
 
 use super::*;
-use photocraft_color::{PixelFormat, SampleType};
-use photocraft_doc::{Layer, LayerContent, Size};
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use evophoto_color::{PixelFormat, SampleType};
+use evophoto_doc::{Layer, LayerContent, Size};
+use evophoto_geom::Rect;
+use evophoto_raster::Surface;
 
 fn solid(fmt: PixelFormat, x0: i32, y0: i32, x1: i32, y1: i32, px: &[f32]) -> Surface {
     let mut s = Surface::new(fmt);

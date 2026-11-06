@@ -21,8 +21,8 @@ use parley::{
     Alignment, AlignmentOptions, FontData, FontFamily, FontFeatures, FontStyle, FontVariations, FontWeight, IndentOptions, Layout, LayoutContext,
     PositionedLayoutItem, StyleProperty,
 };
-use photocraft_doc::TextLayer;
-use photocraft_doc::text::{Caps, CharStyle, FontBaseline, Kerning, Orientation, ParagraphStyle, TextAlign, TextDirection, TextShape};
+use evophoto_doc::TextLayer;
+use evophoto_doc::text::{Caps, CharStyle, FontBaseline, Kerning, Orientation, ParagraphStyle, TextAlign, TextDirection, TextShape};
 use skrifa::raw::types::Tag;
 
 use crate::fonts::FontDb;
@@ -1586,9 +1586,9 @@ fn style_props(st: &CharStyle, k: f32, fallback: &[String], idx: u32, small_caps
     if !st.font_family.is_empty() {
         fam.push(quote(&st.font_family));
     }
-    // Serif runs fall back to a Mincho face for Japanese (craft-fonts), others to a Gothic one.
-    if crate::craft_fonts::is_serif_family(&st.font_family) {
-        fam.extend(crate::craft_fonts::mincho_first(fallback).iter().map(|f| quote(f)));
+    // Serif runs fall back to a Mincho face for Japanese (evo-fonts), others to a Gothic one.
+    if crate::evo_fonts::is_serif_family(&st.font_family) {
+        fam.extend(crate::evo_fonts::mincho_first(fallback).iter().map(|f| quote(f)));
     } else {
         fam.extend(fallback.iter().map(|f| quote(f)));
     }
@@ -1716,8 +1716,8 @@ pub(crate) fn hangul_runs(text: &str) -> Vec<std::ops::Range<usize>> {
 #[cfg(test)]
 mod tests {
     use super::{SmallCapsMode, feature_list, small_caps_mode, variation_list};
-    use photocraft_doc::TextLayer;
-    use photocraft_doc::text::{Caps, CharStyle, FontVariation, TextRun};
+    use evophoto_doc::TextLayer;
+    use evophoto_doc::text::{Caps, CharStyle, FontVariation, TextRun};
 
     /// Reference: the lookup the layout used before it became a binary search.
     fn run_index_reference(starts: &[usize], off: usize) -> usize {

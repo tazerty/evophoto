@@ -279,7 +279,7 @@ impl SlicesResource {
             // Index each slice ID to its first occurrence once, so matching trailing
             // descriptors against slices is linear rather than quadratic. Both the slice
             // count and the descriptor-ID list are file-controlled, so a plain
-            // `find()` per descriptor is O(n*m) and lets a crafted resource burn CPU.
+            // `find()` per descriptor is O(n*m) and lets a built resource burn CPU.
             // `or_insert` preserves the original first-match behavior for duplicate IDs.
             let mut id_to_index: HashMap<u32, usize> = HashMap::with_capacity(slices.len());
             for (i, s) in slices.iter().enumerate() {

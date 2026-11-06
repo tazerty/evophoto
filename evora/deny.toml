@@ -1,11 +1,11 @@
-# cargo-deny : politique Evora pour le build web de Lumbra (fork tazerty/photocraft).
+# cargo-deny : politique Evora pour le build web de Lumbra (fork tazerty/evophoto).
 #
 # L'amont n'a pas de deny.toml (aucune politique de licences ni d'audit d'advisories) : ce fichier
 # est minimal et écrit par Evora. Il ne relâche rien en silence : chaque licence admise et chaque
 # exception est listée ici, avec sa raison ; les avertissements de cargo-deny (doublons de
 # versions, licences admises inutilisées) restent affichés dans le journal et dans le résumé du job.
 #
-# Graphe audité : la crate apps/photocraft-web (ce que l'artefact web embarque), cible
+# Graphe audité : la crate apps/evophoto-web (ce que l'artefact web embarque), cible
 # wasm32-unknown-unknown, dépendances de développement exclues, features passées par la CI
 # d'après index.html (data-cargo-features). Lancé par .github/workflows/evora-web.yml.
 
@@ -57,7 +57,7 @@ exceptions = [
 ]
 
 [licenses.private]
-# Les crates du dépôt non publiées (photocraft-*) sont sous MIT OR Apache-2.0 (Cargo.toml du
+# Les crates du dépôt non publiées (evophoto-*) sont sous MIT OR Apache-2.0 (Cargo.toml du
 # workspace) ; elles restent auditées comme les autres.
 ignore = false
 
@@ -69,11 +69,10 @@ wildcards = "allow"
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-# craft-ui (storytold/craft-libs, Apache-2.0), épinglée par révision dans Cargo.lock.
-# Depuis v0.10.0 (EVORA-LUM-49) : craft-print (craft-libs) dépend sans condition de
-# craft-winprint-gdi (storytold/winprint.rs, MIT OR Apache-2.0, révision 417ac3c4 épinglée par
-# craft-print et Cargo.lock). Sur wasm32, seuls ses types et des fonctions qui répondent
+# Aucune source git : les bibliothèques de l'amont (evo-ui, evo-print, evo-docpath, evo-jpeg,
+# evo-winprint-gdi, winprint) sont recopiées sous vendor/, à la révision qu'épinglait Cargo.lock, et
+# compilées par chemin local. Depuis v0.10.0 (EVORA-LUM-49) : evo-print dépend sans condition de
+# evo-winprint-gdi (MIT OR Apache-2.0). Sur wasm32, seuls ses types et des fonctions qui répondent
 # « Unsupported » sont compilés : son module Win32 et sa seule dépendance (windows-sys) sont
-# réservés à cfg(windows), et unsafe_code y est refusé hors de ce module. Même organisation que
-# craft-libs ; l'amont pdfcraft admet ce dépôt dans son propre deny.toml.
-allow-git = ["https://github.com/storytold/craft-libs", "https://github.com/storytold/winprint.rs"]
+# réservés à cfg(windows), et unsafe_code y est refusé hors de ce module.
+allow-git = []

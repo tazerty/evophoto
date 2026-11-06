@@ -1,4 +1,4 @@
-use photocraft_codecs::{
+use evophoto_codecs::{
     ChannelLayout, CodecError, DecodeOptions, Format, Limits, SampleType, caps, decode, decode_as, decode_as_with, detect, encode, from_extension,
 };
 
@@ -68,7 +68,7 @@ const INDICES_0123: [u8; 4] = [0x04, 0x0e, 0, 0];
 fn dds_is_readable_and_writable() {
     assert_eq!(from_extension("texture.DDS"), Some(Format::Dds));
     assert!(caps(Format::Dds).read && caps(Format::Dds).write);
-    let img = photocraft_codecs::Image::from_u8(1, 1, ChannelLayout::Rgba, vec![1, 2, 3, 0]).unwrap();
+    let img = evophoto_codecs::Image::from_u8(1, 1, ChannelLayout::Rgba, vec![1, 2, 3, 0]).unwrap();
     let b = encode(&img, Format::Dds, &Default::default()).unwrap();
     assert_eq!(decode(&b).unwrap().data(), &[1, 2, 3, 0]);
 }

@@ -5,8 +5,8 @@
 
 use std::borrow::Cow;
 
-use photocraft_codecs::resolution::{exif_with_resolution, xmp_with_resolution};
-use photocraft_codecs::*;
+use evophoto_codecs::resolution::{exif_with_resolution, xmp_with_resolution};
+use evophoto_codecs::*;
 use proptest::prelude::{any, proptest};
 
 const X: u16 = 282;

@@ -11,16 +11,16 @@
 //! ```
 //!
 //! The whole `filterFX` item (with the map) is kept verbatim in the params as a template
-//! ([`TEMPLATE_KEY`]), so the filter re-renders, survives `.pcraft` and is written back to PSD
+//! ([`TEMPLATE_KEY`]), so the filter re-renders, survives `.evophoto` and is written back to PSD
 //! with only the editable settings replaced. Anything else (another mode, a missing or truncated
 //! map, unknown enum values) stays an opaque [`super::UNSUPPORTED_FILTER`].
 
 use std::sync::Arc;
 
-use photocraft_algo::Image;
-use photocraft_doc::SmartFilter;
-use photocraft_geom::Rect;
-use photocraft_psd::descriptor::{Descriptor, Id, Value};
+use evophoto_algo::Image;
+use evophoto_doc::SmartFilter;
+use evophoto_geom::Rect;
+use evophoto_psd::descriptor::{Descriptor, Id, Value};
 use serde_json::{Value as J, json};
 
 use super::{blend_options, from_hex, get_desc, int, set, to_hex};
@@ -38,8 +38,8 @@ const HEADER: usize = 10;
 const MODE_TWO_PLANES: u16 = 3;
 /// 8K × 8K: far beyond the observed document-sized maps, and bounds the f32 map we build.
 const MAX_MAP_PIXELS: usize = 1 << 26;
-/// 4K × 4K: the largest map PhotoCraft embeds itself. Params hold it as hex, about 4 bytes per
-/// pixel, copied with every history state and written into `.pcraft`'s manifest, so a few of the
+/// 4K × 4K: the largest map EvoPhoto embeds itself. Params hold it as hex, about 4 bytes per
+/// pixel, copied with every history state and written into `.evophoto`'s manifest, so a few of the
 /// largest readable maps would make a file the reader refuses.
 const MAX_EMBED_PIXELS: usize = 1 << 24;
 /// The template is the item plus the map; a little room for the rest of the descriptor.
@@ -105,7 +105,7 @@ pub(super) fn import_params(item: &Descriptor) -> Option<J> {
     fltr_map(item)?;
     // Neutral blending in the template: the model's own fields replace it on export.
     let mut template = item.clone();
-    let neutral = SmartFilter { command: String::new(), params: J::Null, blend: photocraft_color::BlendMode::Normal, opacity: 1.0, visible: true };
+    let neutral = SmartFilter { command: String::new(), params: J::Null, blend: evophoto_color::BlendMode::Normal, opacity: 1.0, visible: true };
     set(&mut template, "blendOptions", blend_options(&neutral));
     set(&mut template, "enab", Value::Boolean(true));
     params.as_object_mut()?.insert(TEMPLATE_KEY.into(), json!(to_hex(&template.to_bytes())));
@@ -163,7 +163,7 @@ pub(super) fn export_item(params: &J) -> Result<Descriptor, String> {
 /// `filter.distort.displace` params with `map` embedded the way Photoshop embeds a Displace
 /// smart filter's map: a `filterFX` item ([`TEMPLATE_KEY`]) holding it as two 8-bit planes. A
 /// smart filter re-renders from its params alone, so a map read from a file or an open document
-/// must travel with them (#7423); embedded, it also saves to `.pcraft` and PSD like an imported
+/// must travel with them (#7423); embedded, it also saves to `.evophoto` and PSD like an imported
 /// one. `map`'s first channel is the horizontal map and its second the vertical one (the first
 /// again for one or two channels), as the filter reads them. `mapPath`, `mapDocument` and
 /// `mapLayer` are dropped: `map` was already read from them (from that layer, when one was
@@ -187,9 +187,9 @@ pub fn embed_map(params: &J, map: &Image) -> Option<J> {
     let enumerated = |t: &str, v: &str| Value::Enumerated { type_id: Id::new(t), value: Id::new(v) };
     // The settings here are placeholders: the params' own replace them when the filter renders
     // and when it is written to PSD (`export_item`).
-    let neutral = SmartFilter { command: String::new(), params: J::Null, blend: photocraft_color::BlendMode::Normal, opacity: 1.0, visible: true };
+    let neutral = SmartFilter { command: String::new(), params: J::Null, blend: evophoto_color::BlendMode::Normal, opacity: 1.0, visible: true };
     let item = Descriptor::new("filterFX")
-        .with("Nm  ", Value::Text(photocraft_psd::descriptor::UnicodeString::new_nul("Displace...")))
+        .with("Nm  ", Value::Text(evophoto_psd::descriptor::UnicodeString::new_nul("Displace...")))
         .with("blendOptions", blend_options(&neutral))
         .with("enab", Value::Boolean(true))
         .with("hasoptions", Value::Boolean(true))
@@ -261,13 +261,13 @@ mod tests {
     fn item(map: Vec<u8>) -> Descriptor {
         let e = |t: &str, v: &str| Value::Enumerated { type_id: Id::new(t), value: Id::new(v) };
         Descriptor::new("filterFX")
-            .with("Nm  ", Value::Text(photocraft_psd::descriptor::UnicodeString::new_nul("Displace...")))
+            .with("Nm  ", Value::Text(evophoto_psd::descriptor::UnicodeString::new_nul("Displace...")))
             .with(
                 "blendOptions",
                 blend_options(&SmartFilter {
                     command: String::new(),
                     params: J::Null,
-                    blend: photocraft_color::BlendMode::Normal,
+                    blend: evophoto_color::BlendMode::Normal,
                     opacity: 1.0,
                     visible: true,
                 }),

@@ -125,15 +125,15 @@ try {
 
 // Constat du pont muet : sain, puis chaque défaut rougit à son étiquette, et à elle seule.
 const healthy = { started: false, last: { loading: 'Loading Lumbra…' }, storage: { keys: [], dbs: [] }, parentMessages: [],
-  served: { '/evora-host.json identity': 1 }, warnings: ['moteur : photocraft-web: evora-host.json admits no parent origin: the Evora bridge stays mute'] };
+  served: { '/evora-host.json identity': 1 }, warnings: ['moteur : evophoto-web: evora-host.json admits no parent origin: the Evora bridge stays mute'] };
 const mute = [
   ['sain', healthy, []],
   ['message au parent', { ...healthy, parentMessages: [{ origin: 'x', data: {} }] }, ['muet:message']],
   ['journal illisible', { ...healthy, parentMessages: null }, ['muet:message']],
   ['démarré', { ...healthy, started: true }, ['muet:demarrage']],
   ['voile retiré', { ...healthy, last: { loading: null } }, ['muet:demarrage']],
-  ['stockage écrit', { ...healthy, storage: { keys: ['photocraft.preferences'], dbs: [] } }, ['muet:stockage']],
-  ['base ouverte', { ...healthy, storage: { keys: [], dbs: ['photocraft.presets'] } }, ['muet:stockage']],
+  ['stockage écrit', { ...healthy, storage: { keys: ['evophoto.preferences'], dbs: [] } }, ['muet:stockage']],
+  ['base ouverte', { ...healthy, storage: { keys: [], dbs: ['evophoto.presets'] } }, ['muet:stockage']],
   ['stockage non relevé', { ...healthy, storage: null }, ['muet:stockage']],
   ['configuration jamais demandée', { ...healthy, served: {} }, ['muet:config']],
   ['autre raison', { ...healthy, warnings: [] }, ['muet:raison']],

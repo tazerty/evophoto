@@ -1,5 +1,5 @@
 [package]
-name = "photocraft-gpu"
+name = "evophoto-gpu"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,11 +9,11 @@ workspace = true
 
 [dependencies]
 half = "2"
-photocraft-geom = { workspace = true }
-photocraft-color = { workspace = true }
-photocraft-raster = { workspace = true }
-photocraft-doc = { workspace = true }
-photocraft-compose = { workspace = true }
+evophoto-geom = { workspace = true }
+evophoto-color = { workspace = true }
+evophoto-raster = { workspace = true }
+evophoto-doc = { workspace = true }
+evophoto-compose = { workspace = true }
 # Same major version as eframe's wgpu so the app's device can be shared.
 wgpu = { version = "30", default-features = false, features = ["std", "wgsl"] }
 log = { workspace = true }
@@ -26,6 +26,6 @@ rayon = { workspace = true }
 wgpu = { version = "30" }
 pollster = "1"
 # Shape layers in the effect parity tests.
-photocraft-vector = { workspace = true }
+evophoto-vector = { workspace = true }
 # A document-tagged CMYK profile in the tile conversion test.
-photocraft-cms = { workspace = true }
+evophoto-cms = { workspace = true }

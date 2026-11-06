@@ -1,12 +1,12 @@
-//! Headless backend: a `photocraft_engine::Session` plus file I/O. Synchronous
+//! Headless backend: a `evophoto_engine::Session` plus file I/O. Synchronous
 //! and UI-free; the MCP server and the CLI both drive it.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use photocraft_engine::{Session, command_specs, file_cmds};
-use photocraft_format::PcraftWriter;
-use photocraft_io::ExportOptions;
+use evophoto_engine::{Session, command_specs, file_cmds};
+use evophoto_format::EvoPhotoWriter;
+use evophoto_io::ExportOptions;
 use serde_json::{Value, json};
 
 use crate::workspace::{ExportSequence, authorize_engine_command, authorize_engine_step};
@@ -27,8 +27,8 @@ enum Filesystem {
 /// A headless editing session.
 pub struct Headless {
     pub session: Session,
-    /// Incremental `.pcraft` writers per document id.
-    writers: HashMap<u64, PcraftWriter>,
+    /// Incremental `.evophoto` writers per document id.
+    writers: HashMap<u64, EvoPhotoWriter>,
     filesystem: Filesystem,
 }
 
@@ -115,7 +115,7 @@ impl Headless {
         }
         let d = &self.session.documents()[index];
         let mut warnings = o.warnings;
-        warnings.extend(photocraft_engine::type_extra_cmds::missing_font_warnings(&d.doc));
+        warnings.extend(evophoto_engine::type_extra_cmds::missing_font_warnings(&d.doc));
         Ok(json!({
             "index": index,
             "name": d.doc.name,
@@ -170,7 +170,7 @@ impl Headless {
             };
             let name = Path::new(path).file_name().and_then(|name| name.to_str()).unwrap_or(path);
             this.sync_jobs();
-            Ok(photocraft_engine::smart_cmds::replace_contents_from_bytes(&mut this.session, &Value::Object(opts), name, bytes)?)
+            Ok(evophoto_engine::smart_cmds::replace_contents_from_bytes(&mut this.session, &Value::Object(opts), name, bytes)?)
         })
     }
 
@@ -194,7 +194,7 @@ impl Headless {
             };
             let mut outputs = workspace.export_sequence(dir)?;
             let report = file_cmds::export_layers_report_with(&this.session, params, |name, bytes| {
-                outputs.write(name, bytes).map_err(|e| photocraft_engine::EngineError::Other(e.to_string()))
+                outputs.write(name, bytes).map_err(|e| evophoto_engine::EngineError::Other(e.to_string()))
             });
             let (written, skipped) = match report {
                 Ok(report) => (Ok(report.files), report.skipped),
@@ -223,8 +223,8 @@ impl Headless {
                 _ => return Err(AutomationError::BadRequest("automation filesystem access is not granted: write authority is absent".into())),
             };
             let mut outputs = workspace.export_sequence(dir)?;
-            let written = photocraft_engine::export_data_sets_with(&this.session, params, |name, bytes| {
-                outputs.write(name, bytes).map_err(|e| photocraft_engine::EngineError::Other(e.to_string()))
+            let written = evophoto_engine::export_data_sets_with(&this.session, params, |name, bytes| {
+                outputs.write(name, bytes).map_err(|e| evophoto_engine::EngineError::Other(e.to_string()))
             });
             exported(dir, written, &mut outputs)
         })
@@ -249,11 +249,11 @@ impl Headless {
                 _ => return Err(AutomationError::BadRequest("automation filesystem access is not granted: read authority is absent".into())),
             };
             this.sync_jobs();
-            Ok(photocraft_engine::import_data_sets_text(&mut this.session, &text, params)?)
+            Ok(evophoto_engine::import_data_sets_text(&mut this.session, &text, params)?)
         })
     }
 
-    /// Save (`.pcraft` or any export format by extension). With no path,
+    /// Save (`.evophoto` or any export format by extension). With no path,
     /// saves to the document's own path.
     pub fn save(&mut self, index: Option<usize>, path: Option<&Path>, format: Option<&str>, opts: &ExportOptions) -> Result<Value, AutomationError> {
         let i = self.doc_index(index)?;
@@ -272,7 +272,7 @@ impl Headless {
                     let lost = file_cmds::losses_at(&doc, p);
                     let why = if lost.is_empty() { String::new() } else { format!(" (it can't keep: {})", lost.join("; ")) };
                     return Err(AutomationError::BadRequest(format!(
-                        "pass `path`: without one, only a PSD, PSB, .pcraft or OpenRaster file that holds the whole document is written back, in its own format, so `{p}` was left unchanged{why}"
+                        "pass `path`: without one, only a PSD, PSB, .evophoto or OpenRaster file that holds the whole document is written back, in its own format, so `{p}` was left unchanged{why}"
                     )));
                 }
                 PathBuf::from(p)
@@ -297,8 +297,8 @@ impl Headless {
                 warnings
             }
         };
-        warnings.extend(photocraft_engine::type_extra_cmds::missing_font_warnings(&doc));
-        // A layered document save (PSD, PSB, OpenRaster or .pcraft) that holds the whole document is a
+        warnings.extend(evophoto_engine::type_extra_cmds::missing_font_warnings(&doc));
+        // A layered document save (PSD, PSB, OpenRaster or .evophoto) that holds the whole document is a
         // full write, not a flattened copy: record the current revision as saved so the session
         // stops reporting `dirty`, and make the file the document's path. A flat export (PNG,
         // JPEG, …), or an OpenRaster file that drops part of it, is a copy and leaves both alone
@@ -322,14 +322,14 @@ impl Headless {
         let requested = path.to_str().ok_or_else(|| AutomationError::BadRequest("automation paths must be valid UTF-8".into()))?;
         match &self.filesystem {
             Filesystem::Denied => Err(AutomationError::BadRequest("automation filesystem access is not granted: write authority is absent".into())),
-            Filesystem::TrustedLocal => photocraft_format::atomic_write(path, bytes).map_err(|error| AutomationError::Io(error.to_string())),
+            Filesystem::TrustedLocal => evophoto_format::atomic_write(path, bytes).map_err(|error| AutomationError::Io(error.to_string())),
             Filesystem::Workspace(workspace) => workspace.write(requested, bytes),
         }
     }
 
     pub fn inspect(&self, index: Option<usize>) -> Result<Value, AutomationError> {
         let i = self.doc_index(index)?;
-        Ok(photocraft_engine::inspect::document(&self.session.documents()[i]))
+        Ok(evophoto_engine::inspect::document(&self.session.documents()[i]))
     }
 
     pub fn render_png(&self, index: Option<usize>, max_side: u32) -> Result<Vec<u8>, AutomationError> {
@@ -346,7 +346,7 @@ impl Headless {
     }
 
     pub fn session_list(&self) -> Value {
-        photocraft_engine::inspect::session(&self.session)
+        evophoto_engine::inspect::session(&self.session)
     }
 
     pub fn select(&mut self, index: usize) -> Result<Value, AutomationError> {
@@ -362,7 +362,7 @@ impl Headless {
     }
 
     pub fn command_list(&self) -> Value {
-        Value::Array(command_specs().iter().map(|c| photocraft_engine::commands::list_entry(&self.session, c, self.session.disabled_reason(c.id))).collect())
+        Value::Array(command_specs().iter().map(|c| evophoto_engine::commands::list_entry(&self.session, c, self.session.disabled_reason(c.id))).collect())
     }
 
     pub fn command_run(&mut self, id: &str, params: Value) -> Result<Value, AutomationError> {
@@ -386,8 +386,8 @@ impl Headless {
             return Ok(self.session.execute(id, params)?);
         }
         Ok(match self.session.start(id, params)? {
-            photocraft_engine::jobs::Started::Done(v) => v,
-            photocraft_engine::jobs::Started::Job(job) => json!({"job": job.0, "pending": true}),
+            evophoto_engine::jobs::Started::Done(v) => v,
+            evophoto_engine::jobs::Started::Job(job) => json!({"job": job.0, "pending": true}),
         })
     }
 }
@@ -402,10 +402,10 @@ impl Headless {
         };
         let dir = params.get("dir").and_then(Value::as_str).ok_or_else(|| AutomationError::BadRequest("renderVideo needs `dir`".into()))?;
         let mut outputs = workspace.export_sequence(dir)?;
-        let result = photocraft_engine::render_video_with(
+        let result = evophoto_engine::render_video_with(
             &self.session,
             &params,
-            |name, bytes| outputs.write(name, bytes).map_err(|e| photocraft_engine::EngineError::Other(e.to_string())),
+            |name, bytes| outputs.write(name, bytes).map_err(|e| evophoto_engine::EngineError::Other(e.to_string())),
             progress,
         );
         match result {
@@ -423,7 +423,7 @@ impl Headless {
 
 /// Common tail of the two capability-scoped exports: the sequence keeps what it wrote, or drops
 /// every file it created, so a half-finished export never looks like a finished one.
-fn exported(dir: &str, written: photocraft_engine::Result<Vec<String>>, outputs: &mut ExportSequence) -> Result<Value, AutomationError> {
+fn exported(dir: &str, written: evophoto_engine::Result<Vec<String>>, outputs: &mut ExportSequence) -> Result<Value, AutomationError> {
     match written {
         Ok(names) => {
             outputs.commit();

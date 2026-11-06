@@ -1,10 +1,10 @@
 //! Camera raw import: synthetic DNG / CR2 develop into a 16-bit ProPhoto
 //! document; unsupported raw variants fall back to the embedded preview.
 
-use photocraft_codecs::{ChannelLayout, EncodeOptions, Format, Image};
-use photocraft_color::{ColorMode, SampleType};
-use photocraft_io::{IoError, import};
-use photocraft_raw::testgen::{Cr2Spec, DngSpec, TiffBuilder, Val, mosaic, scene};
+use evophoto_codecs::{ChannelLayout, EncodeOptions, Format, Image};
+use evophoto_color::{ColorMode, SampleType};
+use evophoto_io::{IoError, import};
+use evophoto_raw::testgen::{Cr2Spec, DngSpec, TiffBuilder, Val, mosaic, scene};
 
 #[test]
 fn dng_opens_as_16_bit_prophoto() {
@@ -18,7 +18,7 @@ fn dng_opens_as_16_bit_prophoto() {
     assert_eq!(d.depth, SampleType::U16);
     assert_eq!(d.layers.len(), 1);
     let icc = d.icc_profile.as_ref().expect("profile");
-    assert_eq!(icc.as_slice(), &photocraft_cms::Builtin::ProPhotoCompat.profile().to_bytes()[..]);
+    assert_eq!(icc.as_slice(), &evophoto_cms::Builtin::ProPhotoCompat.profile().to_bytes()[..]);
     assert!(r.warnings.iter().any(|w| w.contains("DNG") && w.contains("ProPhoto")), "{:?}", r.warnings);
 }
 
@@ -55,13 +55,13 @@ fn a_developed_raw_keeps_its_exif() {
     let spec =
         Cr2Spec { width: w, height: h, data, precision: 14, components: 2, slices: vec![24, 24], borders: None, wb_rggb: None, orientation: 6, model_id: None };
     let r = import("IMG_0001.CR2", &spec.build()).unwrap();
-    assert!(r.warnings.iter().any(|w| w.contains(photocraft_io::raw::DEVELOPED_NOTE)), "developed, not a preview: {:?}", r.warnings);
+    assert!(r.warnings.iter().any(|w| w.contains(evophoto_io::raw::DEVELOPED_NOTE)), "developed, not a preview: {:?}", r.warnings);
     let exif = r.document.metadata.exif.as_deref().expect("the raw's EXIF");
-    let camera = photocraft_algo::exif::read(exif);
+    let camera = evophoto_algo::exif::read(exif);
     assert_eq!(camera.make.as_deref(), Some("Canon"));
     assert_eq!(camera.model.as_deref(), Some("Canon EOS Synthetic"));
     assert_eq!(camera.exposure_time, Some(0.01));
-    assert_eq!(photocraft_codecs::exif_orientation(exif), 1, "no orientation to apply a second time");
+    assert_eq!(evophoto_codecs::exif_orientation(exif), 1, "no orientation to apply a second time");
     assert_eq!((r.document.size.width, r.document.size.height), (16, 48));
 }
 
@@ -83,7 +83,7 @@ fn a_developed_rw2_keeps_its_exif() {
     let (w, h, bits) = (20usize, 12usize, 12u32);
     let data: Vec<u16> = (0..w * h).map(|i| (i * 13 % 4000) as u16 + 200).collect();
     let mut t = TiffBuilder::default();
-    let raw = t.blob(photocraft_raw::testgen::rw2_pack(&data, w, bits));
+    let raw = t.blob(evophoto_raw::testgen::rw2_pack(&data, w, bits));
     let exif = t.ifd(vec![(33434, Val::Rational(vec![(1, 60)])), (40962, Val::Long(vec![w as u32])), (40963, Val::Long(vec![h as u32]))]);
     let white = ((1u32 << bits) - 1) as u16;
     let ifd0 = t.ifd(vec![
@@ -109,9 +109,9 @@ fn a_developed_rw2_keeps_its_exif() {
     let mut bytes = t.build();
     bytes[2..4].copy_from_slice(b"U\0");
     let r = import("P1000001.RW2", &bytes).unwrap();
-    assert!(r.warnings.iter().any(|w| w.contains(photocraft_io::raw::DEVELOPED_NOTE)), "developed, not a preview: {:?}", r.warnings);
+    assert!(r.warnings.iter().any(|w| w.contains(evophoto_io::raw::DEVELOPED_NOTE)), "developed, not a preview: {:?}", r.warnings);
     let exif = r.document.metadata.exif.as_deref().expect("the raw's EXIF");
-    let camera = photocraft_algo::exif::read(exif);
+    let camera = evophoto_algo::exif::read(exif);
     assert_eq!((camera.make.as_deref(), camera.model.as_deref()), (Some("Panasonic"), Some("DC-Synthetic")));
     assert!(camera.exposure_time.is_some_and(|t| (t - 1.0 / 60.0).abs() < 1e-9));
     let tags = exif_ifd_tags(exif);
@@ -126,7 +126,7 @@ fn a_developed_raw_keeps_its_camera_when_the_exif_directory_empties() {
     let (w, h, bits) = (20usize, 12usize, 12u32);
     let data: Vec<u16> = (0..w * h).map(|i| (i * 13 % 4000) as u16 + 200).collect();
     let mut t = TiffBuilder::default();
-    let raw = t.blob(photocraft_raw::testgen::rw2_pack(&data, w, bits));
+    let raw = t.blob(evophoto_raw::testgen::rw2_pack(&data, w, bits));
     let exif = t.ifd(vec![(40962, Val::Long(vec![w as u32])), (40963, Val::Long(vec![h as u32]))]);
     let white = ((1u32 << bits) - 1) as u16;
     let ifd0 = t.ifd(vec![
@@ -153,7 +153,7 @@ fn a_developed_raw_keeps_its_camera_when_the_exif_directory_empties() {
     bytes[2..4].copy_from_slice(b"U\0");
     let r = import("P1000001.RW2", &bytes).unwrap();
     let exif = r.document.metadata.exif.as_deref().expect("the raw's camera, without an Exif directory");
-    let camera = photocraft_algo::exif::read(exif);
+    let camera = evophoto_algo::exif::read(exif);
     assert_eq!((camera.make.as_deref(), camera.model.as_deref()), (Some("Panasonic"), Some("DC-Synthetic")));
     assert_eq!(camera.exposure_time, None);
 }
@@ -162,7 +162,7 @@ fn a_developed_raw_keeps_its_camera_when_the_exif_directory_empties() {
 /// baseline JPEG preview in IFD0.
 fn nef_with_preview() -> Vec<u8> {
     let img = Image::from_u8(32, 20, ChannelLayout::Rgb, vec![180; 32 * 20 * 3]).unwrap();
-    let jpeg = photocraft_codecs::encode(&img, Format::Jpeg, &EncodeOptions::default()).unwrap();
+    let jpeg = evophoto_codecs::encode(&img, Format::Jpeg, &EncodeOptions::default()).unwrap();
     let mut t = TiffBuilder::default();
     let strip = t.blob(vec![0; 64]);
     let preview = t.blob(jpeg.clone());
@@ -209,8 +209,8 @@ fn unsupported_raw_without_preview_is_a_clear_error() {
 #[test]
 fn cr3_opens_its_upright_camera_jpeg_with_explicit_preview_warning() {
     let img = Image::from_u8(32, 20, ChannelLayout::Rgb, vec![180; 32 * 20 * 3]).unwrap();
-    let jpeg = photocraft_codecs::encode(&img, Format::Jpeg, &EncodeOptions::default()).unwrap();
-    let raw = photocraft_raw::testgen::cr3_preview(&jpeg, 6);
+    let jpeg = evophoto_codecs::encode(&img, Format::Jpeg, &EncodeOptions::default()).unwrap();
+    let raw = evophoto_raw::testgen::cr3_preview(&jpeg, 6);
     let r = import("shot.cr3", &raw).unwrap();
     assert_eq!((r.document.size.width, r.document.size.height), (20, 32));
     assert_eq!(r.document.depth, SampleType::U8);
@@ -261,7 +261,7 @@ fn camera_rendering(cam: &[[f32; 3]], w: usize, h: usize) -> Vec<u8> {
 }
 
 fn jpeg(img: Image) -> Vec<u8> {
-    photocraft_codecs::encode(&img, Format::Jpeg, &EncodeOptions { jpeg_quality: 95, ..Default::default() }).unwrap()
+    evophoto_codecs::encode(&img, Format::Jpeg, &EncodeOptions { jpeg_quality: 95, ..Default::default() }).unwrap()
 }
 
 /// An uncompressed NEF-like raw of `cam` with an optional JPEG preview in IFD0.
@@ -327,8 +327,8 @@ fn uncalibrated_raw_takes_its_colour_from_the_camera_jpeg() {
 
 #[test]
 fn camera_raw_tuning_keeps_the_default_look_and_applies_user_gains_after_fitting() {
-    use photocraft_io::raw::{RawTuning, fit_preview_look, import_raw_tuned};
-    use photocraft_raw::{DevelopOptions, WhiteBalance, decode, develop_sensor};
+    use evophoto_io::raw::{RawTuning, fit_preview_look, import_raw_tuned};
+    use evophoto_raw::{DevelopOptions, WhiteBalance, decode, develop_sensor};
 
     let (w, h) = (480, 320);
     let cam: Vec<_> = patches(w, h).into_iter().map(|c| c.map(|v| v * 0.6)).collect();
@@ -347,7 +347,7 @@ fn camera_raw_tuning_keeps_the_default_look_and_applies_user_gains_after_fitting
         assert!(applied && fitted(&got.warnings) && !fallback(&got.warnings), "{:?}", got.warnings);
         assert_eq!(got.document.depth, SampleType::U16);
         assert_eq!((got.document.size.width, got.document.size.height), (w as u32, h as u32));
-        let gains = photocraft_algo::camera_raw::white_balance_gains(tuning.temperature, tuning.tint).map(f64::from);
+        let gains = evophoto_algo::camera_raw::white_balance_gains(tuning.temperature, tuning.tint).map(f64::from);
         let expected = develop_sensor(
             &sensor,
             &DevelopOptions {
@@ -359,10 +359,10 @@ fn camera_raw_tuning_keeps_the_default_look_and_applies_user_gains_after_fitting
         )
         .unwrap();
         let expected_bytes: Vec<_> = expected.rgb.iter().flat_map(|v| v.to_ne_bytes()).collect();
-        let actual = photocraft_io::document_to_image(&got.document, &mut Vec::new()).unwrap();
+        let actual = evophoto_io::document_to_image(&got.document, &mut Vec::new()).unwrap();
         assert_eq!(actual.data(), expected_bytes, "tuning {tuning:?} must not refit away the user controls");
         if tuning == RawTuning::default() {
-            let original = photocraft_io::document_to_image(&normal.document, &mut Vec::new()).unwrap();
+            let original = evophoto_io::document_to_image(&normal.document, &mut Vec::new()).unwrap();
             assert_eq!(actual.data(), original.data());
         }
     }
@@ -395,7 +395,7 @@ fn unusable_previews_keep_the_neutral_fallback() {
         let r = import("DSC_0003.NEF", &bytes).unwrap();
         assert!(fallback(&r.warnings) && !fitted(&r.warnings), "preview {i}: {:?}", r.warnings);
         let (tuned, wb) =
-            photocraft_io::raw::import_raw_tuned("DSC_0003.NEF", &bytes, &photocraft_io::raw::RawTuning { exposure: 0.5, ..Default::default() }).unwrap();
+            evophoto_io::raw::import_raw_tuned("DSC_0003.NEF", &bytes, &evophoto_io::raw::RawTuning { exposure: 0.5, ..Default::default() }).unwrap();
         assert!(!wb && fallback(&tuned.warnings) && !fitted(&tuned.warnings), "preview {i}: {:?}", tuned.warnings);
         assert_eq!(tuned.document.depth, SampleType::U16);
     }
@@ -408,7 +408,7 @@ fn truncated_raws_with_a_fittable_preview_do_not_panic() {
     let b = nef_uncompressed(&cam, w, h, Some(camera_rendering(&cam, w, h)));
     for n in (0..b.len()).step_by(211) {
         let _ = import("x.nef", &b[..n]);
-        let _ = photocraft_io::raw::import_raw_tuned("x.nef", &b[..n], &Default::default());
+        let _ = evophoto_io::raw::import_raw_tuned("x.nef", &b[..n], &Default::default());
     }
 }
 
@@ -421,16 +421,16 @@ fn a_re_develop_keeps_the_fitted_look() {
     let cam = patches(w, h);
     let nef = nef_uncompressed(&cam, w, h, Some(camera_rendering(&cam, w, h)));
     let opened = import("DSC_0003.NEF", &nef).unwrap();
-    let (again, _) = photocraft_io::raw::import_raw_tuned("DSC_0003.NEF", &nef, &Default::default()).unwrap();
+    let (again, _) = evophoto_io::raw::import_raw_tuned("DSC_0003.NEF", &nef, &Default::default()).unwrap();
     assert!(fitted(&again.warnings), "{:?}", again.warnings);
-    let pixels = |d: &photocraft_doc::Document| {
+    let pixels = |d: &evophoto_doc::Document| {
         let s = d.layers[0].surface().unwrap();
         let mut px = vec![[0.0f32; 4]; w * h];
-        s.read_rgba_into(photocraft_geom::Rect::new(0, 0, w as i32, h as i32), &mut px);
+        s.read_rgba_into(evophoto_geom::Rect::new(0, 0, w as i32, h as i32), &mut px);
         px
     };
     assert_eq!(pixels(&opened.document), pixels(&again.document));
-    let curve = photocraft_io::raw::tone_curve(&nef);
+    let curve = evophoto_io::raw::tone_curve(&nef);
     assert!(curve.len() > 2 && curve.windows(2).all(|k| k[1][0] > k[0][0] && k[1][1] >= k[0][1]), "{curve:?}");
     // The camera's brightening curve: mid-grey comes out lighter.
     let mid = curve.iter().find(|k| k[0] >= 0.18).unwrap();

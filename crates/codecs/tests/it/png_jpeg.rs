@@ -3,7 +3,7 @@
 
 use crate::common;
 use common::*;
-use photocraft_codecs::*;
+use evophoto_codecs::*;
 
 // ---------------------------------------------------------------------------
 // PNG Adam7

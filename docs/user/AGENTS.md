@@ -1,13 +1,13 @@
 # User docs: rules for agents and contributors
 
 Everything in this folder (except this file, CLAUDE.md and README.md) is published at
-https://getartcraft.com/docs/photocraft. The file path is the URL:
-`troubleshooting/taskbar-turns-black.md` → `/docs/photocraft/troubleshooting/taskbar-turns-black`.
+https://evora.st The file path is the URL:
+`troubleshooting/taskbar-turns-black.md` → `/docs/evophoto/troubleshooting/taskbar-turns-black`.
 Renaming a file breaks links, so add the old path to `redirect_from` when you rename.
 
 ## Who reads this
 
-Artists using PhotoCraft, Discord mods answering them, and AI assistants looking things up for
+Artists using EvoPhoto, Discord mods answering them, and AI assistants looking things up for
 either. Write for an artist, not a developer.
 
 ## Page rules
@@ -16,9 +16,9 @@ either. Write for an artist, not a developer.
 - Plain words, short sentences, numbered steps for anything the reader does.
 - Start the body at `##`. The page title comes from frontmatter.
 - Link to other pages instead of repeating them. Use relative links to the `.md` file:
-  `[Install PhotoCraft](../getting-started/install.md)`.
+  `[Install EvoPhoto](../getting-started/install.md)`.
 - No marketing copy, no "simply", no claims you have not checked in the code or a release.
-- Call the product "PhotoCraft", as the app, its downloads and getartcraft.com do.
+- Call the product "EvoPhoto", as the app, its downloads and upstream-site.com do.
 - Name UI labels exactly as the app shows them, in **bold**. Menu paths read `File › Open…`.
 - Troubleshooting pages: `## Symptoms`, `## Fix`, `## Why this happens` (optional),
   `## Still stuck?` (link the issue tracker or Discord).
@@ -30,7 +30,7 @@ either. Write for an artist, not a developer.
     description: One sentence for search results, link previews and AI summaries.
     order: 10                 # optional, sorts within the folder (lower first)
     verified: 0.7.0           # optional, app version you last checked this page against
-    redirect_from: [old/path] # optional, old URLs (relative to /docs/photocraft)
+    redirect_from: [old/path] # optional, old URLs (relative to /docs/evophoto)
     ---
 
 Only `key: value` and `key: [a, b]` lines work. Quote values that start with a quote or contain ` #`.
@@ -50,9 +50,9 @@ drafts and are not published.
 
 ## Check before you push
 
-    node <path to your artcraft-services checkout>/frontend/apps/artcraft-website-next/scripts/docs/core.mjs docs/user
+    node <path to your upstream-services checkout>/frontend/apps/upstream-website-next/scripts/docs/core.mjs docs/user
 
-The checker lives in storytold/artcraft-services. A CI check will be added once it is on that repo's main branch.
+The checker lives in storytold/upstream-services. A CI check will be added once it is on that repo's main branch.
 
 ## Support PRs
 

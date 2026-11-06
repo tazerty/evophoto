@@ -17,7 +17,7 @@ are capped at 32,768; FFT scratch grouping has a 1 GiB budget, excluding documen
 tiles. This is not a whole-process memory limit.
 
 Before/after numbers, benchmark methodology, numerical tolerances and preview
-measurement limits are recorded in [PR #2987](https://github.com/storytold/photocraft/pull/2987).
+measurement limits are recorded in [PR #2987](https://github.com/tazerty/evophoto/pull/2987).
 The comparisons use synthetic images and measure CPU computation, not slider
 event-to-screen latency. No published performance budget or rendering-parity
 floor is raised by these measurements.

@@ -2,7 +2,7 @@
 
 Updated 2026-10-15: retain stroke paint and options when width reaches zero (#6191).
 
-PhotoCraft's Shape tool options bar has a Stroke Options button beside the existing width
+EvoPhoto's Shape tool options bar has a Stroke Options button beside the existing width
 and colour controls. It sets defaults for new Rectangle, Ellipse, Triangle, Polygon, Line
 and Custom Shape layers. Pen in Shape mode uses the same style defaults; open Pen shapes retain
 their existing foreground colour and minimum 1 px width. To edit an existing shape,
@@ -64,7 +64,7 @@ over 4096 knots/subpaths, more than 100,000 tessellation points, or a dash workl
 no custom saved preset libraries in this change. Style defaults use existing serde UI state,
 but the app does not save and restore these defaults across restarts.
 
-All fields already exist in `ShapeStroke` and the native manifest/conversion. Old `.pcraft`
+All fields already exist in `ShapeStroke` and the native manifest/conversion. Old `.evophoto`
 files retain their serde defaults; saves preserve all style fields. PSD import/export maps
 the same fields through `vstk` (line width, dash set/offset, cap, join, alignment, miter limit,
 opacity, and paint); existing unknown layer blocks and original compatible vector records
@@ -81,23 +81,23 @@ fields, colour pickers, and ComboBoxes remain native egui controls.
 
 ## Upstream and public references
 
-- [PR #2218](https://github.com/storytold/photocraft/pull/2218) introduced these controls with
+- [PR #2218](https://github.com/tazerty/evophoto/pull/2218) introduced these controls with
   staged previews. The direct-edit interaction above replaces that Apply/Cancel workflow.
-- [Issue #2496](https://github.com/storytold/photocraft/issues/2496) tracks broader Shape tool
+- [Issue #2496](https://github.com/tazerty/evophoto/issues/2496) tracks broader Shape tool
   parity, including selected-shape editing from the options bar and additional fill types;
   those remain separate work.
-- [Issue #1053](https://github.com/storytold/photocraft/issues/1053) documents the missing
+- [Issue #1053](https://github.com/tazerty/evophoto/issues/1053) documents the missing
   stroke controls and existing engine/model support. Gradient fill UI remains separate work.
-- [Issue #1931](https://github.com/storytold/photocraft/issues/1931) requests sharp stroke options.
-- [PR #233](https://github.com/storytold/photocraft/pull/233),
-  [#397](https://github.com/storytold/photocraft/pull/397), and
-  [#1495](https://github.com/storytold/photocraft/pull/1495) already address stroke compositing,
+- [Issue #1931](https://github.com/tazerty/evophoto/issues/1931) requests sharp stroke options.
+- [PR #233](https://github.com/tazerty/evophoto/pull/233),
+  [#397](https://github.com/tazerty/evophoto/pull/397), and
+  [#1495](https://github.com/tazerty/evophoto/pull/1495) already address stroke compositing,
   hairlines, and depth preservation; their implementations are reused.
-- [PR #2031](https://github.com/storytold/photocraft/pull/2031) supplies the click-to-create
+- [PR #2031](https://github.com/tazerty/evophoto/pull/2031) supplies the click-to-create
   dialogs. Both dialogs and drag creation use its shared `create_shape` helper, which receives
   the complete stroke defaults. A gesture regression checks both paths and their undo steps.
 - Adobe's [Photoshop shape fill/stroke guide](https://helpx.adobe.com/photoshop/desktop/draw-shapes-paths/create-shapes/fill-and-stroke-shapes.html)
   describes the tool options and Properties entry points, and its
   [cap/join reference](https://helpx.adobe.com/ca/illustrator/desktop/paint-and-fill/apply-and-edit-strokes/change-the-caps-or-joins-of-a-line.html)
   defines endpoint and corner behavior and the 1–500 miter range. Dash units reuse
-  PhotoCraft's existing documented `ShapeStroke`/`vstk` convention.
+  EvoPhoto's existing documented `ShapeStroke`/`vstk` convention.

@@ -9,7 +9,7 @@
 # Clean-room: every entry was written from the plain meaning of the English label using ordinary
 # Italian computing vocabulary (livello, pennello, selezione, quadro ...). No proprietary localisation
 # resource, string table or product UI was consulted or copied; add entries the same way.
-# Product and technology names (PhotoCraft, OpenType, CMYK, Lab ...) stay in Latin
+# Product and technology names (EvoPhoto, OpenType, CMYK, Lab ...) stay in Latin
 # letters; the trailing … of dialog commands is kept.
 
 # Layer Mask Display Options (the layer mask rubylith's colour and opacity)
@@ -1351,7 +1351,7 @@
 	Lumbra	Lumbra
 	Lumbra Manages Colors	Lumbra gestisce i colori
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — editor immagini nativo open-source scritto in Rust.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	Basato su PhotoCraft, software open-source (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Basato su EvoPhoto, software open-source (MIT OR Apache-2.0).
 	Pin Depth:	Profondità pin:
 	Pixel Length:	Lunghezza pixel:
 	Pixels/Centimeter	Pixel/Centimetro
@@ -2414,7 +2414,7 @@ cameraRaw	Amount	Quantità
 	Use tablet pressure to change pen width	Usa pressione tavoletta per cambiare la larghezza della penna
 
 
-# About ▸ Contributors / Models (credits, craftrules standards/contributors.md)
+# About ▸ Contributors / Models (credits, evorules standards/contributors.md)
 	About	Informazioni
 	Contributors	Collaboratori
 	Models	Modelli
@@ -3887,7 +3887,7 @@ layerLabel	No Color	Nessun colore
 	Mezzotint	Mezzatinta
 	Mosaic	Mosaico
 	Motion Blur	Movimento sfocato
-	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= photocraft`.	Il drag-and-drop nativo dei file non è ancora supportato su Wayland. Usa File › Apri, oppure avvia Lumbra sotto XWayland con `WAYLAND_DISPLAY= photocraft`.
+	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= evophoto`.	Il drag-and-drop nativo dei file non è ancora supportato su Wayland. Usa File › Apri, oppure avvia Lumbra sotto XWayland con `WAYLAND_DISPLAY= evophoto`.
 	Neon Glow	Bagliore neon
 	New Guide Layout	Nuovo layout guide
 	New Video Layer from File	Nuovo livello video da file
@@ -4197,7 +4197,7 @@ navigator	Zoom	Zoom
 	Sent to {printer}	Inviato a {printer}
 	set in Print Settings…	impostato nelle impostazioni di stampa…
 	ICO is limited to 256 × 256 pixels	ICO è limitato a 256 × 256 pixel
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	Cerca aggiornamenti…
 	Lumbra Updates	Aggiornamenti di Lumbra
 	Checking for updates…	Ricerca aggiornamenti…

@@ -29,26 +29,26 @@
 
 use egui::{Rect, vec2};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::canvas::ViewXform;
 use crate::state::Tool;
 
 /// Use Classic Mode is on: the box turns and moves over the image.
-pub fn classic(app: &PhotocraftApp) -> bool {
+pub fn classic(app: &EvoPhotoApp) -> bool {
     app.ui.tool_options.crop_shield.classic_mode
 }
 
-fn finite_frame(app: &PhotocraftApp) -> Option<[f64; 4]> {
+fn finite_frame(app: &EvoPhotoApp) -> Option<[f64; 4]> {
     app.ui.crop_rect.filter(|r| r.iter().all(|v| v.is_finite()))
 }
 
 /// The Crop tool drives the view: it shows a frame (either mode; [`sync`]).
-pub fn turns_view(app: &PhotocraftApp) -> bool {
+pub fn turns_view(app: &EvoPhotoApp) -> bool {
     app.ui.tool == Tool::Crop && finite_frame(app).is_some() && app.session.active().is_some()
 }
 
 /// Gestures move and turn the image rather than the box (default mode with the Crop tool).
-pub fn moves_image(app: &PhotocraftApp) -> bool {
+pub fn moves_image(app: &EvoPhotoApp) -> bool {
     app.ui.tool == Tool::Crop && !classic(app)
 }
 
@@ -65,14 +65,14 @@ pub fn pivot_center(center: [f32; 2], c: [f64; 2], from: f32, to: f32, flip: boo
 }
 
 /// The active document's view rotation in degrees (0 without a view).
-pub fn view_rotation(app: &PhotocraftApp) -> f32 {
+pub fn view_rotation(app: &EvoPhotoApp) -> f32 {
     app.session.active_index().and_then(|i| app.ui.views.get(i)).map_or(0.0, |v| v.rotation)
 }
 
 /// Turns the active view so the frame shows upright while default mode drives it, pivoting about
 /// document point `pivot` so that point stays put on screen (the view's own centre when `None`:
 /// picking the tool, a commit or a cancel only straighten the view).
-pub fn sync(app: &mut PhotocraftApp, pivot: Option<[f64; 2]>) {
+pub fn sync(app: &mut EvoPhotoApp, pivot: Option<[f64; 2]>) {
     if !turns_view(app) {
         return;
     }
@@ -90,14 +90,14 @@ pub fn sync(app: &mut PhotocraftApp, pivot: Option<[f64; 2]>) {
 }
 
 /// [`sync`] about the frame's centre: the box stays put on screen while the image turns.
-pub fn sync_frame(app: &mut PhotocraftApp) {
+pub fn sync_frame(app: &mut EvoPhotoApp) {
     let c = finite_frame(app).map(crate::crop_ui::center);
     sync(app, c);
 }
 
 /// A commit or cancel in default mode: the view is left upright (Photoshop 25.1 doesn't bring
 /// back a Rotate View turn).
-pub fn upright(app: &mut PhotocraftApp) {
+pub fn upright(app: &mut EvoPhotoApp) {
     if app.ui.tool != Tool::Crop {
         return;
     }
@@ -153,7 +153,7 @@ pub(crate) fn resized_frame(g: LiveResize) -> Option<([f64; 4], [f64; 2])> {
 }
 
 /// Move the camera with the resized frame to keep the crop box's centre stationary on screen.
-pub fn live_resize(app: &mut PhotocraftApp, g: LiveResize, press: PressView) {
+pub fn live_resize(app: &mut EvoPhotoApp, g: LiveResize, press: PressView) {
     let Some((f, s)) = resized_frame(g) else { return };
     app.ui.crop_rect = Some(f);
     // The view follows the centre, so the box stays where it was on screen.
@@ -166,13 +166,13 @@ pub fn live_resize(app: &mut PhotocraftApp, g: LiveResize, press: PressView) {
 }
 
 /// Auto Center Preview while a handle is dragged in default mode.
-pub fn live_center(app: &PhotocraftApp) -> bool {
+pub fn live_center(app: &EvoPhotoApp) -> bool {
     moves_image(app) && app.ui.tool_options.crop_shield.auto_center_preview
 }
 
 /// Moves the image under the box by document vector `d` as the view shows it: the frame moves by
 /// `-d` in the document and the view with it, so the box stays put on screen.
-pub fn shift_image(app: &mut PhotocraftApp, d: [f64; 2]) {
+pub fn shift_image(app: &mut EvoPhotoApp, d: [f64; 2]) {
     let Some(r) = finite_frame(app) else { return };
     if !(d[0].is_finite() && d[1].is_finite()) {
         return;
@@ -199,7 +199,7 @@ pub struct PressView {
 }
 
 /// The active view's camera now.
-pub fn press_view(app: &PhotocraftApp) -> Option<PressView> {
+pub fn press_view(app: &EvoPhotoApp) -> Option<PressView> {
     app.session.active_index().and_then(|i| app.ui.views.get(i)).map(|v| PressView { rotation: v.rotation, center: v.center })
 }
 
@@ -215,7 +215,7 @@ fn remap(p: [f64; 2], from: PressView, to: PressView, flip: bool) -> [f64; 2] {
 /// A pointer point `p` the canvas mapped through the view as it is now, read in the press-time
 /// view `press` (unchanged without one, or while the view hasn't moved: the `f32` round trip
 /// would nudge a click).
-pub fn to_press(app: &PhotocraftApp, press: Option<PressView>, p: [f64; 2]) -> [f64; 2] {
+pub fn to_press(app: &EvoPhotoApp, press: Option<PressView>, p: [f64; 2]) -> [f64; 2] {
     match (press, press_view(app)) {
         (Some(press), Some(now)) if press != now => remap(p, now, press, app.ui.view.flip_horizontal),
         _ => p,
@@ -223,7 +223,7 @@ pub fn to_press(app: &PhotocraftApp, press: Option<PressView>, p: [f64; 2]) -> [
 }
 
 /// A press-view point mapped back into the current camera after snapping the crop handle.
-pub(crate) fn from_press(app: &PhotocraftApp, press: PressView, p: [f64; 2]) -> [f64; 2] {
+pub(crate) fn from_press(app: &EvoPhotoApp, press: PressView, p: [f64; 2]) -> [f64; 2] {
     match press_view(app) {
         Some(now) => remap(p, press, now, app.ui.view.flip_horizontal),
         None => p,
@@ -233,7 +233,7 @@ pub(crate) fn from_press(app: &PhotocraftApp, press: PressView, p: [f64; 2]) -> 
 /// The control channel's `ui.pointer` gives document points as the view showed them at the press
 /// (it can't know how the view turns and pans with the image): during a default-mode drag, the
 /// point the canvas would report for the same screen position now.
-pub fn control_point(app: &PhotocraftApp, p: [f64; 2]) -> [f64; 2] {
+pub fn control_point(app: &EvoPhotoApp, p: [f64; 2]) -> [f64; 2] {
     let press = match app.crop.drag {
         Some(
             crate::crop_ui::CropDrag::MoveImage { view, .. } | crate::crop_ui::CropDrag::TurnImage { view, .. } | crate::crop_ui::CropDrag::Resize { view, .. },
@@ -249,7 +249,7 @@ pub fn control_point(app: &PhotocraftApp, p: [f64; 2]) -> [f64; 2] {
 /// A default-mode drag inside the box: the image has moved by document vector `d` (in the press
 /// view) since the press, when the frame was `rect` and the view `press`. The frame moves by `-d`
 /// on the image and the view's centre with it, so the box stays put on screen.
-pub fn offset_image(app: &mut PhotocraftApp, rect: [f64; 4], press: Option<PressView>, d: [f64; 2]) {
+pub fn offset_image(app: &mut EvoPhotoApp, rect: [f64; 4], press: Option<PressView>, d: [f64; 2]) {
     let n = [rect[0] - d[0], rect[1] - d[1], rect[2] - d[0], rect[3] - d[1]];
     if !n.iter().all(|v| v.is_finite()) {
         return;
@@ -264,7 +264,7 @@ pub fn offset_image(app: &mut PhotocraftApp, rect: [f64; 4], press: Option<Press
 
 /// A screen vector `s` (points, at the current zoom ignored) as a document vector of the same
 /// length: undoes the view's flip and rotation.
-pub fn screen_to_doc_vec(app: &PhotocraftApp, s: [f64; 2]) -> [f64; 2] {
+pub fn screen_to_doc_vec(app: &EvoPhotoApp, s: [f64; 2]) -> [f64; 2] {
     let xf = ViewXform { rect: Rect::ZERO, zoom: 1.0, center: [0.0, 0.0], flip: app.ui.view.flip_horizontal, rotation: view_rotation(app), aspect: 1.0 };
     let u = xf.unmap_vec(vec2(s[0] as f32, s[1] as f32));
     [f64::from(u.x), f64::from(u.y)]
@@ -272,7 +272,7 @@ pub fn screen_to_doc_vec(app: &PhotocraftApp, s: [f64; 2]) -> [f64; 2] {
 
 /// Auto Center Preview: in default mode, pans the view so the box sits in the middle of the canvas
 /// (the view turns about its centre, so the box stays upright).
-pub fn auto_center(app: &mut PhotocraftApp) {
+pub fn auto_center(app: &mut EvoPhotoApp) {
     if !turns_view(app) || classic(app) || !app.ui.tool_options.crop_shield.auto_center_preview {
         return;
     }
@@ -289,17 +289,17 @@ mod tests {
     use crate::canvas::{ToolEvent, tool_event};
     use crate::crop_ui::{CropDrag, corners};
     use egui::{Modifiers, Pos2, pos2};
-    use photocraft_doc::{Color, ColorMode, Document, SampleType, Size};
+    use evophoto_doc::{Color, ColorMode, Document, SampleType, Size};
     use serde_json::json;
 
     const NONE: Modifiers = Modifiers::NONE;
 
     /// A 200 × 100 document in a 800 × 600 canvas at 100 %, centred, the Crop tool in default mode.
-    fn app() -> PhotocraftApp {
+    fn app() -> EvoPhotoApp {
         let doc = Document::with_background("crop", Size::new(200, 100), ColorMode::Rgb, SampleType::U8, Color::WHITE);
-        let mut s = photocraft_engine::Session::new();
+        let mut s = evophoto_engine::Session::new();
         s.add_document(doc, None);
-        let mut app = PhotocraftApp::new(s, crate::Services::default());
+        let mut app = EvoPhotoApp::new(s, crate::Services::default());
         app.sync_views();
         app.ui.tool = Tool::Crop;
         app.ui.extras.snap = false;
@@ -312,14 +312,14 @@ mod tests {
         app
     }
 
-    fn xf(app: &PhotocraftApp) -> ViewXform {
+    fn xf(app: &EvoPhotoApp) -> ViewXform {
         ViewXform::active(app).unwrap()
     }
 
     /// A drag through screen points, each mapped through the view as it is at that moment (as the
     /// canvas does every frame).
-    fn screen_drag(app: &mut PhotocraftApp, pts: &[Pos2], mods: Modifiers) {
-        let at = |app: &PhotocraftApp, p: Pos2| xf(app).to_doc(p);
+    fn screen_drag(app: &mut EvoPhotoApp, pts: &[Pos2], mods: Modifiers) {
+        let at = |app: &EvoPhotoApp, p: Pos2| xf(app).to_doc(p);
         let d = at(app, pts[0]);
         tool_event(app, ToolEvent::Down { x: d[0], y: d[1], pressure: 1.0 }, mods);
         for p in &pts[1..] {
@@ -330,7 +330,7 @@ mod tests {
         tool_event(app, ToolEvent::Up { x: d[0], y: d[1] }, mods);
     }
 
-    fn screen_box(app: &PhotocraftApp) -> [Pos2; 4] {
+    fn screen_box(app: &EvoPhotoApp) -> [Pos2; 4] {
         let x = xf(app);
         corners(app.ui.crop_rect.unwrap(), crate::crop_ui::angle(app)).map(|p| x.to_screen(p[0] as f32, p[1] as f32))
     }
@@ -345,7 +345,7 @@ mod tests {
     }
 
     /// A real (not default) frame [40, 30, 100, 70], centred at (70, 50) = screen (370, 300).
-    fn with_frame(app: &mut PhotocraftApp) {
+    fn with_frame(app: &mut EvoPhotoApp) {
         crate::crop_ui::ensure_frame(app);
         app.ui.crop_rect = Some([40.0, 30.0, 100.0, 70.0]);
         app.crop.default_frame = false;
@@ -429,7 +429,7 @@ mod tests {
     /// Moves the image under the box from document point `from` by `d` (both in the view at the
     /// press), checks the snap lines before release, and returns where the box's centre started
     /// on screen.
-    fn image_drag(app: &mut PhotocraftApp, from: [f32; 2], d: [f32; 2], line: Option<(bool, f64)>) -> Pos2 {
+    fn image_drag(app: &mut EvoPhotoApp, from: [f32; 2], d: [f32; 2], line: Option<(bool, f64)>) -> Pos2 {
         let (a, b) = (xf(app).to_screen(from[0], from[1]), xf(app).to_screen(from[0] + d[0], from[1] + d[1]));
         let mid = mid_of(screen_box(app));
         let p = xf(app).to_doc(a);
@@ -447,7 +447,7 @@ mod tests {
         mid
     }
 
-    fn assert_frame(app: &PhotocraftApp, want: [f64; 4], what: &str) {
+    fn assert_frame(app: &EvoPhotoApp, want: [f64; 4], what: &str) {
         let r = app.ui.crop_rect.unwrap();
         assert!(r.iter().zip(want).all(|(a, b)| (a - b).abs() < 1e-3), "{what}: {r:?}, want {want:?}");
     }
@@ -536,7 +536,7 @@ mod tests {
             let moved = app.ui.crop_rect;
             assert_ne!(moved, turned);
             let want = if auto { pos2(400.0, 300.0) } else { pos2(370.0, 300.0) };
-            let check = |app: &PhotocraftApp, what: &str| {
+            let check = |app: &EvoPhotoApp, what: &str| {
                 let q = screen_box(app);
                 assert_upright(q);
                 assert!(mid_of(q).distance(want) < 0.05, "auto={auto} {what}: the box moved on screen to {:?}", mid_of(q));
@@ -575,7 +575,7 @@ mod tests {
         screen_drag(&mut app, &[pos2(450.0, 300.0), pos2(370.0 + 80.0 * 30f32.to_radians().cos(), 300.0 + 80.0 * 30f32.to_radians().sin())], NONE);
         assert!((crate::crop_ui::angle(&app) - -30.0).abs() < 0.01);
         let (before, c0) = (screen_box(&app), crate::crop_ui::center(app.ui.crop_rect.unwrap()));
-        let img = |app: &PhotocraftApp| xf(app).to_screen(0.0, 0.0);
+        let img = |app: &EvoPhotoApp| xf(app).to_screen(0.0, 0.0);
         let origin = img(&app);
         screen_drag(&mut app, &[pos2(370.0, 300.0), pos2(400.0, 300.0)], NONE);
         assert!(close(screen_box(&app), before), "box put");
@@ -613,7 +613,7 @@ mod tests {
         let mut app = app();
         with_frame(&mut app);
         // A 30° clockwise sweep on screen, held mid-drag.
-        let d = |app: &PhotocraftApp, p: Pos2| xf(app).to_doc(p);
+        let d = |app: &EvoPhotoApp, p: Pos2| xf(app).to_doc(p);
         let a = 30f32.to_radians();
         let (p0, p1) = (pos2(450.0, 300.0), pos2(370.0 + 80.0 * a.cos(), 300.0 + 80.0 * a.sin()));
         let s = d(&app, p0);
@@ -651,7 +651,7 @@ mod tests {
             // The box's right edge on screen, dragged 10 then 20 further right.
             let right = pos2(q[1].x, (q[1].y + q[2].y) / 2.0);
             assert_eq!(crate::crop_ui::cursor(&app, xf(&app).to_doc(right)), Some(egui::CursorIcon::ResizeHorizontal), "screen-space arrow");
-            let at = |app: &PhotocraftApp, p: Pos2| xf(app).to_doc(p);
+            let at = |app: &EvoPhotoApp, p: Pos2| xf(app).to_doc(p);
             let s = at(&app, right);
             tool_event(&mut app, ToolEvent::Down { x: s[0], y: s[1], pressure: 1.0 }, NONE);
             for dx in [10.0, 20.0] {
@@ -775,7 +775,7 @@ mod tests {
         assert_eq!((app.ui.crop_rect, app.ui.crop_angle), (Some([40.0, 30.0, 100.0, 70.0]), 12.0), "the frame is unchanged");
         // P switches modes without bringing the R turn back: default mode turns the view with the
         // frame, Classic Mode puts the camera upright again.
-        let press_p = |app: &mut PhotocraftApp| {
+        let press_p = |app: &mut EvoPhotoApp| {
             let ctx = egui::Context::default();
             ctx.input_mut(|i| i.events.push(egui::Event::Key { key: egui::Key::P, physical_key: None, pressed: true, repeat: false, modifiers: NONE }));
             assert!(crate::crop_shield::keys(app, &ctx));
@@ -791,7 +791,7 @@ mod tests {
         assert_eq!(view_rotation(&app), 0.0, "Esc in Classic Mode: still upright");
     }
 
-    fn key(app: &mut PhotocraftApp, key: egui::Key, modifiers: Modifiers) {
+    fn key(app: &mut EvoPhotoApp, key: egui::Key, modifiers: Modifiers) {
         let ctx = egui::Context::default();
         ctx.input_mut(|i| i.events.push(egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers }));
         crate::shortcuts::handle(app, &ctx);
@@ -805,7 +805,7 @@ mod tests {
         app.ui.crop_angle = -90.0;
         crate::crop_ui::ensure_frame(&mut app);
         let before = screen_box(&app);
-        let img = |app: &PhotocraftApp| xf(app).to_screen(0.0, 0.0);
+        let img = |app: &EvoPhotoApp| xf(app).to_screen(0.0, 0.0);
         let origin = img(&app);
         key(&mut app, egui::Key::ArrowRight, NONE);
         assert!(close(screen_box(&app), before), "the box stays put");
@@ -844,7 +844,7 @@ mod tests {
     fn p_toggles_classic_mode_while_the_crop_tool_shows_a_box() {
         let mut app = app();
         crate::crop_ui::ensure_frame(&mut app);
-        let press = |app: &mut PhotocraftApp| {
+        let press = |app: &mut EvoPhotoApp| {
             let ctx = egui::Context::default();
             ctx.input_mut(|i| i.events.push(egui::Event::Key { key: egui::Key::P, physical_key: None, pressed: true, repeat: false, modifiers: NONE }));
             crate::shortcuts::handle(app, &ctx);
@@ -859,7 +859,7 @@ mod tests {
         ctx.input_mut(|i| i.events.push(egui::Event::Key { key: egui::Key::P, physical_key: None, pressed: true, repeat: false, modifiers: NONE }));
         assert!(!crate::crop_shield::keys(&mut app, &ctx));
         assert!(!classic(&app));
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.ui.tool = Tool::Crop;
         press(&mut app);
         assert_ne!(app.ui.tool, Tool::Crop);
@@ -889,7 +889,7 @@ mod tests {
         app.ui.tool_options.crop_shield.auto_center_preview = false;
         with_frame(&mut app);
         let ctx = egui::Context::default();
-        let pointer = |app: &mut PhotocraftApp, pts: [[f64; 2]; 2]| {
+        let pointer = |app: &mut EvoPhotoApp, pts: [[f64; 2]; 2]| {
             let ev = json!([
                 {"kind": "down", "x": pts[0][0], "y": pts[0][1]},
                 {"kind": "move", "x": pts[1][0], "y": pts[1][1]},
@@ -942,7 +942,7 @@ mod tests {
         assert_eq!(pivot_center([1.0, 2.0], [f64::NAN, 0.0], 0.0, 90.0, false), [1.0, 2.0]);
         assert_eq!(pivot_center([1.0, 2.0], [0.0, 0.0], f32::NAN, 90.0, true), [1.0, 2.0]);
         // No view at all (no document).
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.ui.tool = Tool::Crop;
         app.ui.crop_rect = Some([0.0, 0.0, 10.0, 10.0]);
         app.crop.editing = true;
@@ -1019,12 +1019,12 @@ mod tests {
                         tool_event(&mut app, ToolEvent::Down { x: d[0], y: d[1], pressure: 1.0 }, NONE);
                         // Drag outward a screen pixel at a time; let go once the moving edges show
                         // the snap to the hidden pixels' edges (as the user would).
-                        let snapped = |app: &PhotocraftApp| {
+                        let snapped = |app: &EvoPhotoApp| {
                             let on = |vertical: bool, pos: f64| {
                                 app.prefs_rt
                                     .snap_lines
                                     .iter()
-                                    .any(|l| l.vertical == vertical && l.pos == pos && l.kind == photocraft_engine::snap::SnapKind::LayerEdge)
+                                    .any(|l| l.vertical == vertical && l.pos == pos && l.kind == evophoto_engine::snap::SnapKind::LayerEdge)
                             };
                             (hx == 0 || on(true, if hx < 0 { hidden[0] } else { hidden[2] }))
                                 && (hy == 0 || on(false, if hy < 0 { hidden[1] } else { hidden[3] }))
@@ -1054,7 +1054,7 @@ mod tests {
                         let st = app.session.active().unwrap();
                         assert_eq!((st.doc.size.width, st.doc.size.height), ((x1 - x0) as u32, (y1 - y0) as u32), "{what}");
                         let layer = st.doc.walk().into_iter().map(|(_, _, l)| l.id).next().unwrap();
-                        let r = photocraft_engine::snap::layer_rect(&st.doc, layer).unwrap();
+                        let r = evophoto_engine::snap::layer_rect(&st.doc, layer).unwrap();
                         assert_eq!(r, [hidden[0] - x0, hidden[1] - y0, hidden[2] - x0, hidden[3] - y0], "{what}: no transparent strip");
                     }
                 }

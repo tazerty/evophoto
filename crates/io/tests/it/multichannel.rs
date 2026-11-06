@@ -1,10 +1,10 @@
 //! Multichannel PSDs: alpha-type channels and the document's resources and global blocks survive
 //! an import → export → import round trip.
 
-use photocraft_doc::{ColorIndicates, Knot, NamedPath, Path, PathOp, Subpath};
-use photocraft_io::*;
-use photocraft_psd::resources::ImageResource;
-use photocraft_psd::{ColorMode, Compression, PsdFile, TaggedBlock, Version, testgen};
+use evophoto_doc::{ColorIndicates, Knot, NamedPath, Path, PathOp, Subpath};
+use evophoto_io::*;
+use evophoto_psd::resources::ImageResource;
+use evophoto_psd::{ColorMode, Compression, PsdFile, TaggedBlock, Version, testgen};
 
 /// DisplayInfo (1077) record: RGB colour, opacity (0..100) and kind (0/1 alpha, 2 spot).
 fn display_record(out: &mut Vec<u8>, rgb: [u16; 3], opacity: u16, kind: u8) {
@@ -26,7 +26,7 @@ fn file(depth: u16) -> PsdFile {
     f
 }
 
-fn roundtrip(d: &photocraft_doc::Document) -> (PsdFile, photocraft_doc::Document) {
+fn roundtrip(d: &evophoto_doc::Document) -> (PsdFile, evophoto_doc::Document) {
     let out = export(d, "x.psd", &ExportOptions::default()).unwrap();
     let back = PsdFile::from_bytes(&out.bytes).unwrap();
     let (doc, _) = psd_to_document(&back);
@@ -51,12 +51,12 @@ fn alpha_type_channels_import_as_alpha_and_round_trip() {
         let mut as_ink = d.clone();
         let canvas = d.bounds();
         let ink: Vec<f32> = d.channels[1].surface.read_region(canvas).iter().map(|v| 1.0 - v).collect();
-        let mut s = photocraft_raster::Surface::new(d.channels[1].surface.format());
+        let mut s = evophoto_raster::Surface::new(d.channels[1].surface.format());
         s.write_region(canvas, &ink);
         as_ink.channels[1].surface = s;
-        as_ink.channels[1].spot = Some((photocraft_color::Color::BLACK, 0.0));
+        as_ink.channels[1].spot = Some((evophoto_color::Color::BLACK, 0.0));
         // Within f32 rounding: the inverted copy is re-quantised to the channel depth.
-        let (shown, inked) = (photocraft_compose::flatten(&d).px, photocraft_compose::flatten(&as_ink).px);
+        let (shown, inked) = (evophoto_compose::flatten(&d).px, evophoto_compose::flatten(&as_ink).px);
         assert_eq!(shown.len(), inked.len());
         for (a, b) in shown.iter().zip(&inked) {
             assert!(a.iter().zip(b).all(|(x, y)| (x - y).abs() < 1e-5), "{a:?} vs {b:?} ({depth}-bit)");
@@ -91,7 +91,7 @@ fn ink_and_alpha_file(depth: u16) -> PsdFile {
     let mut f = testgen::merged_only(Version::Psd, ColorMode::Multichannel, depth, Compression::Rle, 4, 1);
     let mut planes = plane(&[0.0, 1.0, 0.0, 1.0], depth);
     planes.extend(plane(&[1.0, 1.0, 0.0, 0.0], depth));
-    f.image_data = photocraft_psd::ImageData::encode(Compression::Rle, &planes, &f.header).unwrap();
+    f.image_data = evophoto_psd::ImageData::encode(Compression::Rle, &planes, &f.header).unwrap();
     let mut info = 1u32.to_be_bytes().to_vec();
     display_record(&mut info, [0, 65535, 65535], 0, 2);
     display_record(&mut info, [65535, 0, 0], 50, 0);
@@ -99,8 +99,8 @@ fn ink_and_alpha_file(depth: u16) -> PsdFile {
     f
 }
 
-fn values(ch: &photocraft_doc::AlphaChannel) -> Vec<f32> {
-    ch.surface.read_region(photocraft_geom::Rect::new(0, 0, 4, 1)).chunks_exact(ch.surface.channels()).map(|v| v[0]).collect()
+fn values(ch: &evophoto_doc::AlphaChannel) -> Vec<f32> {
+    ch.surface.read_region(evophoto_geom::Rect::new(0, 0, 4, 1)).chunks_exact(ch.surface.channels()).map(|v| v[0]).collect()
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn alpha_type_channels_are_stored_as_is_not_as_ink() {
         assert_eq!(values(&d.channels[0]), [1.0, 0.0, 1.0, 0.0], "spot channel ({depth}-bit)");
 
         // The composite is what Photoshop shows: the alpha prints as black ink where unselected.
-        let px = photocraft_compose::flatten(&d).px;
+        let px = evophoto_compose::flatten(&d).px;
         assert_eq!(px.iter().map(|p| [p[0], p[1], p[2]]).collect::<Vec<_>>(), [[0.0, 1.0, 1.0], [1.0, 1.0, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]);
 
         // Saved back byte for byte.
@@ -127,17 +127,17 @@ fn alpha_type_channels_are_stored_as_is_not_as_ink() {
 
 #[test]
 fn a_full_alpha_channel_exports_as_a_full_plane() {
-    use photocraft_color::{Color, ColorMode as Mode, PixelFormat, SampleType};
+    use evophoto_color::{Color, ColorMode as Mode, PixelFormat, SampleType};
     for (sample, depth) in [(SampleType::U8, 8u16), (SampleType::U16, 16)] {
-        let mut doc = photocraft_doc::Document::new("m", photocraft_doc::Size::new(4, 1), Mode::Multichannel, sample);
+        let mut doc = evophoto_doc::Document::new("m", evophoto_doc::Size::new(4, 1), Mode::Multichannel, sample);
         let fmt = PixelFormat::new(Mode::Grayscale, sample, false);
         let surface = |v: f32| {
-            let mut s = photocraft_raster::Surface::new(fmt);
-            s.write_region(photocraft_geom::Rect::new(0, 0, 4, 1), &[v; 4]);
+            let mut s = evophoto_raster::Surface::new(fmt);
+            s.write_region(evophoto_geom::Rect::new(0, 0, 4, 1), &[v; 4]);
             s
         };
-        doc.channels.push(photocraft_doc::AlphaChannel { spot: Some((Color::BLACK, 0.0)), ..photocraft_doc::AlphaChannel::new("Black", surface(1.0)) });
-        doc.channels.push(photocraft_doc::AlphaChannel::new("Alpha 1", surface(1.0)));
+        doc.channels.push(evophoto_doc::AlphaChannel { spot: Some((Color::BLACK, 0.0)), ..evophoto_doc::AlphaChannel::new("Black", surface(1.0)) });
+        doc.channels.push(evophoto_doc::AlphaChannel::new("Alpha 1", surface(1.0)));
         let (back, _) = roundtrip(&doc);
         let mut want = plane(&[0.0; 4], depth);
         want.extend(plane(&[1.0; 4], depth));

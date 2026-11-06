@@ -10,15 +10,15 @@
 //! "commit":true | "cancel":true}}}`.
 
 use egui::{Align2, Color32, FontId, Pos2, Rect as ERect, Sense, Stroke, TextureHandle, pos2, vec2};
-use photocraft_algo::transform::Interp;
-use photocraft_algo::wideangle::{self, Camera, Constraint, Orientation, WideAngle, WideModel};
-use photocraft_color::PixelFormat;
-use photocraft_doc::LayerId;
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use evophoto_algo::transform::Interp;
+use evophoto_algo::wideangle::{self, Camera, Constraint, Orientation, WideAngle, WideModel};
+use evophoto_color::PixelFormat;
+use evophoto_doc::LayerId;
+use evophoto_geom::Rect;
+use evophoto_raster::Surface;
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::edit_history::{EditHistory, Step};
 use crate::theme::Tokens;
 use crate::widgets;
@@ -77,7 +77,7 @@ impl WideAngleDialog {
         let p = self.proxy_params();
         let mesh = wideangle::solve(&p, pf);
         self.residual = mesh.residual / self.scale;
-        let out = photocraft_algo::warp::warp_triangles(&self.proxy, pf, &mesh.verts, &mesh.triangles(), Interp::Bilinear);
+        let out = evophoto_algo::warp::warp_triangles(&self.proxy, pf, &mesh.verts, &mesh.triangles(), Interp::Bilinear);
         let img = tex_image(&out, self.pw, self.ph);
         match &mut self.out_tex {
             Some(t) => t.set(img, egui::TextureOptions::LINEAR),
@@ -104,8 +104,8 @@ impl WideAngleDialog {
     }
 }
 
-pub fn open(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String> {
-    photocraft_engine::commands::find("filter.adaptiveWideAngle").map(|c| (c.enabled)(&app.session)).unwrap_or(Err("unknown command".into()))?;
+pub fn open(app: &mut EvoPhotoApp, ctx: &egui::Context) -> Result<(), String> {
+    evophoto_engine::commands::find("filter.adaptiveWideAngle").map(|c| (c.enabled)(&app.session)).unwrap_or(Err("unknown command".into()))?;
     let (layer, surf, _) = crate::distort_ui::active_pixels(app)?;
     let st = app.session.active().ok_or("no document")?;
     let frame = st.doc.bounds();
@@ -113,11 +113,11 @@ pub fn open(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String> 
     let (w, h) = (frame.width() as usize, frame.height() as usize);
     let k = w.max(h).div_ceil(PROXY_SIDE).max(1);
     let (pw, ph) = (w.div_ceil(k), h.div_ceil(k));
-    let proxy = photocraft_algo::resample::resize_surface(
+    let proxy = evophoto_algo::resample::resize_surface(
         &surf.convert(PixelFormat::RGBA8),
         1.0 / k as f64,
         1.0 / k as f64,
-        photocraft_algo::resample::Resample::Bilinear,
+        evophoto_algo::resample::Resample::Bilinear,
     );
     // Normalise the proxy to start at the origin.
     let mut px = Surface::new(PixelFormat::RGBA8);
@@ -129,8 +129,8 @@ pub fn open(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String> 
     );
     px.write_region(Rect::new(0, 0, pw as i32, ph as i32), &proxy.read_region(src_r));
     // EXIF focal length / crop factor, as the engine would resolve them.
-    let info = st.doc.metadata.exif.as_ref().map(|e| photocraft_algo::exif::read(e));
-    let params = photocraft_engine::lens_cmds::wide_params("filter.adaptiveWideAngle", &json!({}), info.as_ref()).unwrap_or_default();
+    let info = st.doc.metadata.exif.as_ref().map(|e| evophoto_algo::exif::read(e));
+    let params = evophoto_engine::lens_cmds::wide_params("filter.adaptiveWideAngle", &json!({}), info.as_ref()).unwrap_or_default();
     let mut d = WideAngleDialog {
         layer,
         layer_name: name,
@@ -163,7 +163,7 @@ fn parse_orientation(s: &str) -> Orientation {
     }
 }
 
-pub fn menu(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: &Value) -> Option<Result<Value, String>> {
+pub fn menu(app: &mut EvoPhotoApp, ctx: &egui::Context, id: &str, params: &Value) -> Option<Result<Value, String>> {
     if id != "filter.adaptiveWideAngle" {
         return None;
     }
@@ -222,7 +222,7 @@ pub fn menu(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: &Val
     Some(Ok(app.wide_angle.as_ref().map(|d| d.describe()).unwrap_or(Value::Null)))
 }
 
-fn commit(app: &mut PhotocraftApp) -> Result<Value, String> {
+fn commit(app: &mut EvoPhotoApp) -> Result<Value, String> {
     let d = app.wide_angle.take().ok_or(tl!("Adaptive Wide Angle isn't open"))?;
     app.run("filter.adaptiveWideAngle", d.command_params())
 }
@@ -253,7 +253,7 @@ fn constraint_menu(ui: &mut egui::Ui, d: &mut WideAngleDialog) {
     }
 }
 
-pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut EvoPhotoApp, ctx: &egui::Context) {
     if app.wide_angle.is_none() {
         return;
     }
@@ -466,7 +466,7 @@ mod tests {
 
     #[test]
     fn dialog_adds_constraints_and_commits() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
         let ctx = egui::Context::default();
         app.run("file.new", json!({"width": 160, "height": 100})).unwrap();
         app.run("layer.new.layer", json!({})).unwrap();
@@ -493,8 +493,8 @@ mod tests {
     }
 
     /// A 160 × 100 grey layer to open the dialog on.
-    fn grey_layer() -> PhotocraftApp {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+    fn grey_layer() -> EvoPhotoApp {
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 160, "height": 100})).unwrap();
         app.run("layer.new.layer", json!({})).unwrap();
         app.run("edit.fill", json!({"color": "#808080"})).unwrap();
@@ -502,7 +502,7 @@ mod tests {
     }
 
     /// Open the dialog with one free constraint across the middle of the layer.
-    fn open_with_a_constraint(app: &mut PhotocraftApp, ctx: &egui::Context) {
+    fn open_with_a_constraint(app: &mut EvoPhotoApp, ctx: &egui::Context) {
         menu(app, ctx, "filter.adaptiveWideAngle", &json!({"ui": {"add": {"a": [20, 50], "b": [140, 50]}}})).unwrap().unwrap();
     }
 
@@ -528,21 +528,21 @@ mod tests {
     fn right_click_on_a_constraint_opens_its_menu() {
         use egui_kittest::kittest::Queryable;
         let size = vec2(1000.0, 600.0);
-        let mut h = egui_kittest::Harness::builder().with_size(size).build_ui_state(|ui, app: &mut PhotocraftApp| show(app, ui.ctx()), grey_layer());
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+        let mut h = egui_kittest::Harness::builder().with_size(size).build_ui_state(|ui, app: &mut EvoPhotoApp| show(app, ui.ctx()), grey_layer());
+        EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         let ctx = h.ctx.clone();
         open_with_a_constraint(h.state_mut(), &ctx);
         h.run_steps(2);
         // The image view (see `show`): the window less the title, footer and panel, inset 16 pt.
         let view = ERect::from_min_max(pos2(16.0, 30.0 + 16.0), pos2(size.x - PANEL_W - 16.0, size.y - 48.0 - 16.0));
-        let right_click = |h: &mut egui_kittest::Harness<'_, PhotocraftApp>, p: Pos2| {
+        let right_click = |h: &mut egui_kittest::Harness<'_, EvoPhotoApp>, p: Pos2| {
             let button = |pressed| egui::Event::PointerButton { pos: p, button: egui::PointerButton::Secondary, pressed, modifiers: egui::Modifiers::NONE };
             h.input_mut().events.extend([egui::Event::PointerMoved(p), button(true)]);
             h.run_steps(1);
             h.input_mut().events.push(button(false));
             h.run_steps(2);
         };
-        let constraints = |h: &egui_kittest::Harness<'_, PhotocraftApp>| h.state().wide_angle.as_ref().unwrap().params.constraints.clone();
+        let constraints = |h: &egui_kittest::Harness<'_, EvoPhotoApp>| h.state().wide_angle.as_ref().unwrap().params.constraints.clone();
         // The constraint runs through the document's centre, which the view centres.
         right_click(&mut h, view.center());
         h.get_by_label("Horizontal").click();
@@ -562,7 +562,7 @@ mod tests {
 
     #[test]
     fn command_z_steps_the_dialog_not_the_document() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
         let ctx = egui::Context::default();
         app.run("file.new", json!({"width": 160, "height": 100})).unwrap();
         app.run("layer.new.layer", json!({})).unwrap();

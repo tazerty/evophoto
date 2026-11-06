@@ -4,17 +4,17 @@ use crate::shape_options::set_tool_paint;
 use crate::shape_paint_ui::color_of;
 use egui::{Event, Key, Modifiers, PointerButton};
 use egui_kittest::{Harness, kittest::Queryable};
-use photocraft_doc::ShapeLayer;
+use evophoto_doc::ShapeLayer;
 
-fn app(mode: &str, depth: u32) -> PhotocraftApp {
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+fn app(mode: &str, depth: u32) -> EvoPhotoApp {
+    let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 120, "height": 100, "mode": mode, "depth": depth})).unwrap();
     app.ui.tool = Tool::Rectangle;
     app.sync_views();
     app
 }
 
-fn shape(app: &PhotocraftApp) -> &ShapeLayer {
+fn shape(app: &EvoPhotoApp) -> &ShapeLayer {
     let st = app.session.active().unwrap();
     let LayerContent::Shape(shape) = &st.doc.layer(st.active_layer.unwrap()).unwrap().content else { panic!("expected editable shape") };
     shape
@@ -36,9 +36,9 @@ fn assert_saved_path(saved: &Path, original: &Path) {
     }
 }
 
-fn harness(app: PhotocraftApp, properties: bool) -> Harness<'static, PhotocraftApp> {
+fn harness(app: EvoPhotoApp, properties: bool) -> Harness<'static, EvoPhotoApp> {
     let mut h = Harness::builder().with_size(vec2(1000.0, 700.0)).build_ui_state(
-        move |ui, app: &mut PhotocraftApp| {
+        move |ui, app: &mut EvoPhotoApp| {
             crate::screen_picker::tick(app, ui.ctx());
             if !ui.ctx().fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                 return;
@@ -54,17 +54,17 @@ fn harness(app: PhotocraftApp, properties: bool) -> Harness<'static, PhotocraftA
         },
         app,
     );
-    PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::Pro);
+    EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::Pro);
     h.run_steps(3);
     h
 }
 
-fn pointer(h: &mut Harness<'_, PhotocraftApp>, pos: Pos2, pressed: bool) {
+fn pointer(h: &mut Harness<'_, EvoPhotoApp>, pos: Pos2, pressed: bool) {
     h.event(Event::PointerButton { pos, button: PointerButton::Primary, pressed, modifiers: Modifiers::NONE });
     h.step();
 }
 
-fn stroke_width(h: &mut Harness<'_, PhotocraftApp>, width: &str) {
+fn stroke_width(h: &mut Harness<'_, EvoPhotoApp>, width: &str) {
     h.get_all_by_role(egui::accesskit::Role::SpinButton).next().expect("the stroke width").click();
     h.run();
     h.key_press_modifiers(Modifiers::COMMAND, Key::A);
@@ -102,8 +102,8 @@ fn zero_width_preserves_selected_shape_stroke_and_restores_it() {
 
             // A save at zero must retain the dormant stroke too.
             let st = h.state().session.active().unwrap();
-            let bytes = photocraft_format::save_to_bytes(&st.doc, &Default::default()).unwrap();
-            let loaded = photocraft_format::load_from_bytes(&bytes).unwrap();
+            let bytes = evophoto_format::save_to_bytes(&st.doc, &Default::default()).unwrap();
+            let loaded = evophoto_format::load_from_bytes(&bytes).unwrap();
             let LayerContent::Shape(saved) = &loaded.layer(st.active_layer.unwrap()).unwrap().content else { panic!("saved shape") };
             assert_eq!(saved.stroke, zero.stroke);
 
@@ -330,7 +330,7 @@ fn float_paints_match_preview_creation_native_roundtrip_and_document_depth() {
             let mut app = app(mode, depth);
             set_tool_paint(&mut app, false, PaintChange::Color(foreground)).unwrap();
             set_tool_paint(&mut app, true, PaintChange::Color(background)).unwrap();
-            app.ui.tool_options.shape_stroke.cap = photocraft_doc::LineCap::Round;
+            app.ui.tool_options.shape_stroke.cap = evophoto_doc::LineCap::Round;
             app.ui.tool_options.shape_stroke.dashes = vec![0.0, 2.0];
             let preview = shape_preview(&app, tool, [20.0, 20.0], [100.0, 80.0], Modifiers::NONE).unwrap();
             finish_shape(&mut app, tool, [20.0, 20.0], [100.0, 80.0], Modifiers::NONE);
@@ -341,10 +341,10 @@ fn float_paints_match_preview_creation_native_roundtrip_and_document_depth() {
             assert_eq!(committed.fill, Some(solid_paint(foreground)));
             assert_eq!(committed.stroke.as_ref().unwrap().paint, solid_paint(background));
             let doc = &app.session.active().unwrap().doc;
-            let rendered = photocraft_vector::render_shape(&preview, doc.pixel_format(), doc.bounds());
+            let rendered = evophoto_vector::render_shape(&preview, doc.pixel_format(), doc.bounds());
             assert_eq!(committed.cache.as_ref().unwrap(), &rendered, "{tool:?} {mode}/{depth}");
-            let bytes = photocraft_format::save_to_bytes(doc, &Default::default()).unwrap();
-            let loaded = photocraft_format::load_from_bytes(&bytes).unwrap();
+            let bytes = evophoto_format::save_to_bytes(doc, &Default::default()).unwrap();
+            let loaded = evophoto_format::load_from_bytes(&bytes).unwrap();
             let id = app.session.active().unwrap().active_layer.unwrap();
             let LayerContent::Shape(saved) = &loaded.layer(id).unwrap().content else { panic!("saved editable shape") };
             assert_eq!((&saved.fill, &saved.stroke), (&committed.fill, &committed.stroke));
@@ -410,7 +410,7 @@ fn selected_shape_style_is_available_when_absent_and_dismissal_does_not_enable_i
     assert_eq!(shape(h.state()).stroke.as_ref().unwrap().dashes, [0.0, 2.0]);
 }
 
-fn popup_rect(h: &Harness<'_, PhotocraftApp>) -> Rect {
+fn popup_rect(h: &Harness<'_, EvoPhotoApp>) -> Rect {
     h.ctx
         .memory(|m| m.areas().visible_layer_ids().into_iter().filter(|l| l.order == egui::Order::Foreground).find_map(|l| m.area_rect(l.id)))
         .expect("colour picker is open")

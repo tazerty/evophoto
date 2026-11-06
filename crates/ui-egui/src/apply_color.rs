@@ -13,10 +13,10 @@
 //! or sliders is one step too.
 
 use egui::{Context, Id};
-use photocraft_doc::{Color, Fill, LayerContent};
+use evophoto_doc::{Color, Fill, LayerContent};
 use serde_json::json;
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::state::Tool;
 
 fn hex(c: [f32; 4]) -> String {
@@ -78,7 +78,7 @@ pub fn track_focus(ctx: &Context) {
 /// Picker: recolour what is selected, as the tool in hand says (see the module docs).
 /// Picks of one `gesture` (a Color panel drag or typed value, see [`gesture`]) share one history
 /// step; `None` (a swatch, the Color Picker, a click) is a step of its own.
-pub fn foreground_changed(app: &mut PhotocraftApp, gesture: Option<String>) {
+pub fn foreground_changed(app: &mut EvoPhotoApp, gesture: Option<String>) {
     // Editing type: the selected characters, in the editing session's step; nothing else.
     if app.ui.text_edit.is_some() {
         crate::type_tool::foreground_changed(app);

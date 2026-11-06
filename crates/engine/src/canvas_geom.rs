@@ -7,9 +7,9 @@
 
 use std::sync::Arc;
 
-use photocraft_doc::{Document, Fill, Layer, LayerContent, TextLayer};
-use photocraft_geom::{Affine, Point, Rect};
-use photocraft_raster::Surface;
+use evophoto_doc::{Document, Fill, Layer, LayerContent, TextLayer};
+use evophoto_geom::{Affine, Point, Rect};
+use evophoto_raster::Surface;
 
 use crate::pixels::remap_surface;
 
@@ -72,9 +72,9 @@ fn retag_text(dpi: f32, t: &mut TextLayer) {
     if t.psd_raw.is_none() {
         return;
     }
-    let mut eng = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner());
+    let mut eng = evophoto_text::shared().lock().unwrap_or_else(|e| e.into_inner());
     let layout = eng.layout(t, dpi);
-    t.psd_raw = Some(Arc::new(photocraft_text::psd::build_tysh(t, dpi, layout.bounds())));
+    t.psd_raw = Some(Arc::new(evophoto_text::psd::build_tysh(t, dpi, layout.bounds())));
 }
 
 /// Sets the document resolution keeping every type layer's size in pixels, as Photoshop does (its
@@ -91,17 +91,17 @@ pub(crate) fn set_resolution(doc: &mut Document, dpi: f32) {
         let LayerContent::Text(t) = &mut l.content else { return };
         t.transform = t.transform.mul(&Affine::scale(1.0 / k));
         match &mut t.shape {
-            photocraft_doc::text::TextShape::Box { x, y, width, height } => {
+            evophoto_doc::text::TextShape::Box { x, y, width, height } => {
                 for v in [x, y, width, height] {
                     *v = grown(*v, k);
                 }
             }
-            photocraft_doc::text::TextShape::Path { path, start, .. } => {
+            evophoto_doc::text::TextShape::Path { path, start, .. } => {
                 path.knots.iter_mut().for_each(|kn| *kn = kn.transform(&grow));
                 *start = grown(*start, k);
             }
-            photocraft_doc::text::TextShape::Area { path } => *path = path.transform(&grow),
-            photocraft_doc::text::TextShape::Point => {}
+            evophoto_doc::text::TextShape::Area { path } => *path = path.transform(&grow),
+            evophoto_doc::text::TextShape::Point => {}
         }
         retag_text(dpi, t);
     });
@@ -336,7 +336,7 @@ pub(crate) fn turn_canvas(doc: &mut Document, turn: Turn) {
     remap_pixels(doc, &map);
     let a = turn.affine(f64::from(doc.size.width), f64::from(doc.size.height));
     if turn.swaps() {
-        doc.size = photocraft_doc::Size::new(doc.size.height, doc.size.width);
+        doc.size = evophoto_doc::Size::new(doc.size.height, doc.size.width);
     }
     transform_geometry(doc, &a);
 }

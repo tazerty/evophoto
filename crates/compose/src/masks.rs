@@ -9,10 +9,10 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex, OnceLock, Weak};
 
-use photocraft_color::{ColorMode, PixelFormat, SampleType};
-use photocraft_doc::Layer;
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use evophoto_color::{ColorMode, PixelFormat, SampleType};
+use evophoto_doc::Layer;
+use evophoto_geom::Rect;
+use evophoto_raster::Surface;
 
 // A U16 mask keeps substantially smaller cached tiles than F32 while adding at most
 // 1/65535 quantization error. Mask values are normalized coverage, so this is finer than
@@ -171,8 +171,8 @@ fn key(layer: &Layer, canvas: Rect) -> u64 {
     h.finish()
 }
 
-pub use photocraft_vector::feather::feather_sigma;
-use photocraft_vector::feather::gaussian;
+pub use evophoto_vector::feather::feather_sigma;
+use evophoto_vector::feather::gaussian;
 
 /// Whether `layer` has an enabled mask with a feather (rendered through [`combined_mask`]).
 pub fn has_feather(layer: &Layer) -> bool {
@@ -195,7 +195,7 @@ fn build_mask(layer: &Layer, canvas: Rect) -> Surface {
     let vm = layer.vector_mask.as_ref().filter(|v| v.enabled);
     let pixel = layer.mask.as_ref().filter(|m| m.enabled);
     let (sv, sp) = (vm.map_or(0.0, |v| feather_sigma(v.feather)), pixel.map_or(0.0, |m| feather_sigma(m.feather)));
-    let compiled = vm.map(photocraft_vector::CompiledVectorMask::new);
+    let compiled = vm.map(evophoto_vector::CompiledVectorMask::new);
     // Far outside the path the vector mask is constant.
     let far = Rect::from_xywh(canvas.x0 - 1_000_000, canvas.y0 - 1_000_000, 1, 1);
     let v_out = compiled.as_ref().map_or(1.0, |vm| vm.render_sequential(far)[0]);
@@ -206,11 +206,11 @@ fn build_mask(layer: &Layer, canvas: Rect) -> Surface {
     // Where the product can differ from `p_def × v_out`: the path's bounds, plus the pixel
     // mask's painted tiles when the vector mask lets them through outside the path, each grown
     // by its feather.
-    let mut area = vm.map_or(Rect::EMPTY, |vm| photocraft_vector::feather::path_area(&vm.path, sv));
+    let mut area = vm.map_or(Rect::EMPTY, |vm| evophoto_vector::feather::path_area(&vm.path, sv));
     if let Some(m) = pixel
         && v_out > 0.0
     {
-        let b = photocraft_vector::feather::grow(m.surface.content_bounds(), sp);
+        let b = evophoto_vector::feather::grow(m.surface.content_bounds(), sp);
         area = if area.is_empty() {
             b
         } else if b.is_empty() {
@@ -253,8 +253,8 @@ fn build_mask(layer: &Layer, canvas: Rect) -> Surface {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_doc::LayerMask;
-    use photocraft_doc::vector::{Knot, Path, Subpath, VectorMask};
+    use evophoto_doc::LayerMask;
+    use evophoto_doc::vector::{Knot, Path, Subpath, VectorMask};
 
     fn pending(c: &Mutex<Cache>, k: u64) -> Arc<OnceLock<Surface>> {
         match lookup(c, k) {
@@ -371,7 +371,7 @@ mod tests {
     fn parallel_feathered_pixel_mask_returns_the_same_tiles() {
         let canvas = Rect::new(0, 0, 600, 400);
         let mut layer = Layer::raster("cold shared mask", PixelFormat::RGBA8);
-        let mut mask = photocraft_doc::LayerMask::reveal_all();
+        let mut mask = evophoto_doc::LayerMask::reveal_all();
         mask.surface.fill_rect(canvas, &[0.5]);
         mask.feather = 8.0;
         layer.mask = Some(mask);
@@ -402,7 +402,7 @@ mod tests {
         let handle = std::thread::spawn(move || {
             let canvas = Rect::new(0, 0, 512, 512);
             let mut layer = Layer::raster("rayon vector mask", PixelFormat::RGBA8);
-            let mut mask = VectorMask::new(photocraft_vector::shapes::ellipse(8.0, 8.0, 496.0, 496.0));
+            let mut mask = VectorMask::new(evophoto_vector::shapes::ellipse(8.0, 8.0, 496.0, 496.0));
             mask.feather = 8.0;
             layer.vector_mask = Some(mask);
             let pool = rayon::ThreadPoolBuilder::new().num_threads(2).build().unwrap();
@@ -426,7 +426,7 @@ mod tests {
         for sample in SampleType::ALL {
             let mut input = one_tile(sample);
             input.fill_rect(Rect::new(1024, 1024, 1025, 1025), &[0.0]);
-            let tile_pixels = (photocraft_geom::TILE_SIZE * photocraft_geom::TILE_SIZE) as usize;
+            let tile_pixels = (evophoto_geom::TILE_SIZE * evophoto_geom::TILE_SIZE) as usize;
             let expected = tile_pixels * (SampleType::F32.bytes() + 2 * sample.bytes()) + SampleType::F32.bytes() + sample.bytes();
             let bytes = entry_bytes(&result, Some(&input));
             assert_eq!(bytes, expected, "{sample:?}");
@@ -556,7 +556,7 @@ mod tests {
     fn cache_budget_holds_five_50mp_u8_input_u16_result_masks() {
         // Account for whole 256×256 tiles, as entry_bytes does, rather than just logical pixels.
         let (w, h) = (6336usize, 7920usize);
-        let tile = photocraft_geom::TILE_SIZE as usize;
+        let tile = evophoto_geom::TILE_SIZE as usize;
         let tile_count = w.div_ceil(tile) * h.div_ceil(tile);
         let tile_pixels = tile * tile;
         let one_entry = tile_count * tile_pixels * (SampleType::U8.bytes() + FORMAT.sample.bytes());
@@ -584,7 +584,7 @@ mod tests {
         l.vector_mask = Some(vm);
         let canvas = Rect::new(0, 0, 40, 32);
         let s = combined_mask(&l, canvas).unwrap();
-        let want = photocraft_vector::vector_mask_values(l.vector_mask.as_ref().unwrap(), canvas);
+        let want = evophoto_vector::vector_mask_values(l.vector_mask.as_ref().unwrap(), canvas);
         let mut got = Vec::new();
         s.read_region_into(canvas, &mut got);
         for (a, b) in got.iter().zip(&want) {

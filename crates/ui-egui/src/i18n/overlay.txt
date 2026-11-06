@@ -37,7 +37,7 @@ exact	zh-hans	Adobe	内置
 exact	zh-hant	Adobe	內建
 
 # RGB working space with the published Adobe RGB (1998) primaries: ClayRGB, the open name already
-# accepted as an alias by photocraft-cms (`clayrgb`).
+# accepted as an alias by evophoto-cms (`clayrgb`).
 sub	*	Adobe-RGB(1998)	ClayRGB(1998)
 sub	*	Adobe RGB (1998)	ClayRGB (1998)
 sub	*	Adobe RGB	ClayRGB

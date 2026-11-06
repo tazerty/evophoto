@@ -14,7 +14,7 @@
 # Clean-room: every entry was written from the plain meaning of the English label using the
 # image-editing vocabulary in everyday use in Taiwan (圖層, 遮色片, 選取範圍, 濾鏡, 色階 ...). No
 # proprietary localisation resource, string table or product UI was consulted or copied; add
-# entries the same way. Product and technology names (PhotoCraft, OpenType, CMYK, Lab ...)
+# entries the same way. Product and technology names (EvoPhoto, OpenType, CMYK, Lab ...)
 # and paper sizes (Legal, Tabloid) stay in Latin letters; the trailing "…" of dialog commands is
 # kept. Full-width punctuation (，。：) inside sentences; half-width parentheses and the " · "
 # separators as in the English.
@@ -1367,7 +1367,7 @@
 	Lumbra	Lumbra
 	Lumbra Manages Colors	Lumbra 管理色彩
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — 以 Rust 撰寫的開放原始碼原生影像編輯器。
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	以開放原始碼軟體 PhotoCraft（MIT OR Apache-2.0）為基礎。
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	以開放原始碼軟體 EvoPhoto（MIT OR Apache-2.0）為基礎。
 	Pin Depth:	圖釘深度：
 	Pixel Length:	像素長度：
 	Pixels/Centimeter	像素/公分
@@ -2330,7 +2330,7 @@ cameraRaw	Blending	混合
 	Use tablet pressure to change pen width	使用繪圖板壓力以變更鋼筆寬度
 
 
-# About ▸ Contributors / Models (credits, craftrules standards/contributors.md)
+# About ▸ Contributors / Models (credits, evorules standards/contributors.md)
 	About	關於
 	Contributors	貢獻者
 	Models	模型
@@ -2848,7 +2848,7 @@ curves	Smooth	平滑
 	Sent to {printer}	已傳送至 {printer}
 	set in Print Settings…	在列印設定中設定…
 	ICO is limited to 256 × 256 pixels	ICO 最大為 256 × 256 像素
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	檢查更新…
 	Lumbra Updates	Lumbra 更新
 	Checking for updates…	正在檢查更新…

@@ -3,10 +3,10 @@
 //! background). Everything that changes the document is `layer.artboard.set` and friends.
 
 use egui::{Align2, Color32, Pos2, Stroke};
-use photocraft_doc::{ArtboardBackground, Document, Layer};
+use evophoto_doc::{ArtboardBackground, Document, Layer};
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::canvas::ViewXform;
 use crate::theme::Tokens;
 
@@ -21,14 +21,14 @@ use crate::theme::Tokens;
 pub fn pasteboard_quads(xf: &ViewXform, doc: &Document) -> Vec<[Pos2; 4]> {
     let canvas = doc.bounds();
     let background = doc.background().map(|b| b.id);
-    let loose: Vec<photocraft_geom::Rect> = doc
+    let loose: Vec<evophoto_geom::Rect> = doc
         .layers
         .iter()
         .filter(|l| l.visible && !is_artboard(l) && Some(l.id) != background)
-        .filter_map(|l| photocraft_compose::composite_bounds(l, canvas))
+        .filter_map(|l| evophoto_compose::composite_bounds(l, canvas))
         .filter(|b| !b.is_empty() && !b.contains_rect(&canvas))
         .collect();
-    let boards: Vec<photocraft_geom::Rect> = doc.artboards().iter().map(|b| b.2.rect.intersect(&canvas)).filter(|r| !r.is_empty()).collect();
+    let boards: Vec<evophoto_geom::Rect> = doc.artboards().iter().map(|b| b.2.rect.intersect(&canvas)).filter(|r| !r.is_empty()).collect();
     let mut xs: Vec<i32> = vec![canvas.x0, canvas.x1];
     for b in &boards {
         xs.extend([b.x0, b.x1]);
@@ -43,29 +43,29 @@ pub fn pasteboard_quads(xf: &ViewXform, doc: &Document) -> Vec<[Pos2; 4]> {
         let mut y = canvas.y0;
         for (a, b) in spans {
             if a > y {
-                out.extend(subtract(photocraft_geom::Rect::new(x0, y, x1, a), &loose).into_iter().map(|r| quad(xf, r)));
+                out.extend(subtract(evophoto_geom::Rect::new(x0, y, x1, a), &loose).into_iter().map(|r| quad(xf, r)));
             }
             y = y.max(b);
         }
         if y < canvas.y1 {
-            out.extend(subtract(photocraft_geom::Rect::new(x0, y, x1, canvas.y1), &loose).into_iter().map(|r| quad(xf, r)));
+            out.extend(subtract(evophoto_geom::Rect::new(x0, y, x1, canvas.y1), &loose).into_iter().map(|r| quad(xf, r)));
         }
     }
     out
 }
 
 /// The corners of a document rect on screen, in order (a parallelogram when the view is rotated).
-fn quad(xf: &ViewXform, r: photocraft_geom::Rect) -> [Pos2; 4] {
+fn quad(xf: &ViewXform, r: evophoto_geom::Rect) -> [Pos2; 4] {
     let (x0, y0, x1, y1) = (r.x0 as f32, r.y0 as f32, r.x1 as f32, r.y1 as f32);
     [xf.to_screen(x0, y0), xf.to_screen(x1, y0), xf.to_screen(x1, y1), xf.to_screen(x0, y1)]
 }
 
 fn is_artboard(l: &Layer) -> bool {
-    matches!(&l.content, photocraft_doc::LayerContent::Group(g) if g.artboard.is_some())
+    matches!(&l.content, evophoto_doc::LayerContent::Group(g) if g.artboard.is_some())
 }
 
 /// `r` minus every hole, as disjoint rects (each hole splits a piece into at most four).
-fn subtract(r: photocraft_geom::Rect, holes: &[photocraft_geom::Rect]) -> Vec<photocraft_geom::Rect> {
+fn subtract(r: evophoto_geom::Rect, holes: &[evophoto_geom::Rect]) -> Vec<evophoto_geom::Rect> {
     let mut pieces = vec![r];
     for h in holes {
         let mut next = Vec::with_capacity(pieces.len());
@@ -76,10 +76,10 @@ fn subtract(r: photocraft_geom::Rect, holes: &[photocraft_geom::Rect]) -> Vec<ph
                 continue;
             }
             let parts = [
-                photocraft_geom::Rect::new(p.x0, p.y0, p.x1, i.y0),
-                photocraft_geom::Rect::new(p.x0, i.y1, p.x1, p.y1),
-                photocraft_geom::Rect::new(p.x0, i.y0, i.x0, i.y1),
-                photocraft_geom::Rect::new(i.x1, i.y0, p.x1, i.y1),
+                evophoto_geom::Rect::new(p.x0, p.y0, p.x1, i.y0),
+                evophoto_geom::Rect::new(p.x0, i.y1, p.x1, p.y1),
+                evophoto_geom::Rect::new(p.x0, i.y0, i.x0, i.y1),
+                evophoto_geom::Rect::new(i.x1, i.y0, p.x1, i.y1),
             ];
             next.extend(parts.into_iter().filter(|q| !q.is_empty()));
         }
@@ -89,7 +89,7 @@ fn subtract(r: photocraft_geom::Rect, holes: &[photocraft_geom::Rect]) -> Vec<ph
 }
 
 /// Board outlines and names (the active board's name is highlighted, as in Photoshop).
-pub fn draw_frames(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform) {
+pub fn draw_frames(app: &EvoPhotoApp, painter: &egui::Painter, xf: &ViewXform) {
     let Some(st) = app.session.active() else { return };
     let t = Tokens::get(painter.ctx());
     let active = st.active_layer.and_then(|id| st.doc.artboard_of(id));
@@ -103,7 +103,7 @@ pub fn draw_frames(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform)
 }
 
 /// View › Fit Artboard on Screen: zoom to the active artboard (or the first one).
-pub fn fit_artboard(app: &mut PhotocraftApp) -> Result<Value, String> {
+pub fn fit_artboard(app: &mut EvoPhotoApp) -> Result<Value, String> {
     let i = app.session.active_index().ok_or("no document")?;
     let st = app.session.active().ok_or("no document")?;
     let id = st.active_layer.and_then(|l| st.doc.artboard_of(l)).or_else(|| st.doc.artboards().last().map(|b| b.0)).ok_or("the document has no artboards")?;
@@ -127,7 +127,7 @@ pub fn fit_artboard(app: &mut PhotocraftApp) -> Result<Value, String> {
 }
 
 /// Properties panel for an artboard.
-pub fn properties(app: &mut PhotocraftApp, ui: &mut egui::Ui, layer: &Layer) {
+pub fn properties(app: &mut EvoPhotoApp, ui: &mut egui::Ui, layer: &Layer) {
     let Some(a) = layer.artboard().cloned() else { return };
     let t = Tokens::get(ui.ctx());
     let key = |k: &str| format!("artboard-{}-{k}", layer.id.0);
@@ -138,7 +138,7 @@ pub fn properties(app: &mut PhotocraftApp, ui: &mut egui::Ui, layer: &Layer) {
     ui.add_space(4.0);
     let mut preset = a.preset.clone();
     let mut opts: Vec<(String, &str)> = vec![(String::new(), tl!("Custom"))];
-    opts.extend(photocraft_engine::artboard_cmds::PRESETS.iter().map(|(n, _, _)| (n.to_string(), *n)));
+    opts.extend(evophoto_engine::artboard_cmds::PRESETS.iter().map(|(n, _, _)| (n.to_string(), *n)));
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new(tl!("Size")).color(t.text_dim).size(12.0));
         if crate::widgets::dropdown(ui, &key("preset"), &mut preset, &opts, 150.0) && !preset.is_empty() {
@@ -194,7 +194,7 @@ pub fn properties(app: &mut PhotocraftApp, ui: &mut egui::Ui, layer: &Layer) {
         }
         if let ArtboardBackground::Custom(c) = a.background {
             let [r8, g8, b8, _] = c.to_rgba8();
-            // PhotoCraft's Color Picker, as everywhere else (#2144): OK sets the background.
+            // EvoPhoto's Color Picker, as everywhere else (#2144): OK sets the background.
             if crate::widgets::color_swatch_button(ui, egui::Color32::from_rgb(r8, g8, b8), tl!("Color")).clicked() {
                 pick = Some(c.to_rgb());
             }
@@ -218,8 +218,8 @@ mod tests {
     use crate::menus::{invoke as menu, is_live, menu_items};
     use egui::Rect;
 
-    fn app() -> (PhotocraftApp, egui::Context) {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    fn app() -> (EvoPhotoApp, egui::Context) {
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 100, "height": 50})).unwrap();
         app.sync_views();
         (app, egui::Context::default())
@@ -252,8 +252,8 @@ mod tests {
         let (mut app, _) = app();
         app.run("layer.new.artboard", json!({"rect": [0, 0, 40, 50]})).unwrap();
         let mut doc = (*app.session.active().unwrap().doc).clone();
-        let mut px = photocraft_doc::Layer::raster("Work", doc.pixel_format());
-        px.surface_mut().unwrap().fill_rect(photocraft_geom::Rect::new(60, 10, 80, 30), &[1.0, 0.0, 0.0, 1.0]);
+        let mut px = evophoto_doc::Layer::raster("Work", doc.pixel_format());
+        px.surface_mut().unwrap().fill_rect(evophoto_geom::Rect::new(60, 10, 80, 30), &[1.0, 0.0, 0.0, 1.0]);
         doc.layers.insert(0, px);
         let xf = ViewXform {
             rect: Rect::from_min_size(Pos2::ZERO, egui::vec2(100.0, 50.0)),
@@ -278,7 +278,7 @@ mod tests {
         app.run("layer.new.artboard", json!({"rect": [0, 0, 40, 50]})).unwrap();
         let mut doc = (*app.session.active().unwrap().doc).clone();
         assert!(doc.background().is_some());
-        let mut px = photocraft_doc::Layer::raster("Wash", doc.pixel_format());
+        let mut px = evophoto_doc::Layer::raster("Wash", doc.pixel_format());
         px.surface_mut().unwrap().fill_rect(doc.bounds(), &[0.0, 0.0, 1.0, 1.0]);
         doc.layers.push(px);
         let xf = ViewXform {
@@ -311,8 +311,8 @@ mod tests {
         let (mut app, _) = app();
         app.run("layer.new.artboard", json!({"rect": [0, 0, 20, 50]})).unwrap();
         let mut doc = (*app.session.active().unwrap().doc).clone();
-        let mut px = photocraft_doc::Layer::raster("Work", doc.pixel_format());
-        px.surface_mut().unwrap().fill_rect(photocraft_geom::Rect::new(50, 15, 70, 35), &[1.0, 0.0, 0.0, 1.0]);
+        let mut px = evophoto_doc::Layer::raster("Work", doc.pixel_format());
+        px.surface_mut().unwrap().fill_rect(evophoto_geom::Rect::new(50, 15, 70, 35), &[1.0, 0.0, 0.0, 1.0]);
         doc.layers.insert(0, px);
         let xf = ViewXform {
             rect: Rect::from_min_size(Pos2::ZERO, egui::vec2(200.0, 200.0)),
@@ -336,10 +336,10 @@ mod tests {
 
     #[test]
     fn subtract_splits_around_holes() {
-        let r = photocraft_geom::Rect::new(0, 0, 10, 10);
-        let parts = subtract(r, &[photocraft_geom::Rect::new(2, 2, 4, 4), photocraft_geom::Rect::new(20, 20, 30, 30)]);
+        let r = evophoto_geom::Rect::new(0, 0, 10, 10);
+        let parts = subtract(r, &[evophoto_geom::Rect::new(2, 2, 4, 4), evophoto_geom::Rect::new(20, 20, 30, 30)]);
         assert_eq!(parts.iter().map(|p| i64::from(p.width()) * i64::from(p.height())).sum::<i64>(), 96);
-        assert!(subtract(r, &[photocraft_geom::Rect::new(-5, -5, 50, 50)]).is_empty());
+        assert!(subtract(r, &[evophoto_geom::Rect::new(-5, -5, 50, 50)]).is_empty());
     }
 
     #[test]
@@ -356,7 +356,7 @@ mod tests {
         ] {
             assert!(is_live(id), "{id}");
         }
-        let enabled = |app: &PhotocraftApp, id: &str| menu_items(app).into_iter().find(|i| i.id == id).is_some_and(|i| i.enabled);
+        let enabled = |app: &EvoPhotoApp, id: &str| menu_items(app).into_iter().find(|i| i.id == id).is_some_and(|i| i.enabled);
         assert!(!enabled(&app, "view.fitArtboardOnScreen"));
         // Menu clicks without params open dialogs for the parameterised commands.
         let r = menu(&mut app, &ctx, "layer.new.artboard", json!({})).unwrap();
@@ -394,7 +394,7 @@ mod tests {
         }
     }
 
-    fn drag(app: &mut PhotocraftApp, from: [f64; 2], by: [f64; 2], mods: egui::Modifiers) {
+    fn drag(app: &mut EvoPhotoApp, from: [f64; 2], by: [f64; 2], mods: egui::Modifiers) {
         use crate::canvas::{ToolEvent, tool_event};
         tool_event(app, ToolEvent::Down { x: from[0], y: from[1], pressure: 1.0 }, mods);
         for t in [0.5, 1.0] {
@@ -403,7 +403,7 @@ mod tests {
         tool_event(app, ToolEvent::Up { x: from[0] + by[0], y: from[1] + by[1] }, mods);
     }
 
-    fn boards(app: &PhotocraftApp) -> Vec<photocraft_geom::Rect> {
+    fn boards(app: &EvoPhotoApp) -> Vec<evophoto_geom::Rect> {
         app.session.active().unwrap().doc.artboards().iter().map(|b| b.2.rect).collect()
     }
 
@@ -419,14 +419,14 @@ mod tests {
         app.ui.extras.snap = false;
         app.ui.view.show.smart_guides = false;
         drag(&mut app, [20.0, 20.0], [10.0, 5.0], egui::Modifiers::NONE);
-        assert_eq!(boards(&app), vec![photocraft_geom::Rect::new(10, 5, 50, 45)]);
+        assert_eq!(boards(&app), vec![evophoto_geom::Rect::new(10, 5, 50, 45)]);
         let st = app.session.active().unwrap();
         assert_eq!(st.active_layer, Some(st.doc.artboards()[0].0));
         // ⌥-drag: the copy follows the pointer, the original stays.
         drag(&mut app, [20.0, 20.0], [50.0, 0.0], egui::Modifiers::ALT);
         let mut got = boards(&app);
         got.sort_by_key(|r| r.x0);
-        assert_eq!(got, vec![photocraft_geom::Rect::new(10, 5, 50, 45), photocraft_geom::Rect::new(60, 5, 100, 45)]);
+        assert_eq!(got, vec![evophoto_geom::Rect::new(10, 5, 50, 45), evophoto_geom::Rect::new(60, 5, 100, 45)]);
         // One undo step takes the copy back.
         app.run("edit.undo", json!({})).unwrap();
         assert_eq!(boards(&app).len(), 1);

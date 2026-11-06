@@ -8,6 +8,6 @@ target/
 /secrets
 /temp
 /book/output
-/craft-fonts
+/evo-fonts
 *.log
 __pycache__/

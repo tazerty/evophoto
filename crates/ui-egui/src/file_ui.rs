@@ -7,10 +7,10 @@
 
 use std::sync::Arc;
 
-use photocraft_engine::web_cmds::{self, Optimized, WebSettings};
+use evophoto_engine::web_cmds::{self, Optimized, WebSettings};
 use serde_json::{Map, Value, json};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::state::DialogKind;
 use crate::theme::Tokens;
 
@@ -18,13 +18,13 @@ fn no_params(p: &Value) -> bool {
     p.as_object().is_none_or(|o| o.is_empty())
 }
 
-fn default_dir(app: &PhotocraftApp) -> String {
+fn default_dir(app: &EvoPhotoApp) -> String {
     app.session.active().and_then(|d| d.path.as_deref()).and_then(|p| p.rfind(['/', '\\']).map(|i| p[..i].to_string())).unwrap_or_else(|| ".".into())
 }
 
 /// A packaged macOS app does not start in a useful writable working directory. A saved
 /// document keeps its own folder; otherwise prefer the user's Documents folder.
-fn droplet_default_dir(app: &PhotocraftApp) -> String {
+fn droplet_default_dir(app: &EvoPhotoApp) -> String {
     let dir = default_dir(app);
     if dir != "." {
         return dir;
@@ -38,12 +38,12 @@ fn droplet_default_dir(app: &PhotocraftApp) -> String {
     dir
 }
 
-fn doc_stem(app: &PhotocraftApp) -> String {
+fn doc_stem(app: &EvoPhotoApp) -> String {
     app.session.active().map(|d| d.doc.name.rsplit_once('.').map_or(d.doc.name.clone(), |(a, _)| a.to_string())).unwrap_or_else(|| tl!("Untitled").into())
 }
 
 /// A generic form dialog for `command` (rendered by `view_cmds::form_body`).
-fn form(app: &mut PhotocraftApp, command: &str, label: &str, fields: Value, choices: Value) -> Value {
+fn form(app: &mut EvoPhotoApp, command: &str, label: &str, fields: Value, choices: Value) -> Value {
     let mut f = Map::new();
     f.insert("__command".into(), json!(command));
     f.insert("__label".into(), json!(label));
@@ -61,7 +61,7 @@ fn form(app: &mut PhotocraftApp, command: &str, label: &str, fields: Value, choi
 const SCRIPT_EXTENSIONS: &[&str] = &["psjs", "ccjs", "jsx", "js", "jsxbin", "json", "txt", "pcdroplet"];
 
 /// Menu items fronted here (dialogs before the engine command). `None` when not ours.
-pub fn invoke(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: &Value) -> Option<Result<Value, String>> {
+pub fn invoke(app: &mut EvoPhotoApp, ctx: &egui::Context, id: &str, params: &Value) -> Option<Result<Value, String>> {
     if !no_params(params) {
         return None;
     }
@@ -76,7 +76,7 @@ pub fn invoke(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: &V
             app.session.active()?;
             json!({"dialog": open_print(app)})
         }
-        "file.printOneCopy" if photocraft_engine::print_cmds::last_print(&app.session).is_none() => {
+        "file.printOneCopy" if evophoto_engine::print_cmds::last_print(&app.session).is_none() => {
             app.session.active()?;
             json!({"dialog": open_print(app)})
         }
@@ -85,7 +85,7 @@ pub fn invoke(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: &V
             app,
             id,
             tl!("Contact Sheet II"),
-            json!({"input": dir, "units": "inches", "width": 8.0, "height": 10.0, "resolution": 300.0, "mode": "rgb", "depth": 8, "columns": 5, "rows": 6, "placeAcrossFirst": true, "autoSpacing": true, "rotateForBestFit": false, "caption": true, "font": photocraft_text::fonts::DEFAULT_FAMILY, "fontSize": 12.0, "flatten": false}),
+            json!({"input": dir, "units": "inches", "width": 8.0, "height": 10.0, "resolution": 300.0, "mode": "rgb", "depth": 8, "columns": 5, "rows": 6, "placeAcrossFirst": true, "autoSpacing": true, "rotateForBestFit": false, "caption": true, "font": evophoto_text::fonts::DEFAULT_FAMILY, "fontSize": 12.0, "flatten": false}),
             json!({"units": ["inches", "cm", "pixels"], "mode": ["rgb", "gray", "cmyk", "lab"]}),
         ),
         "file.automate.createDroplet" => {
@@ -116,7 +116,7 @@ pub fn invoke(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: &V
         }
         "file.scripts.scriptEventsManager" => {
             let enabled = app.session.prefs().script_events.enabled;
-            let events: Vec<&str> = photocraft_engine::automate_cmds::EVENTS.iter().map(|e| e.0).collect();
+            let events: Vec<&str> = evophoto_engine::automate_cmds::EVENTS.iter().map(|e| e.0).collect();
             form(app, id, "Script Events Manager", json!({"enabled": enabled, "event": "openDocument", "script": "", "name": ""}), json!({"event": events}))
         }
         "file.package" => form(app, id, "Package", json!({"dir": dir}), json!({})),
@@ -135,7 +135,7 @@ pub fn invoke(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: &V
 }
 
 /// Checked state of toggle items owned here.
-pub fn checked(app: &PhotocraftApp, id: &str) -> Option<bool> {
+pub fn checked(app: &EvoPhotoApp, id: &str) -> Option<bool> {
     match id {
         "view.lockSlices" => Some(app.session.file_menu.slices_locked),
         "file.generate.imageAssets" => Some(app.session.active().is_some_and(|d| app.session.file_menu.image_assets.contains(&d.doc.id))),
@@ -169,7 +169,7 @@ pub fn ok_label(f: &Map<String, Value>) -> Option<&'static str> {
 }
 
 /// The body of Save for Web or Print (dialog `id`).
-pub fn body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Value>, id: u64) {
+pub fn body(app: &mut EvoPhotoApp, ui: &mut egui::Ui, f: &mut Map<String, Value>, id: u64) {
     if f.contains_key("__web") {
         web_body(app, ui, f);
     } else {
@@ -177,7 +177,7 @@ pub fn body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Valu
     }
 }
 
-pub fn confirm(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Value, String> {
+pub fn confirm(app: &mut EvoPhotoApp, f: &Map<String, Value>) -> Result<Value, String> {
     if f.contains_key("__web") { web_confirm(app, f) } else { print_confirm(app, f) }
 }
 
@@ -203,7 +203,7 @@ mod web_preview;
 const WEB_FORMATS: [(&str, &str); 5] = [("gif", "GIF"), ("png8", "PNG-8"), ("png24", "PNG-24"), ("jpeg", "JPEG"), ("wbmp", "WBMP")];
 const WEB_COMMAND: &str = "file.export.saveForWebLegacy";
 
-pub fn open_web(app: &mut PhotocraftApp) -> u64 {
+pub fn open_web(app: &mut EvoPhotoApp) -> u64 {
     let mut f = Map::new();
     f.insert("__web".into(), json!(true));
     f.insert("__command".into(), json!(WEB_COMMAND));
@@ -278,7 +278,7 @@ type WebProxy = (Arc<Vec<[f32; 4]>>, u32, u32, f64, egui::Vec2);
 type WebCache = (String, Arc<egui::TextureHandle>, Option<(usize, Option<usize>, &'static str)>);
 
 /// Renders one preview pane: the original (`None`) or an optimised variant.
-fn web_pane(app: &PhotocraftApp, ui: &mut egui::Ui, size: egui::Vec2, p: Option<&Value>, f: &mut Map<String, Value>, pane: usize, frame: Option<usize>) {
+fn web_pane(app: &EvoPhotoApp, ui: &mut egui::Ui, size: egui::Vec2, p: Option<&Value>, f: &mut Map<String, Value>, pane: usize, frame: Option<usize>) {
     let t = Tokens::get(ui.ctx());
     let Some(st) = app.session.active() else { return };
     let doc = st.doc.clone();
@@ -309,7 +309,7 @@ fn web_pane(app: &PhotocraftApp, ui: &mut egui::Ui, size: egui::Vec2, p: Option<
             else {
                 return;
             };
-            let buf = photocraft_compose::flatten(&wd);
+            let buf = evophoto_compose::flatten(&wd);
             let v = (
                 Arc::new(buf.px),
                 wd.size.width,
@@ -442,7 +442,7 @@ fn advance_preview(frame: usize, duration: usize, fps: f32, last: f64, now: f64)
     (next, now - (elapsed_frames - steps) / fps)
 }
 
-fn web_playback(ui: &mut egui::Ui, f: &mut Map<String, Value>, doc: &photocraft_doc::Document) -> Option<usize> {
+fn web_playback(ui: &mut egui::Ui, f: &mut Map<String, Value>, doc: &evophoto_doc::Document) -> Option<usize> {
     let mut timeline = doc.timeline.clone()?;
     timeline.clamp();
     if timeline.duration < 2 {
@@ -473,14 +473,14 @@ fn web_playback(ui: &mut egui::Ui, f: &mut Map<String, Value>, doc: &photocraft_
 }
 
 /// Seek a preview copy, preserving any edits to the source's currently displayed frame.
-fn web_frame_document(doc: &photocraft_doc::Document, frame: Option<usize>) -> Result<photocraft_doc::Document, photocraft_engine::EngineError> {
+fn web_frame_document(doc: &evophoto_doc::Document, frame: Option<usize>) -> Result<evophoto_doc::Document, evophoto_engine::EngineError> {
     let Some(frame) = frame else { return Ok(doc.clone()) };
-    let mut preview = photocraft_engine::Session::new();
+    let mut preview = evophoto_engine::Session::new();
     preview.add_document(doc.clone(), None);
     preview.execute("timeline.setFrame", json!({"frame": frame}))?;
-    Ok((*preview.active().ok_or(photocraft_engine::EngineError::NoDocument)?.doc).clone())
+    Ok((*preview.active().ok_or(evophoto_engine::EngineError::NoDocument)?.doc).clone())
 }
-fn web_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Value>) {
+fn web_body(app: &mut EvoPhotoApp, ui: &mut egui::Ui, f: &mut Map<String, Value>) {
     let t = Tokens::get(ui.ctx());
     let Some(doc) = app.session.active().map(|d| d.doc.clone()) else { return };
     ui.horizontal(|ui| {
@@ -631,7 +631,7 @@ fn web_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Valu
                 ui.add_space(8.0);
                 ui.label(egui::RichText::new(tl!("Image Size")).font(crate::theme::semibold(12.0)).color(t.text));
                 web_size(ui, f, &doc);
-                let nslices = photocraft_doc::slices::resolve(&doc).len();
+                let nslices = evophoto_doc::slices::resolve(&doc).len();
                 if !doc.slices.is_empty() {
                     ui.add_space(6.0);
                     ui.label(egui::RichText::new(crate::i18n::trn(crate::i18n::current(), nslices as u64, "{n} slice", "{n} slices")).color(t.text_dim));
@@ -659,7 +659,7 @@ fn size_field(ui: &mut egui::Ui, label: &str, shown: f64, range: std::ops::Range
 /// Image Size, as in Photoshop's Save for Web: Width and Height linked in proportion (on at
 /// each opening), Percent and the resampling method. A side edit sets exact pixels and drops
 /// `percent`, which the engine would otherwise apply first; a Percent edit sets both sides.
-fn web_size(ui: &mut egui::Ui, f: &mut Map<String, Value>, doc: &photocraft_doc::Document) {
+fn web_size(ui: &mut egui::Ui, f: &mut Map<String, Value>, doc: &evophoto_doc::Document) {
     use crate::export_dialog::{MAX_PX, resize_from_scale, resize_from_side};
     let (w0, h0) = (f64::from(doc.size.width).max(1.0), f64::from(doc.size.height).max(1.0));
     let (w, h) = web_preview::dimensions(doc, &params(f)).unwrap_or((w0, h0));
@@ -723,7 +723,7 @@ fn web_size(ui: &mut egui::Ui, f: &mut Map<String, Value>, doc: &photocraft_doc:
     });
 }
 
-fn web_confirm(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Value, String> {
+fn web_confirm(app: &mut EvoPhotoApp, f: &Map<String, Value>) -> Result<Value, String> {
     // Check while the control/input policy is still installed, before an asynchronous picker
     // can outlive the request. A browser download uses the interactive platform writer.
     let authorize = |p: &Value| -> Result<(), String> {
@@ -755,7 +755,7 @@ fn web_confirm(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Value,
     let has_slices = !doc.slices.is_empty();
     let html = b(f, "html", true);
     let st = WebSettings::from_params(&p, "file.export.saveForWebLegacy").map_err(|e| e.to_string())?;
-    let base = photocraft_doc::slices::base_name(&doc);
+    let base = evophoto_doc::slices::base_name(&doc);
     let suggested = if has_slices && html { format!("{base}.html") } else { format!("{base}.{}", st.format.ext()) };
     app.pick_save(&suggested, move |app, path| {
         app.refocus(doc.id)?;
@@ -771,7 +771,7 @@ fn web_confirm(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Value,
 }
 
 /// Runs Save for Web with `p`, which says where to write.
-fn save_for_web(app: &mut PhotocraftApp, p: Value) -> Result<Value, String> {
+fn save_for_web(app: &mut EvoPhotoApp, p: Value) -> Result<Value, String> {
     #[cfg(target_arch = "wasm32")]
     let result = download_for_web(app, p);
     #[cfg(not(target_arch = "wasm32"))]
@@ -788,12 +788,12 @@ fn save_for_web(app: &mut PhotocraftApp, p: Value) -> Result<Value, String> {
 }
 
 #[cfg(any(test, target_arch = "wasm32"))]
-fn download_for_web(app: &mut PhotocraftApp, mut p: Value) -> Result<Value, String> {
+fn download_for_web(app: &mut EvoPhotoApp, mut p: Value) -> Result<Value, String> {
     // Browser downloads have no directory hierarchy. Keep the HTML's image and spacer URLs
     // beside the downloaded page, matching the names handed to the platform service.
     p["imagesFolder"] = json!("");
     let write = app.services.write.as_mut().ok_or("no download service")?;
-    web_cmds::save_for_web_with_writer(&mut app.session, &p, &mut |path, bytes| write(path, bytes).map_err(photocraft_engine::EngineError::Other))
+    web_cmds::save_for_web_with_writer(&mut app.session, &p, &mut |path, bytes| write(path, bytes).map_err(evophoto_engine::EngineError::Other))
         .map_err(|e| e.to_string())
 }
 
@@ -803,7 +803,7 @@ fn download_for_web(app: &mut PhotocraftApp, mut p: Value) -> Result<Value, Stri
 /// Refreshes the printer list on each opening; when native driver enumeration succeeds,
 /// an unavailable saved printer is replaced and its stale driver settings are discarded.
 /// Returns the dialog ID without submitting a print job.
-pub fn open_print(app: &mut PhotocraftApp) -> u64 {
+pub fn open_print(app: &mut EvoPhotoApp) -> u64 {
     let mut f = Map::new();
     f.insert("__print".into(), json!(true));
     f.insert("__label".into(), json!("Lumbra Print Settings"));
@@ -811,7 +811,7 @@ pub fn open_print(app: &mut PhotocraftApp) -> u64 {
     let printers = app.session.execute("file.printers", json!({})).unwrap_or_default();
     f.insert("__systemPrinters".into(), printers["printers"].clone());
     // The settings of the last print, also from an earlier session (#7410).
-    if let Some(Value::Object(m)) = photocraft_engine::print_cmds::last_print(&app.session) {
+    if let Some(Value::Object(m)) = evophoto_engine::print_cmds::last_print(&app.session) {
         f.extend(m);
     }
     for (k, v) in [
@@ -840,7 +840,7 @@ pub fn open_print(app: &mut PhotocraftApp) -> u64 {
         f.entry(k.to_string()).or_insert(v);
     }
     // Windows: the system's printers, and the paper from the chosen printer's driver settings.
-    if let Ok(list) = craft_print::rgb::printers() {
+    if let Ok(list) = evo_print::rgb::printers() {
         f.insert("__printers".into(), json!(list.iter().map(|p| p.name.clone()).collect::<Vec<_>>()));
         let known = |n: &str| list.iter().any(|p| p.name == n);
         if !known(&s(&f, "printer", "")) {
@@ -862,7 +862,7 @@ fn driver_paper_is_wide(f: &Map<String, Value>) -> bool {
 /// The Orientation buttons: the driver settings (or the printer's own) turned portrait or
 /// landscape through `file.print.page`. An error stays on the dialog, with the settings left as
 /// they were.
-fn turn_driver(app: &mut PhotocraftApp, f: &mut Map<String, Value>, landscape: bool) {
+fn turn_driver(app: &mut EvoPhotoApp, f: &mut Map<String, Value>, landscape: bool) {
     let mut q = json!({"printer": s(f, "printer", ""), "orientation": if landscape { "landscape" } else { "portrait" }});
     if let (Some(h), Some(o)) = (f.get("printerSettings").cloned(), q.as_object_mut()) {
         o.insert("printerSettings".into(), h);
@@ -893,8 +893,8 @@ fn take_turned_page(f: &mut Map<String, Value>, r: &Value) {
 /// Takes the paper from the printer's driver settings (Windows), as Photoshop does.
 fn driver_page(f: &mut Map<String, Value>) {
     let printer = s(f, "printer", "");
-    let settings = f.get("printerSettings").and_then(Value::as_str).and_then(|h| craft_print::rgb::DevMode::from_hex(h).ok());
-    match craft_print::rgb::page(&printer, settings.as_ref()) {
+    let settings = f.get("printerSettings").and_then(Value::as_str).and_then(|h| evo_print::rgb::DevMode::from_hex(h).ok());
+    match evo_print::rgb::page(&printer, settings.as_ref()) {
         Ok(pg) => {
             f.insert("paper".into(), json!([pg.paper.0, pg.paper.1]));
             f.insert("printable".into(), json!([pg.printable.0, pg.printable.1, pg.printable.2, pg.printable.3]));
@@ -952,7 +952,7 @@ fn print_paper_size(value: Option<&Value>) -> (f64, f64) {
     let default = (612.0, 792.0);
     match value {
         Some(Value::Array(a)) => (a.first().and_then(Value::as_f64).unwrap_or(default.0), a.get(1).and_then(Value::as_f64).unwrap_or(default.1)),
-        Some(Value::String(name)) => photocraft_engine::print_cmds::PAPERS.iter().find(|p| p.0.eq_ignore_ascii_case(name)).map_or(default, |p| (p.1, p.2)),
+        Some(Value::String(name)) => evophoto_engine::print_cmds::PAPERS.iter().find(|p| p.0.eq_ignore_ascii_case(name)).map_or(default, |p| (p.1, p.2)),
         _ => default,
     }
 }
@@ -964,7 +964,7 @@ fn print_paper_controls(ui: &mut egui::Ui, f: &mut Map<String, Value>) {
     let previous = f.get("paper").cloned();
     let mut selected = if previous.as_ref().is_some_and(Value::is_array) { "custom".to_string() } else { s(f, "paper", "letter") };
     ui.horizontal(|ui| {
-        let mut papers: Vec<_> = photocraft_engine::print_cmds::PAPERS.iter().map(|p| (p.0.to_string(), p.0)).collect();
+        let mut papers: Vec<_> = evophoto_engine::print_cmds::PAPERS.iter().map(|p| (p.0.to_string(), p.0)).collect();
         papers.push(("custom".to_string(), tl!("Custom")));
         if crate::widgets::dropdown(ui, "print-paper", &mut selected, &papers, 110.0) {
             if selected == "custom" {
@@ -999,7 +999,7 @@ fn print_paper_controls(ui: &mut egui::Ui, f: &mut Map<String, Value>) {
 
 /// Save as PDF › Browse…: where to write the PDF, into Print dialog `id` once the file dialog
 /// answers. Without it the only way to save a PDF was to type a full path (#5328).
-fn browse_pdf(app: &mut PhotocraftApp, id: u64, suggested: &str) {
+fn browse_pdf(app: &mut EvoPhotoApp, id: u64, suggested: &str) {
     let r = app.pick_save(suggested, move |app, path| {
         let d = app.ui.dialog_mut(id).ok_or("the dialog was closed")?;
         d.fields.insert("output".into(), json!(path));
@@ -1020,7 +1020,7 @@ fn browse_pdf(app: &mut PhotocraftApp, id: u64, suggested: &str) {
 /// points per print point (1/72 inch). Applying pixels_per_point would count HiDPI twice.
 /// Invalid scales or nonfinite displacement/offsets return false without changing fields.
 /// Accepted offsets are clamped to the engine's safety bound and Center is disabled.
-fn drag_print_position(f: &mut Map<String, Value>, start: photocraft_engine::print_cmds::PrintLayout, delta: egui::Vec2, points_per_print_point: f32) -> bool {
+fn drag_print_position(f: &mut Map<String, Value>, start: evophoto_engine::print_cmds::PrintLayout, delta: egui::Vec2, points_per_print_point: f32) -> bool {
     if !points_per_print_point.is_finite() || points_per_print_point <= 0.0 || !delta.is_finite() {
         return false;
     }
@@ -1031,7 +1031,7 @@ fn drag_print_position(f: &mut Map<String, Value>, start: photocraft_engine::pri
     if !left.is_finite() || !top.is_finite() {
         return false;
     }
-    let limit = photocraft_engine::print_cmds::MAX_POSITION_INCHES;
+    let limit = evophoto_engine::print_cmds::MAX_POSITION_INCHES;
     f.insert("center".into(), json!(false));
     f.insert("left".into(), json!(left.clamp(-limit, limit)));
     f.insert("top".into(), json!(top.clamp(-limit, limit)));
@@ -1041,7 +1041,7 @@ fn drag_print_position(f: &mut Map<String, Value>, start: photocraft_engine::pri
 /// Maps the engine's bottom-left print-point rectangle into top-left egui coordinates.
 /// `k` is egui points per print point; Emulsion Down mirrors placement across the page,
 /// matching the PDF page transform. Returns the full image bounds for the caller to clip.
-fn print_preview_image(l: photocraft_engine::print_cmds::PrintLayout, page: egui::Rect, k: f32) -> egui::Rect {
+fn print_preview_image(l: evophoto_engine::print_cmds::PrintLayout, page: egui::Rect, k: f32) -> egui::Rect {
     let (x, y, w, h) = l.rect;
     let x = if l.emulsion_down { l.paper.0 - x - w } else { x };
     egui::Rect::from_min_size(egui::pos2(page.left() + x as f32 * k, page.bottom() - (y + h) as f32 * k), egui::vec2(w as f32 * k, h as f32 * k))
@@ -1050,7 +1050,7 @@ fn print_preview_image(l: photocraft_engine::print_cmds::PrintLayout, page: egui
 /// Draws the print controls and paper-clipped preview using the engine's shared layout.
 /// Dragging the visible image updates dialog offsets live from a fixed gesture origin;
 /// the position row stays present while centered so switching to manual cannot move the page.
-fn print_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Value>, id: u64) {
+fn print_body(app: &mut EvoPhotoApp, ui: &mut egui::Ui, f: &mut Map<String, Value>, id: u64) {
     let t = Tokens::get(ui.ctx());
     let Some(doc) = app.session.active().map(|d| d.doc.clone()) else { return };
     // PDF exports and previews retain editable paper on Windows too. Only a real native
@@ -1078,7 +1078,7 @@ fn print_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Va
         ui.vertical(|ui| {
             let (area, _) = ui.allocate_exact_size(egui::vec2(330.0, 400.0), egui::Sense::hover());
             ui.painter().rect_filled(area, 0.0, t.canvas);
-            match photocraft_engine::print_cmds::layout(&doc, &p, "file.print") {
+            match evophoto_engine::print_cmds::layout(&doc, &p, "file.print") {
                 Ok(mut l) => {
                     let (pw, ph) = l.paper;
                     let k = ((area.width() - 20.0) / pw as f32).min((area.height() - 20.0) / ph as f32);
@@ -1098,24 +1098,24 @@ fn print_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Va
                         ui.data_mut(|d| d.insert_temp(drag_id, (l, origin, k)));
                     }
                     if (response.dragged_by(egui::PointerButton::Primary) || response.drag_stopped_by(egui::PointerButton::Primary))
-                        && let Some((start, origin, scale)) = ui.data(|d| d.get_temp::<(photocraft_engine::print_cmds::PrintLayout, egui::Pos2, f32)>(drag_id))
+                        && let Some((start, origin, scale)) = ui.data(|d| d.get_temp::<(evophoto_engine::print_cmds::PrintLayout, egui::Pos2, f32)>(drag_id))
                         && let Some(pointer) = response.interact_pointer_pos()
                         && drag_print_position(f, start, pointer - origin, scale)
                     {
-                        if let Ok(updated) = photocraft_engine::print_cmds::layout(&doc, &params(f), "file.print") {
+                        if let Ok(updated) = evophoto_engine::print_cmds::layout(&doc, &params(f), "file.print") {
                             l = updated;
                             img = print_preview_image(l, page, k);
                         }
                         ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
                     }
                     if !ui.input(|i| i.pointer.primary_down()) {
-                        ui.data_mut(|d| d.remove::<(photocraft_engine::print_cmds::PrintLayout, egui::Pos2, f32)>(drag_id));
+                        ui.data_mut(|d| d.remove::<(evophoto_engine::print_cmds::PrintLayout, egui::Pos2, f32)>(drag_id));
                     }
                     let (x, y, w, h) = l.rect;
                     let key = egui::Id::new(("print-thumb", doc.id.0, app.session.active().map_or(0, |d| d.revision)));
                     let tex: Option<Arc<egui::TextureHandle>> = ui.data(|d| d.get_temp(key));
                     let tex = tex.unwrap_or_else(|| {
-                        let th = photocraft_compose::thumbnail(&doc, 400);
+                        let th = evophoto_compose::thumbnail(&doc, 400);
                         let ci = egui::ColorImage::from_rgba_unmultiplied([th.width as usize, th.height as usize], &th.pixels);
                         let tx = Arc::new(ui.ctx().load_texture("print-thumb", ci, egui::TextureOptions::LINEAR));
                         ui.data_mut(|d| d.insert_temp(key, tx.clone()));
@@ -1186,8 +1186,8 @@ fn print_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Va
                     number(ui, f, "copies", tl!("Copies"), 1.0..=999.0, "", 1.0);
                     if ui.button(tl!("Print Settings…")).clicked() {
                         let printer = s(f, "printer", "");
-                        let current = f.get("printerSettings").and_then(Value::as_str).and_then(|h| craft_print::rgb::DevMode::from_hex(h).ok());
-                        match craft_print::rgb::settings_dialog(&printer, current.as_ref(), None) {
+                        let current = f.get("printerSettings").and_then(Value::as_str).and_then(|h| evo_print::rgb::DevMode::from_hex(h).ok());
+                        match evo_print::rgb::settings_dialog(&printer, current.as_ref(), None) {
                             Ok(Some(dm)) => {
                                 f.insert("printerSettings".into(), json!(dm.to_hex()));
                                 driver_page(f);
@@ -1240,17 +1240,17 @@ fn print_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Va
                 "colorHandling",
                 &[
                     ("printerManages", tl!("Printer Manages Colors")),
-                    ("photocraftManages", tl!("Lumbra Manages Colors")),
+                    ("evophotoManages", tl!("Lumbra Manages Colors")),
                     ("noColorManagement", tl!("No Color Management")),
                 ],
                 240.0,
             );
-            if s(f, "colorHandling", "") == "photocraftManages" {
+            if s(f, "colorHandling", "") == "evophotoManages" {
                 // Photoshop's Printer Profile menu: the built-ins, then every installed printer
                 // (output class) profile by its description.
-                let installed: Vec<_> = photocraft_engine::installed_profiles::installed()
+                let installed: Vec<_> = evophoto_engine::installed_profiles::installed()
                     .into_iter()
-                    .filter(|p| p.is_destination() && p.class == photocraft_cms::ProfileClass::Output)
+                    .filter(|p| p.is_destination() && p.class == evophoto_cms::ProfileClass::Output)
                     .collect();
                 let mut profiles: Vec<(&str, &str)> = vec![
                     ("coated-cmyk", tl!("Coated CMYK")),
@@ -1294,7 +1294,7 @@ fn print_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Va
             let units = s(f, "units", "cm");
             check(ui, f, "center", tl!("Center"), true);
             let centered = b(f, "center", true);
-            let centered_layout = centered.then(|| photocraft_engine::print_cmds::layout(&doc, &params(f), "file.print").ok()).flatten();
+            let centered_layout = centered.then(|| evophoto_engine::print_cmds::layout(&doc, &params(f), "file.print").ok()).flatten();
             // Revealing this row during a drag resizes the centered modal and moves the paper.
             // Keep it present, showing the resolved position while Center owns the offsets.
             ui.add_enabled_ui(!centered, |ui| {
@@ -1303,9 +1303,9 @@ fn print_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Va
                     for (key, label) in [("top", tl!("Top")), ("left", tl!("Left"))] {
                         let mut pt =
                             centered_layout.map_or_else(|| n(f, key, 0.0) * 72.0, |l| if key == "top" { l.paper.1 - l.rect.1 - l.rect.3 } else { l.rect.0 });
-                        let limit = (photocraft_engine::print_cmds::MAX_POSITION_INCHES * 72.0 / unit_pt(&units)) as f32;
+                        let limit = (evophoto_engine::print_cmds::MAX_POSITION_INCHES * 72.0 / unit_pt(&units)) as f32;
                         if length_field_range(ui, label, &mut pt, &units, 2, -limit..=limit) {
-                            let limit = photocraft_engine::print_cmds::MAX_POSITION_INCHES;
+                            let limit = evophoto_engine::print_cmds::MAX_POSITION_INCHES;
                             f.insert(key.into(), json!((pt / 72.0).clamp(-limit, limit)));
                         }
                     }
@@ -1313,7 +1313,7 @@ fn print_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Va
             });
             check(ui, f, "scaleToFit", tl!("Scale to Fit Media"), false);
             // Scaled Print Size: Scale, Height and Width move together; Print Resolution follows.
-            if let Ok(l) = photocraft_engine::print_cmds::layout(&doc, &params(f), "file.print") {
+            if let Ok(l) = evophoto_engine::print_cmds::layout(&doc, &params(f), "file.print") {
                 let (_, _, w, h) = l.rect;
                 let (mut w2, mut h2) = (w, h);
                 let fit = b(f, "scaleToFit", false);
@@ -1392,7 +1392,7 @@ fn print_params(f: &Map<String, Value>) -> Value {
 
 /// Submits the dialog parameters to `file.print`, propagating command errors unchanged.
 /// Updates the status for completed results only; pending jobs report completion later.
-fn print_confirm(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Value, String> {
+fn print_confirm(app: &mut EvoPhotoApp, f: &Map<String, Value>) -> Result<Value, String> {
     let r = app.run("file.print", print_params(f))?;
     if r["pending"] != json!(true) {
         print_status(app, &r);
@@ -1400,7 +1400,7 @@ fn print_confirm(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Valu
     Ok(r)
 }
 
-pub(crate) fn print_status(app: &mut PhotocraftApp, r: &Value) {
+pub(crate) fn print_status(app: &mut EvoPhotoApp, r: &Value) {
     app.ui.status = if let Some(printer) = r["spooler"]["printer"].as_str() {
         crate::i18n::fmt(tl!("Sent to {printer}"), &[("printer", printer)])
     } else if r["sent"] == json!(true) {
@@ -1431,17 +1431,17 @@ mod tests {
                     .as_object()
                     .unwrap()
                     .clone();
-                    let start = photocraft_engine::print_cmds::layout(doc, &Value::Object(f.clone()), "file.print").unwrap();
+                    let start = evophoto_engine::print_cmds::layout(doc, &Value::Object(f.clone()), "file.print").unwrap();
                     let page = egui::Rect::from_min_size(egui::pos2(20.0, 30.0), egui::vec2(start.paper.0 as f32, start.paper.1 as f32));
                     assert!(drag_print_position(&mut f, start, egui::Vec2::ZERO, 1.0));
-                    let manual = photocraft_engine::print_cmds::layout(doc, &Value::Object(f.clone()), "file.print").unwrap();
+                    let manual = evophoto_engine::print_cmds::layout(doc, &Value::Object(f.clone()), "file.print").unwrap();
                     assert!((manual.rect.0 - start.rect.0).abs() < 1e-9);
                     assert!((manual.rect.1 - start.rect.1).abs() < 1e-9);
                     assert_eq!(manual.scale, start.scale);
                     for k in [0.25, 0.5, 1.0, 2.0] {
                         let delta = egui::vec2(-90.0, 45.0) * k;
                         assert!(drag_print_position(&mut f, start, delta, k));
-                        let moved = photocraft_engine::print_cmds::layout(doc, &Value::Object(f.clone()), "file.print").unwrap();
+                        let moved = evophoto_engine::print_cmds::layout(doc, &Value::Object(f.clone()), "file.print").unwrap();
                         let old_img = print_preview_image(start, page, k);
                         let new_img = print_preview_image(moved, page, k);
                         assert!((new_img.min - old_img.min - delta).length() < 0.001);
@@ -1461,7 +1461,7 @@ mod tests {
     fn print_drag_rejects_nonfinite_input_and_bounds_offsets() {
         let (app, _) = app();
         let doc = &app.session.active().unwrap().doc;
-        let start = photocraft_engine::print_cmds::layout(doc, &json!({}), "file.print").unwrap();
+        let start = evophoto_engine::print_cmds::layout(doc, &json!({}), "file.print").unwrap();
         let mut f = Map::new();
         for k in [0.0, -1.0, f32::NAN, f32::INFINITY] {
             assert!(!drag_print_position(&mut f, start, egui::vec2(10.0, 10.0), k));
@@ -1470,12 +1470,12 @@ mod tests {
         assert!(!drag_print_position(&mut f, start, egui::vec2(f32::NAN, 0.0), 1.0));
         assert!(f.is_empty());
         assert!(drag_print_position(&mut f, start, egui::vec2(-f32::MAX, f32::MAX), 1.0));
-        assert_eq!(f["left"], -photocraft_engine::print_cmds::MAX_POSITION_INCHES);
-        assert_eq!(f["top"], photocraft_engine::print_cmds::MAX_POSITION_INCHES);
+        assert_eq!(f["left"], -evophoto_engine::print_cmds::MAX_POSITION_INCHES);
+        assert_eq!(f["top"], evophoto_engine::print_cmds::MAX_POSITION_INCHES);
     }
 
-    fn app() -> (PhotocraftApp, egui::Context) {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    fn app() -> (EvoPhotoApp, egui::Context) {
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 120, "height": 80, "name": "web"})).unwrap();
         (app, egui::Context::default())
     }
@@ -1490,8 +1490,8 @@ mod tests {
         }
         #[cfg(not(target_os = "macos"))]
         assert_eq!(fallback, ".");
-        app.session.active_mut().unwrap().path = Some("/tmp/photocraft/drawing.pcraft".into());
-        assert_eq!(droplet_default_dir(&app), "/tmp/photocraft");
+        app.session.active_mut().unwrap().path = Some("/tmp/evophoto/drawing.evophoto".into());
+        assert_eq!(droplet_default_dir(&app), "/tmp/evophoto");
     }
 
     #[test]
@@ -1543,16 +1543,16 @@ mod tests {
     }
 
     /// Save for Web's Image Size on a 120 x 80 document, as a PNG-24 (no other number fields).
-    fn web_size_dialog(app: PhotocraftApp) -> (egui_kittest::Harness<'static, PhotocraftApp>, u64) {
+    fn web_size_dialog(app: EvoPhotoApp) -> (egui_kittest::Harness<'static, EvoPhotoApp>, u64) {
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1600.0, 1100.0)).build_ui_state(
-            |ui, app: &mut PhotocraftApp| {
+            |ui, app: &mut EvoPhotoApp| {
                 if ui.ctx().fonts(|f| f.families().contains(&egui::FontFamily::Name("semibold".into()))) {
                     crate::dialogs::show(app, ui.ctx());
                 }
             },
             app,
         );
-        PhotocraftApp::setup_context(&h.ctx, Default::default());
+        EvoPhotoApp::setup_context(&h.ctx, Default::default());
         let id = open_web(h.state_mut());
         h.state_mut().ui.dialog_mut(id).unwrap().fields.insert("format".into(), json!("png24"));
         h.run_steps(5);
@@ -1560,7 +1560,7 @@ mod tests {
     }
 
     /// Types `text` into the number field now showing `value`, and leaves it with Tab.
-    fn type_into_field(h: &mut egui_kittest::Harness<'static, PhotocraftApp>, value: f64, text: &str) {
+    fn type_into_field(h: &mut egui_kittest::Harness<'static, EvoPhotoApp>, value: f64, text: &str) {
         use egui_kittest::kittest::{NodeT, Queryable};
         let field = h
             .query_all_by_role(egui::accesskit::Role::SpinButton)
@@ -1609,7 +1609,7 @@ mod tests {
         let r = crate::dialogs::confirm(h.state_mut(), id).unwrap();
         assert_eq!((r["width"].as_u64(), r["height"].as_u64()), (Some(60), Some(40)), "{r}");
         let st = h.state().session.active().unwrap();
-        assert_eq!((st.revision, st.doc.size), (revision, photocraft_doc::Size::new(120, 80)));
+        assert_eq!((st.revision, st.doc.size), (revision, evophoto_doc::Size::new(120, 80)));
     }
 
     /// Reopened on another document, Save for Web starts at that document's full size again
@@ -1669,8 +1669,8 @@ mod tests {
 
     #[test]
     fn save_for_web_authorizes_before_opening_a_picker() {
-        fn deny(_: &str, _: &Value) -> photocraft_engine::Result<()> {
-            Err(photocraft_engine::EngineError::Other("export denied".into()))
+        fn deny(_: &str, _: &Value) -> evophoto_engine::Result<()> {
+            Err(evophoto_engine::EngineError::Other("export denied".into()))
         }
         for explicit_path in [false, true] {
             for synthetic_input in [false, true] {
@@ -1699,8 +1699,8 @@ mod tests {
 
     #[test]
     fn save_for_web_authorizes_generated_palette_before_opening_a_picker() {
-        fn deny_palette(_: &str, p: &Value) -> photocraft_engine::Result<()> {
-            if p.get("colorTable").is_some() { Err(photocraft_engine::EngineError::Other("palette denied".into())) } else { Ok(()) }
+        fn deny_palette(_: &str, p: &Value) -> evophoto_engine::Result<()> {
+            if p.get("colorTable").is_some() { Err(evophoto_engine::EngineError::Other("palette denied".into())) } else { Ok(()) }
         }
         for synthetic_input in [false, true] {
             let (mut app, _) = app();
@@ -1735,9 +1735,9 @@ mod tests {
             },
             app,
         );
-        PhotocraftApp::setup_context(&h.ctx, Default::default());
+        EvoPhotoApp::setup_context(&h.ctx, Default::default());
         h.run_steps(5);
-        let pane = |h: &egui_kittest::Harness<'_, PhotocraftApp>| {
+        let pane = |h: &egui_kittest::Harness<'_, EvoPhotoApp>| {
             let r = &h.state().ui.dialogs[0].fields["__previewRects"][0];
             egui::Rect::from_min_max(
                 egui::pos2(r[0].as_f64().unwrap() as f32, r[1].as_f64().unwrap() as f32),
@@ -1877,7 +1877,7 @@ mod tests {
         let (mut app, _) = app();
         app.session.prefs.edit(|p| {
             p.dialogs.insert(
-                photocraft_engine::print_cmds::REMEMBERED.into(),
+                evophoto_engine::print_cmds::REMEMBERED.into(),
                 json!({"paper": "a5", "scale": 50, "orientation": "landscape", "intent": "perceptual"}),
             );
         });
@@ -1896,8 +1896,8 @@ mod tests {
         let out = std::env::temp_dir().join(format!("pc-printui-browse-{}", std::process::id())).to_string_lossy().into_owned();
         let (show, asked) = crate::file_dialog::fake(vec![Some(FileDialogAnswer::SaveTo(out.clone()))]);
         let mut h = Harness::builder().with_size(egui::vec2(1440.0, 900.0)).with_max_steps(64).build_eframe(move |cc| {
-            PhotocraftApp::setup_context(&cc.egui_ctx, Default::default());
-            PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services { file_dialog: Some(show), ..Default::default() })
+            EvoPhotoApp::setup_context(&cc.egui_ctx, Default::default());
+            EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services { file_dialog: Some(show), ..Default::default() })
         });
         h.state_mut().run("file.new", json!({"width": 120, "height": 80, "name": "poster"})).unwrap();
         let id = open_print(h.state_mut());
@@ -1945,10 +1945,10 @@ mod tests {
         let mut dm = vec![0u8; 220];
         dm[68..70].copy_from_slice(&220u16.to_le_bytes());
         let hex: String = dm.iter().map(|b| format!("{b:02x}")).collect();
-        assert!(craft_print::rgb::DevMode::from_hex(&hex).is_ok());
+        assert!(evo_print::rgb::DevMode::from_hex(&hex).is_ok());
         let (mut app, _) = app();
         let mut f = Map::new();
-        f.insert("printer".into(), json!("photocraft-no-such-printer"));
+        f.insert("printer".into(), json!("evophoto-no-such-printer"));
         f.insert("printerSettings".into(), json!(hex));
         f.insert("paper".into(), json!([595.28, 841.89]));
         turn_driver(&mut app, &mut f, true);
@@ -1988,8 +1988,8 @@ mod web_playback_tests {
     use super::*;
     use egui_kittest::{Harness, kittest::Queryable};
 
-    fn animated_app(depth: u32) -> PhotocraftApp {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    fn animated_app(depth: u32) -> EvoPhotoApp {
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 32, "height": 24, "depth": depth})).unwrap();
         app.run("timeline.create", json!({"duration": 3, "fps": 2})).unwrap();
         app.run("layer.videoLayers.newBlankVideoLayer", json!({})).unwrap();
@@ -2001,9 +2001,9 @@ mod web_playback_tests {
         app
     }
 
-    fn harness(app: PhotocraftApp, fields: Map<String, Value>) -> Harness<'static, (PhotocraftApp, Map<String, Value>)> {
+    fn harness(app: EvoPhotoApp, fields: Map<String, Value>) -> Harness<'static, (EvoPhotoApp, Map<String, Value>)> {
         let mut h = Harness::builder().with_size(egui::vec2(1000.0, 800.0)).with_step_dt(0.1).build_ui_state(
-            |ui, state: &mut (PhotocraftApp, Map<String, Value>)| {
+            |ui, state: &mut (EvoPhotoApp, Map<String, Value>)| {
                 if !ui.ctx().fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                     return;
                 }
@@ -2011,7 +2011,7 @@ mod web_playback_tests {
             },
             (app, fields),
         );
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+        EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         h.run_steps(3);
         h
     }
@@ -2065,13 +2065,13 @@ mod web_playback_tests {
             for (frame, expected) in [[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 1.0], [0.0, 0.0, 1.0, 1.0]].iter().enumerate() {
                 let preview = web_frame_document(&source, Some(frame)).unwrap();
                 let (proxy, _, _) = web_cmds::web_document(&preview, &json!({"width":16,"height":12}), &WebSettings::default()).unwrap();
-                let pixels = photocraft_compose::flatten(&proxy);
+                let pixels = evophoto_compose::flatten(&proxy);
                 for (actual, expected) in pixels.px[0].iter().zip(expected) {
                     assert!((actual - expected).abs() < 0.002, "depth={depth} frame={frame}");
                 }
             }
             assert_eq!(source.timeline.as_ref().unwrap().current, 0);
-            assert_eq!(photocraft_compose::flatten(&source).px[0], [1.0, 0.0, 0.0, 1.0]);
+            assert_eq!(evophoto_compose::flatten(&source).px[0], [1.0, 0.0, 0.0, 1.0]);
         }
     }
 
@@ -2137,7 +2137,7 @@ mod web_playback_tests {
     #[test]
     fn still_documents_have_no_playback_controls() {
         for duration in [None, Some(1)] {
-            let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+            let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
             app.run("file.new", json!({"width":32,"height":24})).unwrap();
             if let Some(duration) = duration {
                 app.run("timeline.create", json!({"duration":duration,"fps":2})).unwrap();
@@ -2157,8 +2157,8 @@ mod web_playback_tests {
         let source = app.session.active().unwrap().doc.clone();
         let edited = web_frame_document(&source, Some(0)).unwrap();
         let other = web_frame_document(&source, Some(1)).unwrap();
-        assert_eq!(photocraft_compose::flatten(&edited).px[0], [1.0, 1.0, 0.0, 1.0]);
-        assert_eq!(photocraft_compose::flatten(&other).px[0], [0.0, 1.0, 0.0, 1.0]);
+        assert_eq!(evophoto_compose::flatten(&edited).px[0], [1.0, 1.0, 0.0, 1.0]);
+        assert_eq!(evophoto_compose::flatten(&other).px[0], [0.0, 1.0, 0.0, 1.0]);
         assert!(Arc::ptr_eq(&source, &app.session.active().unwrap().doc));
         assert_eq!(source.timeline.as_ref().unwrap().current, 0);
     }
@@ -2171,8 +2171,8 @@ mod web_playback_tests {
             for (frame, expected) in [[255, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255]].iter().enumerate() {
                 let doc = web_frame_document(&app.session.active().unwrap().doc, Some(frame)).unwrap();
                 let (proxy, _, _) = web_cmds::web_document(&doc, &json!({"width":16,"height":12}), &settings).unwrap();
-                let pixels = photocraft_compose::flatten(&proxy);
-                let optimized = web_cmds::optimize(&pixels.px, 16, photocraft_geom::Rect::new(0, 0, 16, 12), &settings, None, None, None, 72.0, true).unwrap();
+                let pixels = evophoto_compose::flatten(&proxy);
+                let optimized = web_cmds::optimize(&pixels.px, 16, evophoto_geom::Rect::new(0, 0, 16, 12), &settings, None, None, None, 72.0, true).unwrap();
                 assert_eq!(&optimized.preview[..4], expected, "depth={depth} frame={frame}");
             }
         }

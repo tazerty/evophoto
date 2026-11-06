@@ -1,28 +1,28 @@
 //! Shape toolbar edits share the engine commands used by the Properties panel.
 
-use photocraft_doc::LayerContent;
+use evophoto_doc::LayerContent;
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::shape_paint_ui::{PaintChange, swatch};
 use crate::state::Tool;
 use crate::theme::Tokens;
 use crate::vector_ui::{enabled_stroke_width, paint_gesture};
 
-fn solid(color: [f32; 4]) -> photocraft_doc::Fill {
-    photocraft_doc::Fill::Solid(photocraft_doc::Color::rgba(color[0], color[1], color[2], color[3]))
+fn solid(color: [f32; 4]) -> evophoto_doc::Fill {
+    evophoto_doc::Fill::Solid(evophoto_doc::Color::rgba(color[0], color[1], color[2], color[3]))
 }
 
 /// The shape layer the options bar edits.
 struct SelectedShape {
-    doc: photocraft_doc::DocId,
-    layer: photocraft_doc::LayerId,
-    fill: Option<photocraft_doc::Fill>,
-    stroke: Option<photocraft_doc::ShapeStroke>,
-    live: Option<photocraft_doc::LiveShape>,
+    doc: evophoto_doc::DocId,
+    layer: evophoto_doc::LayerId,
+    fill: Option<evophoto_doc::Fill>,
+    stroke: Option<evophoto_doc::ShapeStroke>,
+    live: Option<evophoto_doc::LiveShape>,
 }
 
-fn selected_shape(session: &photocraft_engine::Session) -> Option<SelectedShape> {
+fn selected_shape(session: &evophoto_engine::Session) -> Option<SelectedShape> {
     let st = session.active()?;
     let layer = st.active_layer?;
     match &st.doc.layer(layer)?.content {
@@ -31,7 +31,7 @@ fn selected_shape(session: &photocraft_engine::Session) -> Option<SelectedShape>
     }
 }
 
-pub(crate) fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui, tool: Tool) {
+pub(crate) fn options_bar(app: &mut EvoPhotoApp, ui: &mut egui::Ui, tool: Tool) {
     let t = Tokens::get(ui.ctx());
     let lbl = |ui: &mut egui::Ui, s: &str| {
         ui.label(egui::RichText::new(s).color(t.text_dim).size(12.0));
@@ -90,7 +90,7 @@ pub(crate) fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui, tool: Tool
             crate::widgets::vline(ui, 22.0);
             lbl(ui, tl!("Radius:"));
             let mut r = match target.as_ref().and_then(|s| s.live.as_ref()) {
-                Some(photocraft_doc::LiveShape::Rect { radii, .. }) => radii[0] as f32,
+                Some(evophoto_doc::LiveShape::Rect { radii, .. }) => radii[0] as f32,
                 _ => o.corner_radius,
             };
             if crate::widgets::value_field(ui, &mut r, 0.0..=10000.0, "px", 62.0).changed() {
@@ -117,7 +117,7 @@ pub(crate) fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui, tool: Tool
             crate::preset_panels::shape_picker(app, ui);
         }
         _ if matches!(tool, Tool::PathSelection | Tool::DirectSelection) => {
-            if let Some(photocraft_doc::LiveShape::Rect { radii, .. }) = target.as_ref().and_then(|s| s.live.as_ref()) {
+            if let Some(evophoto_doc::LiveShape::Rect { radii, .. }) = target.as_ref().and_then(|s| s.live.as_ref()) {
                 crate::widgets::vline(ui, 22.0);
                 lbl(ui, tl!("Radius:"));
                 let mut r = radii[0] as f32;
@@ -159,7 +159,7 @@ pub(crate) fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui, tool: Tool
 }
 
 /// Tool-bar paint changes affect the next shape; Properties edits the selected shape instead.
-pub(crate) fn set_tool_paint(app: &mut PhotocraftApp, stroke: bool, change: PaintChange) -> Result<(), String> {
+pub(crate) fn set_tool_paint(app: &mut EvoPhotoApp, stroke: bool, change: PaintChange) -> Result<(), String> {
     if let PaintChange::Color(color) = change {
         app.run("tools.setColors", if stroke { json!({"background": color}) } else { json!({"foreground": color}) })?;
     }

@@ -5,12 +5,12 @@
 //! turns pointer gestures into them.
 
 use egui::{Color32, Rect, Stroke, vec2};
-use photocraft_doc::slices::{self, ResolvedSlice};
-use photocraft_doc::{Document, SliceOrigin};
+use evophoto_doc::slices::{self, ResolvedSlice};
+use evophoto_doc::{Document, SliceOrigin};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::canvas::{ToolEvent, ViewXform};
 use crate::state::{DialogKind, Tool};
 
@@ -37,7 +37,7 @@ pub enum SliceDrag {
         id: u32,
         start: [f64; 2],
         cur: [f64; 2],
-        rect: photocraft_geom::Rect,
+        rect: evophoto_geom::Rect,
     },
     /// A handle of the selected slice: `handle` is −1, 0 or 1 per axis (the left, untouched or
     /// right edge; the top, untouched or bottom edge).
@@ -46,7 +46,7 @@ pub enum SliceDrag {
         handle: [i8; 2],
         start: [f64; 2],
         cur: [f64; 2],
-        rect: photocraft_geom::Rect,
+        rect: evophoto_geom::Rect,
     },
 }
 
@@ -55,7 +55,7 @@ const HANDLE_REACH: f64 = 5.0;
 
 /// The handle of `r` at document point `p`, within `reach` document pixels: the corners first,
 /// then the edge middles, as the overlay draws them.
-fn handle_at(r: photocraft_geom::Rect, p: [f64; 2], reach: f64) -> Option<[i8; 2]> {
+fn handle_at(r: evophoto_geom::Rect, p: [f64; 2], reach: f64) -> Option<[i8; 2]> {
     let (x0, y0, x1, y1) = (f64::from(r.x0), f64::from(r.y0), f64::from(r.x1), f64::from(r.y1));
     let at = |h: [i8; 2]| {
         let x = match h[0] {
@@ -75,7 +75,7 @@ fn handle_at(r: photocraft_geom::Rect, p: [f64; 2], reach: f64) -> Option<[i8; 2
 
 /// `r` with the edges `handle` grabs moved by (`dx`, `dy`), turned the right way round when an
 /// edge is dragged past the opposite one, and at least 1 × 1.
-fn resized(r: photocraft_geom::Rect, handle: [i8; 2], dx: i32, dy: i32) -> photocraft_geom::Rect {
+fn resized(r: evophoto_geom::Rect, handle: [i8; 2], dx: i32, dy: i32) -> evophoto_geom::Rect {
     let (mut x0, mut y0, mut x1, mut y1) = (r.x0, r.y0, r.x1, r.y1);
     match handle[0] {
         -1 => x0 = x0.saturating_add(dx),
@@ -89,7 +89,7 @@ fn resized(r: photocraft_geom::Rect, handle: [i8; 2], dx: i32, dy: i32) -> photo
     }
     let (x0, x1) = (x0.min(x1), x0.max(x1).max(x0.min(x1).saturating_add(1)));
     let (y0, y1) = (y0.min(y1), y0.max(y1).max(y0.min(y1).saturating_add(1)));
-    photocraft_geom::Rect::new(x0, y0, x1, y1)
+    evophoto_geom::Rect::new(x0, y0, x1, y1)
 }
 
 fn is_slice_tool(t: Tool) -> bool {
@@ -104,10 +104,10 @@ pub fn slice_at(doc: &Document, x: f64, y: f64) -> Option<ResolvedSlice> {
     all.iter().filter(|r| r.rect.contains(xi, yi)).max_by_key(|r| order(r).map_or(0, |i| i + 1)).cloned()
 }
 
-fn rect_from(a: [f64; 2], b: [f64; 2]) -> photocraft_geom::Rect {
+fn rect_from(a: [f64; 2], b: [f64; 2]) -> evophoto_geom::Rect {
     let (x0, x1) = (a[0].min(b[0]).floor() as i32, a[0].max(b[0]).ceil() as i32);
     let (y0, y1) = (a[1].min(b[1]).floor() as i32, a[1].max(b[1]).ceil() as i32);
-    photocraft_geom::Rect::new(x0, y0, x1, y1)
+    evophoto_geom::Rect::new(x0, y0, x1, y1)
 }
 
 /// The new slice drawn from `start` to `cur` under the Slice tool's Style (Normal, Fixed Ratio,
@@ -116,7 +116,7 @@ fn rect_from(a: [f64; 2], b: [f64; 2]) -> photocraft_geom::Rect {
 /// and the shorter side takes the ratio from it, as close as whole pixels allow: rounding each edge of
 /// a fractional drag apart would make 2 : 1 into 5 × 3, and keeping to whole multiples of the
 /// ratio would grow a 1366 : 768 slice in steps of 683 px.
-fn new_rect(app: &PhotocraftApp, start: [f64; 2], cur: [f64; 2]) -> photocraft_geom::Rect {
+fn new_rect(app: &EvoPhotoApp, start: [f64; 2], cur: [f64; 2]) -> evophoto_geom::Rect {
     let o = &app.ui.tool_options;
     let (w, h) = (f64::from(o.slice_width), f64::from(o.slice_height));
     let size = match o.slice_style.as_str() {
@@ -149,7 +149,7 @@ fn new_rect(app: &PhotocraftApp, start: [f64; 2], cur: [f64; 2]) -> photocraft_g
 }
 
 /// Pointer input for the two slice tools. Returns true when the event was theirs.
-pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, _mods: egui::Modifiers) -> bool {
+pub fn pointer(app: &mut EvoPhotoApp, ev: ToolEvent, _mods: egui::Modifiers) -> bool {
     let tool = app.ui.tool;
     if !is_slice_tool(tool) {
         return false;
@@ -239,7 +239,7 @@ fn hex(s: &str, fallback: Color32) -> Color32 {
 }
 
 /// Slice outlines and numbered badges (View › Show › Slices; always while a slice tool is on).
-pub fn draw_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform) {
+pub fn draw_overlay(app: &EvoPhotoApp, painter: &egui::Painter, xf: &ViewXform) {
     let tool_on = is_slice_tool(app.ui.tool);
     let Some(doc) = app.session.active().map(|d| d.doc.clone()) else { return };
     if !(tool_on || (app.ui.view.shows(app.ui.view.show.slices) && !doc.slices.is_empty())) {
@@ -249,7 +249,7 @@ pub fn draw_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform
     let color = hex(&prefs.slice_color, Color32::from_rgb(0x38, 0xb5, 0xff));
     let numbers = prefs.show_slice_numbers;
     let selected_color = Color32::from_rgb(0xff, 0xb0, 0x00);
-    let to_screen = |r: photocraft_geom::Rect| Rect::from_two_pos(xf.to_screen(r.x0 as f32, r.y0 as f32), xf.to_screen(r.x1 as f32, r.y1 as f32));
+    let to_screen = |r: evophoto_geom::Rect| Rect::from_two_pos(xf.to_screen(r.x0 as f32, r.y0 as f32), xf.to_screen(r.x1 as f32, r.y1 as f32));
     let all = slices::resolve(&doc);
     // Auto slices first (dotted, underneath), then user and layer slices.
     for pass in [true, false] {
@@ -322,7 +322,7 @@ pub fn draw_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform
 }
 
 /// The selected slice's id, promoting an auto slice first when `promote`.
-fn selected_id(app: &mut PhotocraftApp, promote: bool) -> Option<u32> {
+fn selected_id(app: &mut EvoPhotoApp, promote: bool) -> Option<u32> {
     let n = app.ui.slices.selected?;
     let doc = app.session.active()?.doc.clone();
     let r = slices::resolve(&doc).into_iter().find(|r| r.number == n)?;
@@ -336,7 +336,7 @@ fn selected_id(app: &mut PhotocraftApp, promote: bool) -> Option<u32> {
 /// Delete or Backspace with no modifiers, with the Slice Select tool and a slice selected,
 /// deletes that slice, as in Photoshop (#7862). It never reaches Layer › Delete or Edit › Clear.
 /// An auto slice has nothing to delete, and View › Lock Slices refuses with a message.
-pub fn keys(app: &mut PhotocraftApp, ctx: &egui::Context) -> bool {
+pub fn keys(app: &mut EvoPhotoApp, ctx: &egui::Context) -> bool {
     use crate::shortcut_dispatch::Focus;
     // Text fields and widgets that delete with these keys themselves keep them.
     if app.ui.tool != Tool::SliceSelect
@@ -367,11 +367,11 @@ pub fn keys(app: &mut PhotocraftApp, ctx: &egui::Context) -> bool {
 }
 
 /// Slice Options dialog for the selected slice (auto slices are promoted on OK).
-pub fn open_options(app: &mut PhotocraftApp) -> Result<Value, String> {
+pub fn open_options(app: &mut EvoPhotoApp) -> Result<Value, String> {
     let n = app.ui.slices.selected.ok_or("select a slice with the Slice Select tool")?;
     let st = app.session.active().ok_or("no document")?;
     let r = slices::resolve(&st.doc).into_iter().find(|r| r.number == n).ok_or("no such slice")?;
-    let v = photocraft_engine::slice_cmds::resolved_json(&st.doc, &r);
+    let v = evophoto_engine::slice_cmds::resolved_json(&st.doc, &r);
     let mut f = serde_json::Map::new();
     f.insert("__command".into(), json!("slice.set"));
     f.insert("__label".into(), json!("Slice Options"));
@@ -387,7 +387,7 @@ pub fn open_options(app: &mut PhotocraftApp) -> Result<Value, String> {
 }
 
 /// Divide Slice dialog.
-fn open_divide(app: &mut PhotocraftApp) -> Result<Value, String> {
+fn open_divide(app: &mut EvoPhotoApp) -> Result<Value, String> {
     let n = app.ui.slices.selected.ok_or("select a slice first")?;
     let mut f = serde_json::Map::new();
     f.insert("__command".into(), json!("slice.divide"));
@@ -401,7 +401,7 @@ fn open_divide(app: &mut PhotocraftApp) -> Result<Value, String> {
 }
 
 /// Options bars of the Slice and Slice Select tools.
-pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui, tool: Tool) -> bool {
+pub fn options_bar(app: &mut EvoPhotoApp, ui: &mut egui::Ui, tool: Tool) -> bool {
     if !is_slice_tool(tool) {
         return false;
     }
@@ -473,8 +473,8 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui, tool: Tool) -> bo
 mod tests {
     use super::*;
 
-    fn app() -> PhotocraftApp {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+    fn app() -> EvoPhotoApp {
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
         app
     }
@@ -489,7 +489,7 @@ mod tests {
         pointer(&mut app, ToolEvent::Up { x: 40.0, y: 30.0 }, m);
         let doc = app.session.active().unwrap().doc.clone();
         assert_eq!(doc.slices.list.len(), 1);
-        assert_eq!(doc.slices.list[0].rect, photocraft_geom::Rect::new(10, 10, 40, 30));
+        assert_eq!(doc.slices.list[0].rect, evophoto_geom::Rect::new(10, 10, 40, 30));
         let n = app.ui.slices.selected.unwrap();
         // Slice Select: drag it by (5, 5).
         app.ui.tool = Tool::SliceSelect;
@@ -497,7 +497,7 @@ mod tests {
         assert_eq!(app.ui.slices.selected, Some(n));
         pointer(&mut app, ToolEvent::Up { x: 25.0, y: 25.0 }, m);
         let doc = app.session.active().unwrap().doc.clone();
-        assert_eq!(doc.slices.list[0].rect, photocraft_geom::Rect::new(15, 15, 45, 35));
+        assert_eq!(doc.slices.list[0].rect, evophoto_geom::Rect::new(15, 15, 45, 35));
         // Clicking an auto slice selects it; Slice Options promotes it.
         pointer(&mut app, ToolEvent::Down { x: 90.0, y: 75.0, pressure: 1.0 }, m);
         pointer(&mut app, ToolEvent::Up { x: 90.0, y: 75.0 }, m);
@@ -551,7 +551,7 @@ mod tests {
         let mut app = app();
         app.ui.tool = Tool::Slice;
         let m = egui::Modifiers::NONE;
-        let draw = |app: &mut PhotocraftApp, a: [f64; 2], b: [f64; 2]| {
+        let draw = |app: &mut EvoPhotoApp, a: [f64; 2], b: [f64; 2]| {
             pointer(app, ToolEvent::Down { x: a[0], y: a[1], pressure: 1.0 }, m);
             pointer(app, ToolEvent::Move { x: b[0], y: b[1], pressure: 1.0 }, m);
             pointer(app, ToolEvent::Up { x: b[0], y: b[1] }, m);
@@ -559,34 +559,34 @@ mod tests {
         };
         let o = &mut app.ui.tool_options;
         (o.slice_style, o.slice_width, o.slice_height) = ("fixedRatio".into(), 2.0, 1.0);
-        assert_eq!(draw(&mut app, [10.0, 10.0], [30.0, 40.0]), photocraft_geom::Rect::new(10, 10, 70, 40));
+        assert_eq!(draw(&mut app, [10.0, 10.0], [30.0, 40.0]), evophoto_geom::Rect::new(10, 10, 70, 40));
         let o = &mut app.ui.tool_options;
         (o.slice_style, o.slice_width, o.slice_height) = ("fixedSize".into(), 24.0, 16.0);
-        assert_eq!(draw(&mut app, [5.0, 5.0], [5.0, 5.0]), photocraft_geom::Rect::new(5, 5, 29, 21), "a click");
-        assert_eq!(draw(&mut app, [90.0, 70.0], [80.0, 60.0]), photocraft_geom::Rect::new(66, 54, 90, 70), "up and to the left");
+        assert_eq!(draw(&mut app, [5.0, 5.0], [5.0, 5.0]), evophoto_geom::Rect::new(5, 5, 29, 21), "a click");
+        assert_eq!(draw(&mut app, [90.0, 70.0], [80.0, 60.0]), evophoto_geom::Rect::new(66, 54, 90, 70), "up and to the left");
         // The preview while dragging shows the same rectangle the slice gets.
         pointer(&mut app, ToolEvent::Down { x: 40.0, y: 40.0, pressure: 1.0 }, m);
         pointer(&mut app, ToolEvent::Move { x: 41.0, y: 41.0, pressure: 1.0 }, m);
         let Some(SliceDrag::New { start, cur }) = app.ui.slices.drag.clone() else { panic!("drawing a slice") };
-        assert_eq!(new_rect(&app, start, cur), photocraft_geom::Rect::new(40, 40, 64, 56));
+        assert_eq!(new_rect(&app, start, cur), evophoto_geom::Rect::new(40, 40, 64, 56));
         pointer(&mut app, ToolEvent::Up { x: 41.0, y: 41.0 }, m);
         // A press inside a pixel starts the slice on that pixel, still 24 x 16 pixels.
-        assert_eq!(draw(&mut app, [10.25, 30.75], [12.5, 31.5]), photocraft_geom::Rect::new(10, 30, 34, 46), "a press inside a pixel");
+        assert_eq!(draw(&mut app, [10.25, 30.75], [12.5, 31.5]), evophoto_geom::Rect::new(10, 30, 34, 46), "a press inside a pixel");
         assert_eq!(
             draw(&mut app, [70.5, 70.5], [60.25, 60.25]),
-            photocraft_geom::Rect::new(47, 55, 71, 71),
+            evophoto_geom::Rect::new(47, 55, 71, 71),
             "and towards the upper left, holding the pressed pixel"
         );
         // A short drag up and to the left inside the pressed pixel goes up and to the left.
-        assert_eq!(draw(&mut app, [50.75, 50.75], [50.25, 50.25]), photocraft_geom::Rect::new(27, 35, 51, 51), "up-left within the pixel");
+        assert_eq!(draw(&mut app, [50.75, 50.75], [50.25, 50.25]), evophoto_geom::Rect::new(27, 35, 51, 51), "up-left within the pixel");
         // A Fixed Size that isn't whole pixels (from a settings file) is rounded, not grown a pixel.
         let o = &mut app.ui.tool_options;
         (o.slice_width, o.slice_height) = (1.5, 2.4);
-        assert_eq!(draw(&mut app, [5.5, 5.5], [5.5, 5.5]), photocraft_geom::Rect::new(5, 5, 7, 7), "1.5 x 2.4 is 2 x 2");
+        assert_eq!(draw(&mut app, [5.5, 5.5], [5.5, 5.5]), evophoto_geom::Rect::new(5, 5, 7, 7), "1.5 x 2.4 is 2 x 2");
         // A size of a pixel or two is made too, not taken for a click that selects.
         let o = &mut app.ui.tool_options;
         (o.slice_width, o.slice_height) = (1.0, 2.0);
-        assert_eq!(draw(&mut app, [3.0, 3.0], [3.0, 3.0]), photocraft_geom::Rect::new(3, 3, 4, 5), "a 1 x 2 slice");
+        assert_eq!(draw(&mut app, [3.0, 3.0], [3.0, 3.0]), evophoto_geom::Rect::new(3, 3, 4, 5), "a 1 x 2 slice");
     }
 
     /// #8360: Fixed Ratio's longer side follows a fractional drag to the pixel and the shorter takes
@@ -646,16 +646,16 @@ mod tests {
         app.sync_views();
         app.ui.tool = Tool::Slice;
         let mut h = Harness::builder().with_size(vec2(1400.0, 200.0)).build_ui_state(
-            |ui, app: &mut PhotocraftApp| {
+            |ui, app: &mut EvoPhotoApp| {
                 if ui.ctx().fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                     crate::panels::options_bar(app, ui);
                 }
             },
             app,
         );
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::Pro);
+        EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::Pro);
         h.run_steps(4);
-        let fields = |h: &Harness<'static, PhotocraftApp>| {
+        let fields = |h: &Harness<'static, EvoPhotoApp>| {
             h.query_all_by_role(Role::SpinButton)
                 .filter(|n| !n.accesskit_node().is_disabled())
                 .filter_map(|n| n.accesskit_node().numeric_value())
@@ -672,7 +672,7 @@ mod tests {
         let (app, m) = (h.state_mut(), egui::Modifiers::NONE);
         pointer(app, ToolEvent::Down { x: 10.0, y: 10.0, pressure: 1.0 }, m);
         pointer(app, ToolEvent::Up { x: 10.0, y: 10.0 }, m);
-        assert_eq!(app.session.active().unwrap().doc.slices.list[0].rect, photocraft_geom::Rect::new(10, 10, 74, 74));
+        assert_eq!(app.session.active().unwrap().doc.slices.list[0].rect, evophoto_geom::Rect::new(10, 10, 74, 74));
     }
 
     #[test]
@@ -686,20 +686,20 @@ mod tests {
         pointer(&mut app, ToolEvent::Down { x: 10.0, y: 50.0, pressure: 1.0 }, m);
         pointer(&mut app, ToolEvent::Up { x: 15.0, y: 50.0 }, m);
         let doc = app.session.active().unwrap().doc.clone();
-        assert_eq!(doc.slices.list[0].rect, photocraft_geom::Rect::new(5, 0, 65, 60));
+        assert_eq!(doc.slices.list[0].rect, evophoto_geom::Rect::new(5, 0, 65, 60));
     }
 
     #[test]
     fn handles_resize_the_edges_they_hang_off() {
-        let r = photocraft_geom::Rect::new(10, 10, 40, 30);
+        let r = evophoto_geom::Rect::new(10, 10, 40, 30);
         assert_eq!(handle_at(r, [10.5, 9.0], 2.0), Some([-1, -1]));
         assert_eq!(handle_at(r, [25.0, 30.0], 2.0), Some([0, 1]));
         assert_eq!(handle_at(r, [40.0, 20.0], 2.0), Some([1, 0]));
         assert_eq!(handle_at(r, [25.0, 20.0], 2.0), None, "the middle is no handle");
-        assert_eq!(resized(r, [1, 0], 5, 9), photocraft_geom::Rect::new(10, 10, 45, 30), "the right edge only");
-        assert_eq!(resized(r, [-1, 1], -4, 6), photocraft_geom::Rect::new(6, 10, 40, 36));
-        assert_eq!(resized(r, [-1, 0], 50, 0), photocraft_geom::Rect::new(40, 10, 60, 30), "dragged past the other edge");
-        assert_eq!(resized(r, [1, 0], -30, 0), photocraft_geom::Rect::new(10, 10, 11, 30), "never empty");
+        assert_eq!(resized(r, [1, 0], 5, 9), evophoto_geom::Rect::new(10, 10, 45, 30), "the right edge only");
+        assert_eq!(resized(r, [-1, 1], -4, 6), evophoto_geom::Rect::new(6, 10, 40, 36));
+        assert_eq!(resized(r, [-1, 0], 50, 0), evophoto_geom::Rect::new(40, 10, 60, 30), "dragged past the other edge");
+        assert_eq!(resized(r, [1, 0], -30, 0), evophoto_geom::Rect::new(10, 10, 11, 30), "never empty");
     }
 
     /// #7863: with Slice Select, dragging a handle of the selected slice resizes it; the middle
@@ -712,31 +712,31 @@ mod tests {
         pointer(&mut app, ToolEvent::Down { x: 10.0, y: 10.0, pressure: 1.0 }, m);
         pointer(&mut app, ToolEvent::Up { x: 40.0, y: 30.0 }, m);
         app.ui.tool = Tool::SliceSelect;
-        let rect = |app: &PhotocraftApp| app.session.active().unwrap().doc.slices.list[0].rect;
+        let rect = |app: &EvoPhotoApp| app.session.active().unwrap().doc.slices.list[0].rect;
         // The bottom-right corner.
         pointer(&mut app, ToolEvent::Down { x: 40.0, y: 30.0, pressure: 1.0 }, m);
         assert!(matches!(app.ui.slices.drag, Some(SliceDrag::Resize { handle: [1, 1], .. })));
         pointer(&mut app, ToolEvent::Move { x: 50.0, y: 45.0, pressure: 1.0 }, m);
         pointer(&mut app, ToolEvent::Up { x: 50.0, y: 45.0 }, m);
-        assert_eq!(rect(&app), photocraft_geom::Rect::new(10, 10, 50, 45));
+        assert_eq!(rect(&app), evophoto_geom::Rect::new(10, 10, 50, 45));
         assert!(app.ui.slices.selected.is_some(), "still selected");
         // The left edge's middle.
         pointer(&mut app, ToolEvent::Down { x: 10.0, y: 27.0, pressure: 1.0 }, m);
         pointer(&mut app, ToolEvent::Up { x: 4.0, y: 60.0 }, m);
-        assert_eq!(rect(&app), photocraft_geom::Rect::new(4, 10, 50, 45), "only the left edge moves");
+        assert_eq!(rect(&app), evophoto_geom::Rect::new(4, 10, 50, 45), "only the left edge moves");
         // Inside, away from the handles, it still moves.
         pointer(&mut app, ToolEvent::Down { x: 30.0, y: 20.0, pressure: 1.0 }, m);
         pointer(&mut app, ToolEvent::Up { x: 32.0, y: 21.0 }, m);
-        assert_eq!(rect(&app), photocraft_geom::Rect::new(6, 11, 52, 46));
+        assert_eq!(rect(&app), evophoto_geom::Rect::new(6, 11, 52, 46));
         // Locked: the handle doesn't resize.
         app.run("view.lockSlices", json!({"on": true})).unwrap();
         pointer(&mut app, ToolEvent::Down { x: 52.0, y: 46.0, pressure: 1.0 }, m);
         pointer(&mut app, ToolEvent::Up { x: 70.0, y: 70.0 }, m);
-        assert_eq!(rect(&app), photocraft_geom::Rect::new(6, 11, 52, 46));
+        assert_eq!(rect(&app), evophoto_geom::Rect::new(6, 11, 52, 46));
     }
 
     /// Delete through the app's shortcut handling, as the canvas gets it.
-    fn press(app: &mut PhotocraftApp, key: egui::Key) {
+    fn press(app: &mut EvoPhotoApp, key: egui::Key) {
         let ctx = egui::Context::default();
         let m = egui::Modifiers::NONE;
         let raw = egui::RawInput {

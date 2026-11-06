@@ -1,4 +1,4 @@
-//! Custom widgets for the PhotoCraft look: cards with pill tabs, thin sliders with round knobs,
+//! Custom widgets for the EvoPhoto look: cards with pill tabs, thin sliders with round knobs,
 //! monospace value fields with dimmed units, toggle switches, primary/secondary buttons.
 
 use egui::{Align2, Color32, CornerRadius, Pos2, Rect, Response, Sense, Stroke, StrokeKind, Ui, Vec2, pos2, vec2};
@@ -311,8 +311,8 @@ pub(crate) fn compact_wrapping_value_field(ui: &mut Ui, value: &mut f32, range: 
 }
 
 /// A size dialog's unit key (`px`, `in`, `cm`, `mm`, `pt`, `pica`, `percent`) as a unit.
-pub fn unit_of_key(key: &str) -> photocraft_engine::prefs::Unit {
-    use photocraft_engine::prefs::Unit;
+pub fn unit_of_key(key: &str) -> evophoto_engine::prefs::Unit {
+    use evophoto_engine::prefs::Unit;
     match key {
         "in" => Unit::Inches,
         "cm" => Unit::Centimeters,
@@ -325,7 +325,7 @@ pub fn unit_of_key(key: &str) -> photocraft_engine::prefs::Unit {
 }
 
 /// Decimal places for a size dialog's unit key (`px`, `in`, `cm`, `mm`, `pt`, `pica`, `percent`).
-/// The places themselves live on [`photocraft_engine::prefs::Unit`], so the dialogs, the Info
+/// The places themselves live on [`evophoto_engine::prefs::Unit`], so the dialogs, the Info
 /// panel and the rulers agree (#2434).
 pub fn unit_decimals(key: &str) -> u32 {
     unit_of_key(key).decimals() as u32
@@ -340,7 +340,7 @@ pub fn value_field_prec(ui: &mut Ui, value: &mut f32, range: std::ops::RangeIncl
 /// A field's unit and the resolution a typed unit converts at (`1in` in a px field).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FieldUnits {
-    pub unit: photocraft_engine::prefs::Unit,
+    pub unit: evophoto_engine::prefs::Unit,
     /// Pixels per inch.
     pub dpi: f64,
     /// Points per inch (72 PostScript, 72.27 traditional).
@@ -383,8 +383,8 @@ pub fn set_field_resolution(ctx: &egui::Context, dpi: f64, ppi: f64) {
 }
 
 /// The unit a field's suffix names (`px`, `in`, `cm`, `mm`, `pt`, `pica`/`pc`, `%`), if any.
-fn unit_of_suffix(suffix: &str) -> Option<photocraft_engine::prefs::Unit> {
-    use photocraft_engine::prefs::Unit;
+fn unit_of_suffix(suffix: &str) -> Option<evophoto_engine::prefs::Unit> {
+    use evophoto_engine::prefs::Unit;
     Some(match suffix {
         "px" => Unit::Pixels,
         "in" => Unit::Inches,
@@ -854,7 +854,7 @@ pub const TEXT_FIELD_H: f32 = 24.0;
 /// Inner padding of a [`text_field`]'s box: 6 pt either side, 2 pt above and below.
 const TEXT_FIELD_PAD: Vec2 = vec2(6.0, 2.0);
 
-/// A single-line text field in PhotoCraft's shared field style (#3789): the same box as a
+/// A single-line text field in EvoPhoto's shared field style (#3789): the same box as a
 /// [`value_field`] -- the theme's field fill and `field_border`, rounded by `radius_sm` -- with a
 /// consistent inner padding and no focus outline. egui's default white focus ring (its
 /// `selection.stroke`) is what made the Preferences search field look different from the Color
@@ -1535,7 +1535,7 @@ fn button_impl_h(ui: &mut Ui, label: &str, min_width: f32, height: Option<f32>, 
 }
 
 /// Cached RGB data; drawing work is bounded by the 256 display bins, never the image size.
-pub fn rgb_histogram(ui: &mut Ui, histogram: &photocraft_algo::histogram::RgbHistogram, height: f32) -> egui::Response {
+pub fn rgb_histogram(ui: &mut Ui, histogram: &evophoto_algo::histogram::RgbHistogram, height: f32) -> egui::Response {
     let t = Tokens::get(ui.ctx());
     let (rect, response) = ui.allocate_exact_size(egui::vec2(ui.available_width().max(1.0), height.max(1.0)), egui::Sense::hover());
     ui.painter().rect_filled(rect, t.radius_sm, t.histogram_background());
@@ -1568,7 +1568,7 @@ pub fn vline(ui: &mut Ui, height: f32) {
 /// The fully saturated colour at hue `deg` (degrees), built on sRGB values as Photoshop's hue
 /// tracks are: 0 is (255,0,0), 60 is (255,255,0), 120 is (0,255,0) and so on (#6540).
 pub fn hue_color(deg: f32) -> Color32 {
-    let [r, g, b] = photocraft_color::convert::hsb_to_rgb([deg, 1.0, 1.0]);
+    let [r, g, b] = evophoto_color::convert::hsb_to_rgb([deg, 1.0, 1.0]);
     let q = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
     Color32::from_rgb(q(r), q(g), q(b))
 }
@@ -1975,9 +1975,9 @@ pub fn fmt_num(v: f64) -> String {
 
 /// Rounds `v` to `decimals` places (half away from zero) and drops trailing zeros, so a value is
 /// never shown with more precision than it has: `0.7995` at three places is `0.8`, `2.0` is `2`
-/// (#2434). [`photocraft_engine::prefs::Unit::decimals`] gives each ruler unit's places.
+/// (#2434). [`evophoto_engine::prefs::Unit::decimals`] gives each ruler unit's places.
 pub fn fmt_num_prec(v: f64, decimals: u32) -> String {
-    photocraft_engine::prefs::fmt_decimals(v, decimals as usize)
+    evophoto_engine::prefs::fmt_decimals(v, decimals as usize)
 }
 
 /// Two-decimal variant of [`fmt_num`] for small ranges: `1.05`, `0.78`, `2`.
@@ -2096,7 +2096,7 @@ mod tests {
             super::color_swatch(ui, egui::Color32::RED);
             super::color_swatch_button(ui, egui::Color32::from_rgba_unmultiplied(0, 0, 255, 128), "Blue");
         });
-        crate::PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::Studio);
+        crate::EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::Studio);
         h.run_steps(2);
         let tile = h.ctx.data(|d| d.get_temp::<egui::TextureHandle>(super::checker_tile_id())).expect("the tile is loaded once");
         let manager = h.ctx.tex_manager();
@@ -2123,7 +2123,7 @@ mod tests {
             let short = super::elided_label(ui, "Fill", 200.0);
             assert!(short.rect.width() < 60.0, "a short label is not padded: {}", short.rect.width());
         });
-        crate::PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::Studio);
+        crate::EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::Studio);
         h.run_steps(2);
     }
 
@@ -2246,7 +2246,7 @@ mod tests {
             },
             None,
         );
-        crate::PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::Studio);
+        crate::EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::Studio);
         h.run();
         let (button, clip, body) = h.state().expect("the footer drew its button");
         assert!(button.bottom() > body.bottom(), "the bar really overruns the body, or this test proves nothing: {button:?} vs {body:?}");
@@ -2266,7 +2266,7 @@ mod tests {
             },
             (String::new(), egui::Color32::WHITE, egui::Color32::BLACK),
         );
-        crate::PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::Studio);
+        crate::EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::Studio);
         h.run();
         assert_eq!(h.state().1, h.state().2, "the field's selection colour does not leak into its parent");
         h.get_by_role(Role::TextInput).click();
@@ -2284,7 +2284,7 @@ mod tests {
     fn text_field_caps_a_huge_paste() {
         use egui::accesskit::Role;
         let mut h = Harness::new_ui_state(|ui, s: &mut String| drop(super::text_field(ui, egui::Id::new("tf"), s, "", 140.0, false)), String::new());
-        crate::PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::Studio);
+        crate::EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::Studio);
         h.run();
         h.get_by_role(Role::TextInput).click();
         h.run_steps(1);
@@ -2304,7 +2304,7 @@ mod tests {
         use egui::accesskit::Role;
         let long = "9".repeat(super::TEXT_FIELD_LIMIT * 4);
         let mut h = Harness::new_ui_state(|ui, s: &mut String| drop(super::text_field(ui, egui::Id::new("tf"), s, "", 140.0, false)), long.clone());
-        crate::PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::Studio);
+        crate::EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::Studio);
         h.run();
         assert_eq!(*h.state(), long, "drawing alone leaves the caller's value alone");
         assert_eq!(h.get_by_role(Role::TextInput).value().map(|v| v.chars().count()), Some(super::TEXT_FIELD_LIMIT));
@@ -2320,7 +2320,7 @@ mod tests {
     #[test]
     fn raw_input_hook_caps_synthetic_text() {
         use eframe::App as _;
-        let mut app = crate::PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = crate::EvoPhotoApp::new(evophoto_engine::Session::new(), Default::default());
         app.synthetic.push(egui::Event::Text("x".repeat(super::INPUT_EVENT_LIMIT + 10)));
         let ctx = egui::Context::default();
         let mut raw = egui::RawInput::default();
@@ -2404,7 +2404,7 @@ mod tests {
     /// `%`'s, so the number lines up with the box and its unit (#5150).
     #[test]
     fn value_field_digits_ink_is_centred_and_level_with_the_unit() {
-        let _gpu = photocraft_testkit::gpu_lock();
+        let _gpu = evophoto_testkit::gpu_lock();
         let scale = 4.0;
         for kind in [crate::theme::ThemeKind::Pro, crate::theme::ThemeKind::Studio] {
             let mut h = Harness::builder().with_size(egui::vec2(100.0, 40.0)).with_pixels_per_point(scale).wgpu().build_ui_state(
@@ -2413,7 +2413,7 @@ mod tests {
                 },
                 (100.0, egui::Rect::NOTHING),
             );
-            crate::PhotocraftApp::setup_context(&h.ctx, kind);
+            crate::EvoPhotoApp::setup_context(&h.ctx, kind);
             h.run_steps(3);
             let image = h.render().expect("render value field");
             let (field, suffix_left) = (h.state().1, h.state().1.right() - 14.0);
@@ -2451,7 +2451,7 @@ mod tests {
                     },
                     (v, egui::Rect::NOTHING),
                 );
-                crate::PhotocraftApp::setup_context(&harness.ctx, kind);
+                crate::EvoPhotoApp::setup_context(&harness.ctx, kind);
                 harness.run();
                 let number = harness.get_by_role(egui::accesskit::Role::SpinButton).rect();
                 let field = harness.state().1;
@@ -2696,7 +2696,7 @@ mod tests {
             },
             false,
         );
-        crate::PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+        crate::EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         h.ctx.set_os(os);
         *h.state_mut() = true;
         h.run();
@@ -2881,7 +2881,7 @@ mod tests {
     /// option hovered from the start (#2607).
     #[test]
     fn dropdown_list_keeps_its_width_while_scrolling() {
-        use photocraft_color::BlendMode;
+        use evophoto_color::BlendMode;
         let mut h = Harness::builder().with_size(egui::vec2(400.0, 700.0)).build_ui_state(
             |ui, mode: &mut BlendMode| {
                 let opts: Vec<(BlendMode, &str)> = BlendMode::LAYER_MODES.iter().map(|m| (*m, m.label())).collect();
@@ -3011,7 +3011,7 @@ pub fn pick_pos(resp: &Response) -> Option<Pos2> {
         && resp.ctx.input(|i| i.pointer.primary_down() && !i.pointer.button_down(egui::PointerButton::Secondary) && !i.pointer.middle_down());
     if held || resp.clicked() { resp.interact_pointer_pos() } else { None }
 }
-/// A colour swatch that only reports clicks (no popup): for colours edited in PhotoCraft's own
+/// A colour swatch that only reports clicks (no popup): for colours edited in EvoPhoto's own
 /// Color Picker dialog. `label` names it for hover text and accessibility.
 pub fn color_swatch_button(ui: &mut Ui, color: Color32, label: &str) -> Response {
     let t = Tokens::get(ui.ctx());
@@ -3109,9 +3109,9 @@ mod screen_color_tests {
             ..Default::default()
         };
         let original = [0.123456, 0.234567, 0.345678];
-        let app = crate::PhotocraftApp::new(photocraft_engine::Session::new(), services);
+        let app = crate::EvoPhotoApp::new(evophoto_engine::Session::new(), services);
         let mut h = Harness::builder().with_size(vec2(600.0, 500.0)).build_ui_state(
-            |ui, state: &mut (crate::PhotocraftApp, [f32; 3])| {
+            |ui, state: &mut (crate::EvoPhotoApp, [f32; 3])| {
                 crate::screen_picker::tick(&mut state.0, ui.ctx());
                 color_edit_button_rgb(ui, &mut state.1);
             },
@@ -3145,9 +3145,9 @@ mod screen_color_tests {
                 })),
                 ..Default::default()
             };
-            let app = crate::PhotocraftApp::new(photocraft_engine::Session::new(), services);
+            let app = crate::EvoPhotoApp::new(evophoto_engine::Session::new(), services);
             let mut h = Harness::builder().with_size(vec2(600.0, 500.0)).build_ui_state(
-                |ui, state: &mut (crate::PhotocraftApp, Color32, bool)| {
+                |ui, state: &mut (crate::EvoPhotoApp, Color32, bool)| {
                     crate::screen_picker::tick(&mut state.0, ui.ctx());
                     state.2 = color_edit_button_srgba(ui, &mut state.1).changed();
                 },

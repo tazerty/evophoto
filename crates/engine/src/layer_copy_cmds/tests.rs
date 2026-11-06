@@ -1,7 +1,7 @@
-use photocraft_color::{ColorMode, PixelFormat, SampleType};
-use photocraft_doc::{Document, LayerContent, LayerId, Pattern};
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use evophoto_color::{ColorMode, PixelFormat, SampleType};
+use evophoto_doc::{Document, LayerContent, LayerId, Pattern};
+use evophoto_geom::Rect;
+use evophoto_raster::Surface;
 use serde_json::{Value, json};
 
 use crate::Session;
@@ -345,7 +345,7 @@ fn a_named_duplicate_takes_the_name_in_one_step() {
 
 #[test]
 fn a_copied_group_cannot_nest_the_destination_past_the_group_depth_limit() {
-    use photocraft_doc::{Layer, MAX_GROUP_DEPTH};
+    use evophoto_doc::{Layer, MAX_GROUP_DEPTH};
     let (mut s, paint) = two_docs(40, 30, 8);
     // A group in the source, and a destination whose active layer sits at the deepest legal level.
     s.execute("layer.groupLayers", json!({"layers": [paint.0]})).unwrap();

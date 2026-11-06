@@ -1,5 +1,5 @@
-use photocraft_doc::{LayerId, SliceOrigin};
-use photocraft_engine::Session;
+use evophoto_doc::{LayerId, SliceOrigin};
+use evophoto_engine::Session;
 use serde_json::json;
 
 fn art() -> (Session, LayerId) {

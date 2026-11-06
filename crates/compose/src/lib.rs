@@ -34,10 +34,10 @@ pub mod psblend;
 pub mod shape_split;
 mod uniform;
 
-use photocraft_color::blend::BlendMode;
-use photocraft_doc::{Document, Fill, Layer, LayerContent, Pattern};
-use photocraft_geom::Rect;
-use photocraft_raster::{Rgba8Image, Surface};
+use evophoto_color::blend::BlendMode;
+use evophoto_doc::{Document, Fill, Layer, LayerContent, Pattern};
+use evophoto_geom::Rect;
+use evophoto_raster::{Rgba8Image, Surface};
 use psblend as blend;
 
 pub use advanced::advanced_active;
@@ -128,7 +128,7 @@ fn recycle_buffer(buf: Buffer) {
 fn scratch_reuse_preserves_pixels_and_bounds_retention() {
     SCRATCH.with(|slot| slot.borrow_mut().clear());
     let rect = Rect::new(-2, -3, 18, 11);
-    for fmt in [photocraft_color::PixelFormat::RGBA8, photocraft_color::PixelFormat::RGBA16, photocraft_color::PixelFormat::RGBA32F] {
+    for fmt in [evophoto_color::PixelFormat::RGBA8, evophoto_color::PixelFormat::RGBA16, evophoto_color::PixelFormat::RGBA32F] {
         let s = Surface::with_default(fmt, &[0.2, 0.4, 0.6, 0.8]);
         let buf = surface_to_scratch(&s, rect);
         assert_eq!(buf, surface_to_buffer(&s, rect));
@@ -189,8 +189,8 @@ fn render_tiled_with(doc: &Document, rect: Rect, tile: i32, cx: &Ctx) -> Buffer 
     let tile = tile.max(1);
     // Lab documents mix Normal blending in CIELAB, as Photoshop does (psblend::LAB_MIX); 32-bit
     // documents don't clip Add / Divide or Hue / Saturation / Color / Luminosity at 1 (psblend::HDR).
-    let lab = doc.mode == photocraft_color::ColorMode::Lab;
-    let hdr = doc.depth == photocraft_color::SampleType::F32;
+    let lab = doc.mode == evophoto_color::ColorMode::Lab;
+    let hdr = doc.depth == evophoto_color::SampleType::F32;
     // CMYK layers are read through the document's own CMYK profile (thread-local scope).
     let cmyk = cmyk_space(doc);
     let cmyk = cmyk.as_ref();
@@ -211,7 +211,7 @@ fn render_tiled_with(doc: &Document, rect: Rect, tile: i32, cx: &Ctx) -> Buffer 
     }
     cx.set_fx_clip(rect);
     if i64::from(rect.width()) <= i64::from(tile) && i64::from(rect.height()) <= i64::from(tile) {
-        return photocraft_color::convert::with_cmyk_space(cmyk, || {
+        return evophoto_color::convert::with_cmyk_space(cmyk, || {
             let mut buf = multichannel::backdrop(doc, rect);
             in_blend_space(lab, hdr, || composite_stack_at(&doc.layers, &mut buf, cx, advanced::Scope::ROOT));
             buf
@@ -219,10 +219,10 @@ fn render_tiled_with(doc: &Document, rect: Rect, tile: i32, cx: &Ctx) -> Buffer 
     }
     // Effect maps are built once, here, before any tile needs them (#276).
     prepare_effects(&doc.layers, rect, cx, |f| {
-        photocraft_color::convert::with_cmyk_space(cmyk, || in_blend_space(lab, hdr, f));
+        evophoto_color::convert::with_cmyk_space(cmyk, || in_blend_space(lab, hdr, f));
     });
     let run = |t: Rect| {
-        photocraft_color::convert::with_cmyk_space(cmyk, || {
+        evophoto_color::convert::with_cmyk_space(cmyk, || {
             let mut b = multichannel::backdrop(doc, t);
             in_blend_space(lab, hdr, || composite_stack_at(&doc.layers, &mut b, cx, advanced::Scope::ROOT));
             b
@@ -296,13 +296,13 @@ fn in_blend_space<R>(lab: bool, hdr: bool, f: impl FnOnce() -> R) -> R {
 }
 
 /// The document's own CMYK profile for reading its CMYK pixels (`None`: not a CMYK document,
-/// untagged, or the built-in coated CMYK). Enter it with `photocraft_color::convert::with_cmyk_space`
+/// untagged, or the built-in coated CMYK). Enter it with `evophoto_color::convert::with_cmyk_space`
 /// around code that converts the document's CMYK pixels or colours to RGB.
-pub fn cmyk_space(doc: &Document) -> Option<std::sync::Arc<photocraft_color::convert::CmykSpace>> {
-    if doc.mode != photocraft_color::ColorMode::Cmyk {
+pub fn cmyk_space(doc: &Document) -> Option<std::sync::Arc<evophoto_color::convert::CmykSpace>> {
+    if doc.mode != evophoto_color::ColorMode::Cmyk {
         return None;
     }
-    photocraft_color::convert::CmykSpace::for_profile(doc.icc_profile.as_ref())
+    evophoto_color::convert::CmykSpace::for_profile(doc.icc_profile.as_ref())
 }
 
 /// Pixels per band of [`render_bands`] (a 14000 px wide band is ~600 rows, ~130 MB of f32).
@@ -350,12 +350,12 @@ pub fn band_rows_for(width: u32, requested: i32) -> i32 {
 /// where its layers mix on their inks (#2220). Otherwise the composite goes back to CMYK through
 /// the document's own profile, the one its layers were read through. A Lab document of plain
 /// layers is composited in its L, a and b ([`native_lab::flatten_lab`]).
-pub fn flatten_to_surface(doc: &Document, fmt: photocraft_color::PixelFormat, background: Option<[f32; 3]>) -> Surface {
+pub fn flatten_to_surface(doc: &Document, fmt: evophoto_color::PixelFormat, background: Option<[f32; 3]>) -> Surface {
     composite_to_surface(doc, doc.bounds(), fmt, background)
 }
 
 /// [`flatten_to_surface`] over `rect` only (the rest of the surface stays empty).
-pub fn composite_to_surface(doc: &Document, rect: Rect, fmt: photocraft_color::PixelFormat, background: Option<[f32; 3]>) -> Surface {
+pub fn composite_to_surface(doc: &Document, rect: Rect, fmt: evophoto_color::PixelFormat, background: Option<[f32; 3]>) -> Surface {
     let paper = background.is_some_and(|bg| bg == [1.0; 3]);
     if (background.is_none() || paper)
         && let Some(s) = native::flatten_cmyk(doc, rect, fmt, paper)
@@ -372,11 +372,11 @@ pub fn composite_to_surface(doc: &Document, rect: Rect, fmt: photocraft_color::P
     let empty = s.default_pixel();
     let mut data = Vec::new();
     let space = cmyk_space(doc);
-    let to_cmyk = fmt.mode == photocraft_color::ColorMode::Cmyk && doc.mode == photocraft_color::ColorMode::Cmyk;
+    let to_cmyk = fmt.mode == evophoto_color::ColorMode::Cmyk && doc.mode == evophoto_color::ColorMode::Cmyk;
     if to_cmyk && cmyk::renders_inks(doc) {
         // White paper is no ink; another background colour goes through the profile.
         let paper = background.map(|bg| {
-            if bg == [1.0; 3] { [0.0; 4] } else { photocraft_color::convert::with_cmyk_space(space.as_ref(), || photocraft_color::convert::rgb_to_cmyk(bg)) }
+            if bg == [1.0; 3] { [0.0; 4] } else { evophoto_color::convert::with_cmyk_space(space.as_ref(), || evophoto_color::convert::rgb_to_cmyk(bg)) }
         });
         let _ = cmyk::render_cmyk_bands(doc, rect, 0, |band| -> Result<(), ()> {
             data.clear();
@@ -411,12 +411,12 @@ pub fn composite_to_surface(doc: &Document, rect: Rect, fmt: photocraft_color::P
         };
         data.clear();
         data.resize(band.px.len() * n, 0.0);
-        photocraft_color::convert::with_cmyk_space(space.as_ref(), || {
+        evophoto_color::convert::with_cmyk_space(space.as_ref(), || {
             for (p, out) in band.px.iter().zip(data.chunks_exact_mut(n)) {
                 if fmt.alpha && (p[3] <= 0.0 || p[3].is_nan()) && empty.len() == n {
                     out.copy_from_slice(&empty);
                 } else {
-                    photocraft_raster::from_rgba_into(&fmt, *p, out);
+                    evophoto_raster::from_rgba_into(&fmt, *p, out);
                 }
             }
         });
@@ -446,10 +446,10 @@ pub fn render_layer(layer: &Layer, rect: Rect) -> Buffer {
         &Ctx {
             canvas: rect,
             transfer: adjust::Transfer::Srgb,
-            light: photocraft_doc::GlobalLight::default(),
+            light: evophoto_doc::GlobalLight::default(),
             patterns: &patterns,
-            mode: photocraft_color::ColorMode::Rgb,
-            depth: photocraft_color::SampleType::F32,
+            mode: evophoto_color::ColorMode::Rgb,
+            depth: evophoto_color::SampleType::F32,
             vector_masks: RenderVectorMasks::default(),
             fx_maps: Default::default(),
             fx_clip: Default::default(),
@@ -478,10 +478,10 @@ pub fn render_layer_in(doc: &Document, layer: &Layer, rect: Rect) -> Buffer {
     let patterns = pattern::PreparedPatterns::new(&doc.patterns, pattern::PREPARED_PATTERN_BYTES).in_mode(doc.pixel_format().mode);
     // A lone layer: a deep knockout reveals transparency, not the document's Background.
     let cx = Ctx { doc: None, ..Ctx::for_doc(doc, &patterns) };
-    let lab = doc.mode == photocraft_color::ColorMode::Lab;
-    let hdr = doc.depth == photocraft_color::SampleType::F32;
+    let lab = doc.mode == evophoto_color::ColorMode::Lab;
+    let hdr = doc.depth == evophoto_color::SampleType::F32;
     let cmyk = cmyk_space(doc);
-    photocraft_color::convert::with_cmyk_space(cmyk.as_ref(), || {
+    evophoto_color::convert::with_cmyk_space(cmyk.as_ref(), || {
         let mut buf = Buffer::transparent(rect);
         in_blend_space(lab, hdr, || composite_stack_at(std::slice::from_ref(layer), &mut buf, &cx, advanced::Scope::ROOT));
         buf
@@ -775,17 +775,17 @@ fn render_reduced_with(doc: &Document, b: Rect, w: u32, h: u32, damage: Option<R
     Buffer { rect: out, px: acc }
 }
 
-type VectorMaskSlot = std::sync::Arc<std::sync::OnceLock<photocraft_vector::CompiledVectorMask>>;
+type VectorMaskSlot = std::sync::Arc<std::sync::OnceLock<evophoto_vector::CompiledVectorMask>>;
 
 #[derive(Default)]
 struct RenderVectorMasks {
     /// Compiled masks by content. Callers pass temporary clones (see `advanced.rs`), so an
     /// address cannot identify a mask: a dropped clone's address is reused by the next one.
-    masks: std::sync::Mutex<Vec<(photocraft_doc::VectorMask, VectorMaskSlot)>>,
+    masks: std::sync::Mutex<Vec<(evophoto_doc::VectorMask, VectorMaskSlot)>>,
 }
 
 impl RenderVectorMasks {
-    fn values(&self, mask: &photocraft_doc::VectorMask, rect: Rect) -> Vec<f32> {
+    fn values(&self, mask: &evophoto_doc::VectorMask, rect: Rect) -> Vec<f32> {
         let slot = {
             let mut masks = self.masks.lock().unwrap_or_else(|e| e.into_inner());
             match masks.iter().find(|(m, _)| m == mask) {
@@ -799,7 +799,7 @@ impl RenderVectorMasks {
         };
         // Compilation is sequential. Rendering can enter Rayon and must happen after
         // initialization, so waiting tiles cannot re-enter a slot still being built.
-        let compiled = slot.get_or_init(|| photocraft_vector::CompiledVectorMask::new(mask));
+        let compiled = slot.get_or_init(|| evophoto_vector::CompiledVectorMask::new(mask));
         compiled.render(rect)
     }
 }
@@ -811,14 +811,14 @@ struct Ctx<'a> {
     /// Tone transfer used by adjustments that work in linear light.
     transfer: adjust::Transfer,
     /// Global light for layer effects.
-    light: photocraft_doc::GlobalLight,
+    light: evophoto_doc::GlobalLight,
     /// Prepared document patterns, shared across all tiles and bands of this render call.
     patterns: &'a pattern::PreparedPatterns<'a>,
     /// The document's colour mode (channel restrictions name its channels).
-    mode: photocraft_color::ColorMode,
-    depth: photocraft_color::SampleType,
+    mode: evophoto_color::ColorMode,
+    depth: evophoto_color::SampleType,
     /// At most 1 MiB of tone tables, initialized once and shared by this render's tiles and bands.
-    tone_luts: Vec<(&'a photocraft_doc::Adjustment, std::sync::OnceLock<[Vec<f32>; 4]>)>,
+    tone_luts: Vec<(&'a evophoto_doc::Adjustment, std::sync::OnceLock<[Vec<f32>; 4]>)>,
     vector_masks: RenderVectorMasks,
     /// Effect maps used by this render, by cache key: built before the parallel tiles (see
     /// [`prepare_effects`]) and held for the whole render (or band, for maps clipped to it: the
@@ -915,9 +915,9 @@ impl<'a> Ctx<'a> {
         }
     }
 
-    fn apply_adjustment(&self, adj: &photocraft_doc::Adjustment, buf: &mut Buffer) {
-        if let photocraft_doc::Adjustment::Levels { space, .. } | photocraft_doc::Adjustment::Curves { space, .. } = adj
-            && !matches!(adj, photocraft_doc::Adjustment::Levels { space: photocraft_doc::adjust::ToneSpace::Rgb, .. } if self.depth == photocraft_color::SampleType::F32)
+    fn apply_adjustment(&self, adj: &evophoto_doc::Adjustment, buf: &mut Buffer) {
+        if let evophoto_doc::Adjustment::Levels { space, .. } | evophoto_doc::Adjustment::Curves { space, .. } = adj
+            && !matches!(adj, evophoto_doc::Adjustment::Levels { space: evophoto_doc::adjust::ToneSpace::Rgb, .. } if self.depth == evophoto_color::SampleType::F32)
             && let Some((_, luts)) = self.tone_luts.iter().find(|(a, _)| std::ptr::eq(*a, adj))
         {
             let identity = adjust::float_tone_identity(adj, Some(self.depth));
@@ -932,14 +932,14 @@ impl<'a> Ctx<'a> {
     }
 }
 
-fn prepare_tones(layers: &[Layer], depth: u32) -> Vec<(&photocraft_doc::Adjustment, std::sync::OnceLock<[Vec<f32>; 4]>)> {
+fn prepare_tones(layers: &[Layer], depth: u32) -> Vec<(&evophoto_doc::Adjustment, std::sync::OnceLock<[Vec<f32>; 4]>)> {
     let mut out = Vec::new();
     for layer in layers.iter().filter(|l| l.visible) {
         if out.len() == 16 {
             break;
         }
         match &layer.content {
-            LayerContent::Adjustment(a @ (photocraft_doc::Adjustment::Levels { .. } | photocraft_doc::Adjustment::Curves { .. })) => {
+            LayerContent::Adjustment(a @ (evophoto_doc::Adjustment::Levels { .. } | evophoto_doc::Adjustment::Curves { .. })) => {
                 out.push((a, Default::default()))
             }
             LayerContent::Group(g) if depth < PREPARE_DEPTH => out.extend(prepare_tones(&g.children, depth + 1).into_iter().take(16 - out.len())),
@@ -1033,11 +1033,11 @@ fn composite_stack_at(layers: &[Layer], backdrop: &mut Buffer, cx: &Ctx, scope: 
 /// Photoshop (psd-tools adjustment_nested_composition_4: 9.6 → 5.1 % of pixels off;
 /// exposure_grayscale passes). Blends stay in float (quantising them too made other files
 /// worse).
-pub fn adjustment_quantum(depth: photocraft_color::SampleType) -> Option<f32> {
+pub fn adjustment_quantum(depth: evophoto_color::SampleType) -> Option<f32> {
     match depth {
-        photocraft_color::SampleType::U8 => Some(255.0),
-        photocraft_color::SampleType::U16 => Some(32768.0),
-        photocraft_color::SampleType::F32 => None,
+        evophoto_color::SampleType::U8 => Some(255.0),
+        evophoto_color::SampleType::U16 => Some(32768.0),
+        evophoto_color::SampleType::F32 => None,
     }
 }
 
@@ -1161,9 +1161,9 @@ pub fn effect_source_bounds(layer: &Layer, canvas: Rect) -> Rect {
 /// layers, shapes without fill, empty and inverted paths, and shapes whose vector stroke reaches
 /// past the path (their pixels give the outline: psd-tools double-stroke-effects), and shapes
 /// with a density or feather.
-pub fn effect_outline(layer: &Layer) -> Option<&photocraft_doc::vector::Path> {
+pub fn effect_outline(layer: &Layer) -> Option<&evophoto_doc::vector::Path> {
     let LayerContent::Shape(sh) = &layer.content else { return None };
-    let stroke_inside = sh.stroke.as_ref().is_none_or(|s| s.width <= 0.0 || s.align == photocraft_doc::vector::StrokeAlign::Inside);
+    let stroke_inside = sh.stroke.as_ref().is_none_or(|s| s.width <= 0.0 || s.align == evophoto_doc::vector::StrokeAlign::Inside);
     // A soft (feathered or less dense) fill's own alpha is its outline.
     (sh.fill.is_some() && stroke_inside && !sh.path.is_empty() && !sh.path.inverted && !sh.has_soft_mask()).then_some(&sh.path)
 }
@@ -1186,7 +1186,7 @@ fn effect_shape(layer: &Layer, rect: Rect, cx: &Ctx) -> Vec<f32> {
     };
     // Unmasked: the masks scale the shape, they aren't the fill's transparency.
     let a: Vec<f32> = layer.surface().map(|s| surface_to_buffer(s, rect).px.iter().map(|p| p[3]).collect()).unwrap_or_else(|| vec![0.0; n]);
-    let cov = photocraft_vector::path_coverage(path, rect);
+    let cov = evophoto_vector::path_coverage(path, rect);
     let mv = mask_vals(layer, rect, cx);
     let (w, h) = (rect.width() as usize, rect.height() as usize);
     let mut out = vec![0.0; n];
@@ -1257,7 +1257,7 @@ pub fn relayout_damage(a: &Document, b: &Document) -> Rect {
 
 /// The bounding box of a shape layer's path and stroke, ignoring its Density and Feather: its
 /// path control bounds plus stroke width (a conservative reach for any alignment, cap and join).
-pub fn hard_shape_bounds(sh: &photocraft_doc::ShapeLayer) -> Option<Rect> {
+pub fn hard_shape_bounds(sh: &evophoto_doc::ShapeLayer) -> Option<Rect> {
     if sh.fill.is_none() && sh.stroke.as_ref().is_none_or(|s| s.width <= 0.0 || s.opacity <= 0.0) {
         return None;
     }
@@ -1274,11 +1274,11 @@ pub fn hard_shape_bounds(sh: &photocraft_doc::ShapeLayer) -> Option<Rect> {
 /// Photoshop a shape's transform frame follows its path and stroke whatever its mask Density and
 /// Feather, #5846). An inverted path's frame is its own outline, not the whole canvas. Renders
 /// only the strips along the edges of the rasterizers' (1 px conservative) bounds.
-pub fn soft_shape_frame(sh: &photocraft_doc::ShapeLayer, format: photocraft_color::PixelFormat, canvas: Rect) -> Option<Rect> {
+pub fn soft_shape_frame(sh: &evophoto_doc::ShapeLayer, format: evophoto_color::PixelFormat, canvas: Rect) -> Option<Rect> {
     let mut path = sh.path.clone();
     path.inverted = false;
-    let hard = photocraft_doc::ShapeLayer { density: 1.0, feather: 0.0, path, fill: sh.fill.clone(), stroke: sh.stroke.clone(), ..Default::default() };
-    let shape = photocraft_vector::CompiledShape::new(&hard, photocraft_vector::DEFAULT_TOLERANCE, canvas);
+    let hard = evophoto_doc::ShapeLayer { density: 1.0, feather: 0.0, path, fill: sh.fill.clone(), stroke: sh.stroke.clone(), ..Default::default() };
+    let shape = evophoto_vector::CompiledShape::new(&hard, evophoto_vector::DEFAULT_TOLERANCE, canvas);
     let r = shape.bounds()?.intersect(&canvas);
     trim_to_painted(r, |strip| shape.render(format, strip).content_bounds())
 }
@@ -1338,14 +1338,14 @@ fn trim_to_painted(mut r: Rect, mut painted: impl FnMut(Rect) -> Rect) -> Option
 
 /// The bounding box of a shape layer's vector content: its path control bounds plus stroke width
 /// (and the reach of a soft fill).
-pub fn shape_bounds(sh: &photocraft_doc::ShapeLayer) -> Option<Rect> {
+pub fn shape_bounds(sh: &evophoto_doc::ShapeLayer) -> Option<Rect> {
     let r = hard_shape_bounds(sh)?;
     // A soft fill reaches past the path: by its feather, or everywhere below 100 % density.
     if sh.fill.is_some() && sh.has_soft_mask() {
         if sh.density.is_finite() && sh.density < 1.0 {
             return Some(Rect::new(i32::MIN / 4, i32::MIN / 4, i32::MAX / 4, i32::MAX / 4));
         }
-        return Some(r.union(&photocraft_vector::feather::path_area(&sh.path, masks::feather_sigma(sh.feather))));
+        return Some(r.union(&evophoto_vector::feather::path_area(&sh.path, masks::feather_sigma(sh.feather))));
     }
     Some(r)
 }
@@ -1390,7 +1390,7 @@ fn render_content(layer: &Layer, rect: Rect, cx: &Ctx) -> Option<Buffer> {
         LayerContent::Fill(f) => match &layer.fill_cache {
             // Photoshop's own rendering, valid while the fill is unchanged.
             Some(c) if c.fill == *f => surface_to_scratch(&c.surface, rect),
-            _ if cx.mode == photocraft_color::ColorMode::Cmyk => {
+            _ if cx.mode == evophoto_color::ColorMode::Cmyk => {
                 let frame = fill_frame(layer, cx.canvas);
                 let native_rect = if matches!(f, Fill::Solid(_)) { Rect::new(0, 0, 1, 1) } else { rect };
                 match gradient_fill::render_cmyk_fill(f, native_rect, frame, cx.depth) {
@@ -1429,8 +1429,8 @@ pub fn layer_shape(doc: &Document, layer: &Layer, rect: Rect) -> Vec<f32> {
 /// The frame a gradient stroke `st` of `layer` is laid out in (`effects::FxMaps::stroke_frame`),
 /// from the layer's cached effect maps; `None` when `st` isn't a gradient stroke of the layer.
 /// For the GPU compositor.
-pub fn stroke_frame(doc: &Document, layer: &Layer, st: &photocraft_doc::StrokeFx) -> Option<Rect> {
-    if !matches!(st.paint, photocraft_doc::FxPaint::Gradient(_)) || !effects::has_effects(layer) {
+pub fn stroke_frame(doc: &Document, layer: &Layer, st: &evophoto_doc::StrokeFx) -> Option<Rect> {
+    if !matches!(st.paint, evophoto_doc::FxPaint::Gradient(_)) || !effects::has_effects(layer) {
         return None;
     }
     let patterns = pattern::PreparedPatterns::new(&doc.patterns, pattern::PREPARED_PATTERN_BYTES).in_mode(doc.pixel_format().mode);
@@ -1532,7 +1532,7 @@ fn empty_in(layer: &Layer, rect: Rect) -> bool {
 /// contribute outside the stroke reach from the layer's pixels. Other `tsly=0` effects can cover
 /// the full layer, and advanced blending can change the backdrop independently of those pixels.
 fn shapeless_stroke_bounds(layer: &Layer) -> Option<Rect> {
-    use photocraft_doc::Knockout;
+    use evophoto_doc::Knockout;
 
     if layer.advanced.transparency_shapes
         || layer.advanced.knockout != Knockout::None
@@ -1549,7 +1549,7 @@ fn shapeless_stroke_bounds(layer: &Layer) -> Option<Rect> {
 
     if !layer.effects.enabled
         || !layer.effects.items.iter().any(|e| e.enabled())
-        || layer.effects.items.iter().any(|e| e.enabled() && !matches!(e, photocraft_doc::Effect::Stroke(_)))
+        || layer.effects.items.iter().any(|e| e.enabled() && !matches!(e, evophoto_doc::Effect::Stroke(_)))
     {
         return None;
     }
@@ -1574,8 +1574,8 @@ fn shapeless_stroke_bounds(layer: &Layer) -> Option<Rect> {
 /// directly and a grayscale document's single channel covers all three; other modes composite in
 /// display RGB, where a restriction to their own channels has no exact equivalent, so it is
 /// ignored there.
-pub fn channel_weights(layer: &Layer, mode: photocraft_color::ColorMode) -> Option<[f32; 3]> {
-    use photocraft_color::ColorMode as M;
+pub fn channel_weights(layer: &Layer, mode: evophoto_color::ColorMode) -> Option<[f32; 3]> {
+    use evophoto_color::ColorMode as M;
     let x = layer.excluded_channels;
     if x == 0 {
         return None;
@@ -1700,7 +1700,7 @@ pub fn transparent_outside(layer: &Layer) -> bool {
 /// stops are all opaque). Normal blending at alpha 1 returns the layer's colour exactly, so the
 /// layers below can be skipped (the live Gradient tool's preview recomposites the whole canvas on
 /// every pointer move).
-pub fn occludes_below(layer: &Layer, mode: photocraft_color::ColorMode) -> bool {
+pub fn occludes_below(layer: &Layer, mode: evophoto_color::ColorMode) -> bool {
     let LayerContent::Fill(f) = &layer.content else { return false };
     let opaque = match f {
         Fill::Solid(c) => c.alpha >= 1.0,
@@ -1715,7 +1715,7 @@ pub fn occludes_below(layer: &Layer, mode: photocraft_color::ColorMode) -> bool 
         && !cached
         && layer.visible
         && !layer.clipped
-        && layer.blend == photocraft_color::BlendMode::Normal
+        && layer.blend == evophoto_color::BlendMode::Normal
         && layer.opacity >= 1.0
         && layer.fill_opacity >= 1.0
         && !layer.mask.as_ref().is_some_and(|m| m.enabled)
@@ -1729,16 +1729,16 @@ pub fn occludes_below(layer: &Layer, mode: photocraft_color::ColorMode) -> bool 
 /// RGB documents test Gray and R, G, B; grayscale (and duotone) documents their one channel.
 /// Other modes composite in display RGB, where ranges over their own channels have no exact
 /// equivalent, so (like channel restrictions) the setting round-trips but isn't applied there.
-pub fn blend_if_active(layer: &Layer, mode: photocraft_color::ColorMode) -> bool {
-    use photocraft_color::ColorMode as M;
+pub fn blend_if_active(layer: &Layer, mode: evophoto_color::ColorMode) -> bool {
+    use evophoto_color::ColorMode as M;
     matches!(mode, M::Rgb | M::Grayscale | M::Duotone) && !layer.blend_if.is_default()
 }
 
 /// How much of a pixel shows through `layer`'s Blend If ranges, given the layer's own colour
 /// (`this`, `None` where the layer has no content of its own there) and the colour beneath it
 /// (`under`, `None` where nothing is beneath). Every range multiplies in.
-fn blend_if_weight(layer: &Layer, mode: photocraft_color::ColorMode, this: Option<[f32; 4]>, under: Option<[f32; 4]>) -> f32 {
-    use photocraft_color::ColorMode as M;
+fn blend_if_weight(layer: &Layer, mode: evophoto_color::ColorMode, this: Option<[f32; 4]>, under: Option<[f32; 4]>) -> f32 {
+    use evophoto_color::ColorMode as M;
     let bi = &layer.blend_if;
     let mut k = 1.0;
     for (side, px) in [this, under].into_iter().enumerate() {
@@ -1860,7 +1860,7 @@ fn composite_layer_any(layer: &Layer, clipped: &[Layer], backdrop: &mut Buffer, 
 
 /// An artboard: its background and the group, composited only inside the board (contents and
 /// effects outside it are clipped away; the backdrop there is untouched).
-fn composite_artboard(layer: &Layer, ab: &photocraft_doc::Artboard, clipped: &[Layer], backdrop: &mut Buffer, cx: &Ctx, scope: advanced::Scope) {
+fn composite_artboard(layer: &Layer, ab: &evophoto_doc::Artboard, clipped: &[Layer], backdrop: &mut Buffer, cx: &Ctx, scope: advanced::Scope) {
     let board = ab.rect.intersect(&backdrop.rect);
     if board.is_empty() {
         return;
@@ -2130,9 +2130,9 @@ fn split_parts(layer: &Layer, rect: Rect, cx: &Ctx) -> Option<(Buffer, Buffer, O
 /// Pixels are identified by their copy-on-write tile pointers. `pin` sees every tile hashed: a
 /// cache entry keeps a [`std::sync::Weak`] to each, which reserves the tile's address (so no
 /// other tile can reuse it and match the key) without keeping its pixels alive (#4530).
-fn layer_identity(layer: &Layer, h: &mut std::collections::hash_map::DefaultHasher, pin: &mut dyn FnMut(&std::sync::Arc<photocraft_raster::Tile>)) {
+fn layer_identity(layer: &Layer, h: &mut std::collections::hash_map::DefaultHasher, pin: &mut dyn FnMut(&std::sync::Arc<evophoto_raster::Tile>)) {
     use std::hash::{Hash, Hasher};
-    fn surface_fp(s: &Surface, pin: &mut dyn FnMut(&std::sync::Arc<photocraft_raster::Tile>)) -> u64 {
+    fn surface_fp(s: &Surface, pin: &mut dyn FnMut(&std::sync::Arc<evophoto_raster::Tile>)) -> u64 {
         let mut h = std::collections::hash_map::DefaultHasher::new();
         s.format().hash(&mut h);
         // Missing tiles read the default pixel, so tile identity alone is not pixel identity.
@@ -2196,7 +2196,7 @@ fn layer_identity(layer: &Layer, h: &mut std::collections::hash_map::DefaultHash
 struct FxEntry {
     maps: std::sync::Arc<effects::FxMaps>,
     /// The tiles the key identifies (see [`layer_identity`]): their addresses, not their pixels.
-    _pin: Vec<std::sync::Weak<photocraft_raster::Tile>>,
+    _pin: Vec<std::sync::Weak<evophoto_raster::Tile>>,
     bytes: usize,
 }
 
@@ -2317,7 +2317,7 @@ fn effect_maps(layer: &Layer, rect: Rect, cx: &Ctx) -> std::sync::Arc<effects::F
         region = Rect::EMPTY;
     }
     static NO_CACHE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    if *NO_CACHE.get_or_init(|| std::env::var_os("PHOTOCRAFT_FX_NOCACHE").is_some()) {
+    if *NO_CACHE.get_or_init(|| std::env::var_os("EVOPHOTO_FX_NOCACHE").is_some()) {
         let shape = if region.is_empty() { Vec::new() } else { effect_shape(layer, region, cx) };
         return std::sync::Arc::new(effects::build_maps_prepared(layer, shape, region, &cx.light, &texture_ctx(layer, region, cx), cx.patterns));
     }
@@ -2362,7 +2362,7 @@ fn cached_effect_maps(layer: &Layer, region: Rect, key: u64, cx: &Ctx) -> std::s
             layer_identity(layer, &mut std::collections::hash_map::DefaultHasher::new(), &mut |t| pin.push(std::sync::Arc::downgrade(t)));
             // The maps, plus what each reserved tile address keeps allocated.
             let bytes =
-                maps.bytes().saturating_add(pin.len().saturating_mul(std::mem::size_of::<photocraft_raster::Tile>() + 2 * std::mem::size_of::<usize>()));
+                maps.bytes().saturating_add(pin.len().saturating_mul(std::mem::size_of::<evophoto_raster::Tile>() + 2 * std::mem::size_of::<usize>()));
             let maps = std::sync::Arc::new(maps);
             if slot.set(FxEntry { maps: maps.clone(), _pin: pin, bytes }).is_ok() {
                 // Counted exactly once, by the build that filled the slot, and only while the

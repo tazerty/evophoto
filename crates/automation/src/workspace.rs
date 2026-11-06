@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use cap_std::ambient_authority;
 use cap_std::fs::{Dir, OpenOptions};
-use photocraft_format::atomic::RenameRetry;
+use evophoto_format::atomic::RenameRetry;
 use serde_json::Value;
 
 use crate::AutomationError;
@@ -54,10 +54,10 @@ impl AuthorizedWorkspace {
         read_to_observed_length(&mut file, metadata.len())
     }
 
-    /// Load one `.pcraft` document in directory form — the native on-disk layout — below the
+    /// Load one `.evophoto` document in directory form — the native on-disk layout — below the
     /// read root. `read` serves regular files only (the zip form), so a regular file at the
     /// path is reported as `Ok(None)` for the caller to fall back to.
-    pub fn open_pcraft(&self, path: &str) -> Result<Option<photocraft_doc::Document>, AutomationError> {
+    pub fn open_evophoto(&self, path: &str) -> Result<Option<evophoto_doc::Document>, AutomationError> {
         let relative = request_path(path, self.read.as_ref())?;
         let root = self.read.as_ref().ok_or_else(|| AutomationError::BadRequest(format!("{DENIED}: read authority is absent")))?;
         let dir = match root.dir.open_dir(&relative) {
@@ -66,18 +66,18 @@ impl AuthorizedWorkspace {
             Err(e) => return Err(file_error("read", path, e)),
         };
         let source = DirHandle { dir };
-        Ok(Some(photocraft_format::load_bytes_source(&source, &photocraft_format::LoadOptions::default())?))
+        Ok(Some(evophoto_format::load_bytes_source(&source, &evophoto_format::LoadOptions::default())?))
     }
 
     /// Create or replace one file below the configured write root, crash-safely: the bytes go to
     /// a temporary file beside the target, which is synced and renamed over it (the same steps
-    /// as [`photocraft_format::atomic_write`], through the directory capability). On failure
+    /// as [`evophoto_format::atomic_write`], through the directory capability). On failure
     /// the previous file is untouched and the temporary file is removed.
     ///
     /// Replacing a file carries its extended attributes — macOS Finder tags, Linux `user.*` —
     /// onto the file that takes its place (#7095), through the two open descriptors rather than
     /// their paths, so nothing here reaches outside the write root to finish a write. The rest
-    /// of what [`photocraft_format::atomic_write`] preserves does not follow: its permission
+    /// of what [`evophoto_format::atomic_write`] preserves does not follow: its permission
     /// step is tracked in #4963, and the Windows `ReplaceFileW` swap is path-based, which this
     /// path may not use.
     ///
@@ -89,7 +89,7 @@ impl AuthorizedWorkspace {
         let root = self.write.as_ref().ok_or_else(|| AutomationError::BadRequest(format!("{DENIED}: write authority is absent")))?;
         let leaf = relative.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let parent = relative.parent().map(Path::to_path_buf).unwrap_or_default();
-        let tmp = parent.join(photocraft_format::atomic::temp_name(&leaf));
+        let tmp = parent.join(evophoto_format::atomic::temp_name(&leaf));
         let mut options = OpenOptions::new();
         options.write(true).create_new(true);
         let written = root.dir.open_with(&tmp, &options).and_then(|file| {
@@ -101,13 +101,13 @@ impl AuthorizedWorkspace {
                 // Best effort, and only when there is a file being replaced: a save still
                 // succeeds for a document whose Finder tag could not come along.
                 if let Ok(old) = root.dir.open(&relative) {
-                    let _ = photocraft_format::atomic::meta::copy_xattrs(old.as_fd(), file.as_fd());
+                    let _ = evophoto_format::atomic::meta::copy_xattrs(old.as_fd(), file.as_fd());
                 }
             }
             // Falls back to a plain fsync on shares that refuse a full flush (#1336).
-            photocraft_format::atomic::sync_file(&file)
+            evophoto_format::atomic::sync_file(&file)
         });
-        let renamed = written.and_then(|()| photocraft_format::atomic::retry_rename(RenameRetry::platform(), || root.dir.rename(&tmp, &root.dir, &relative)));
+        let renamed = written.and_then(|()| evophoto_format::atomic::retry_rename(RenameRetry::platform(), || root.dir.rename(&tmp, &root.dir, &relative)));
         if let Err(e) = renamed {
             let _ = root.dir.remove_file(&tmp);
             return Err(file_error("write", path, e));
@@ -117,7 +117,7 @@ impl AuthorizedWorkspace {
         {
             let dir = if parent.as_os_str().is_empty() { PathBuf::from(".") } else { parent };
             if let Ok(d) = root.dir.open(&dir) {
-                let _ = photocraft_format::atomic::sync_file(&d.into_std());
+                let _ = evophoto_format::atomic::sync_file(&d.into_std());
             }
         }
         Ok(())
@@ -232,21 +232,21 @@ fn path_error(path: &str, reason: &str) -> AutomationError {
     AutomationError::BadRequest(format!("automation path rejected: {reason}: `{path}`"))
 }
 
-/// A `.pcraft` directory behind the read-root capability: bounded reads, no ambient paths.
+/// A `.evophoto` directory behind the read-root capability: bounded reads, no ambient paths.
 struct DirHandle {
     dir: Dir,
 }
 
-impl photocraft_format::ByteSource for DirHandle {
-    fn get(&self, path: &str, max: usize) -> photocraft_format::Result<Vec<u8>> {
-        let missing = || photocraft_format::FormatError::Corrupt(format!("missing `{path}`"));
+impl evophoto_format::ByteSource for DirHandle {
+    fn get(&self, path: &str, max: usize) -> evophoto_format::Result<Vec<u8>> {
+        let missing = || evophoto_format::FormatError::Corrupt(format!("missing `{path}`"));
         let mut file = self.dir.open(path).map_err(|_| missing())?;
         let metadata = file.metadata().map_err(|_| missing())?;
         if !metadata.is_file() {
             // A FIFO or device would block the open and stream without end.
-            return Err(photocraft_format::FormatError::Corrupt(format!("`{path}` is not a regular file")));
+            return Err(evophoto_format::FormatError::Corrupt(format!("`{path}` is not a regular file")));
         }
-        photocraft_format::read_entry(&mut file, metadata.len(), max, path)
+        evophoto_format::read_entry(&mut file, metadata.len(), max, path)
     }
 }
 
@@ -320,15 +320,15 @@ pub fn authorize_desktop_engine_command(id: &str, params: &Value) -> Result<(), 
     Ok(())
 }
 
-/// [`authorize_engine_command`] as the function pointer [`photocraft_engine::Session::authorize`]
+/// [`authorize_engine_command`] as the function pointer [`evophoto_engine::Session::authorize`]
 /// stores. `actions.play` calls it for every nested step.
-pub fn authorize_engine_step(id: &str, params: &Value) -> photocraft_engine::Result<()> {
-    authorize_engine_command(id, params).map_err(|e| photocraft_engine::EngineError::Other(e.to_string()))
+pub fn authorize_engine_step(id: &str, params: &Value) -> evophoto_engine::Result<()> {
+    authorize_engine_command(id, params).map_err(|e| evophoto_engine::EngineError::Other(e.to_string()))
 }
 
-/// [`authorize_desktop_engine_command`] as a [`photocraft_engine::Session::authorize`] hook.
-pub fn authorize_desktop_engine_step(id: &str, params: &Value) -> photocraft_engine::Result<()> {
-    authorize_desktop_engine_command(id, params).map_err(|e| photocraft_engine::EngineError::Other(e.to_string()))
+/// [`authorize_desktop_engine_command`] as a [`evophoto_engine::Session::authorize`] hook.
+pub fn authorize_desktop_engine_step(id: &str, params: &Value) -> evophoto_engine::Result<()> {
+    authorize_desktop_engine_command(id, params).map_err(|e| evophoto_engine::EngineError::Other(e.to_string()))
 }
 
 fn params_contain_ambient_path(id: &str, params: &Value) -> bool {
@@ -487,7 +487,7 @@ mod tests {
     use super::*;
 
     fn roots(name: &str) -> (PathBuf, PathBuf, AuthorizedWorkspace) {
-        let base = std::env::temp_dir().join(format!("photocraft-workspace-{}-{name}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("evophoto-workspace-{}-{name}", std::process::id()));
         let inside = base.join("inside");
         let outside = base.join("outside");
         let _ = std::fs::remove_dir_all(&base);
@@ -551,42 +551,42 @@ mod tests {
     }
 
     #[test]
-    fn open_pcraft_loads_a_directory_below_the_read_root() {
-        let (inside, _, workspace) = roots("pcraft-dir");
-        let doc = photocraft_doc::Document::new("Native", photocraft_doc::Size::new(16, 12), photocraft_doc::ColorMode::Rgb, photocraft_doc::SampleType::U8);
-        photocraft_format::PcraftWriter::new().save_dir(&doc, &inside.join("native.pcraft"), &photocraft_format::SaveOptions::default()).unwrap();
-        let loaded = workspace.open_pcraft("native.pcraft").unwrap().expect("the directory form loads");
+    fn open_evophoto_loads_a_directory_below_the_read_root() {
+        let (inside, _, workspace) = roots("evophoto-dir");
+        let doc = evophoto_doc::Document::new("Native", evophoto_doc::Size::new(16, 12), evophoto_doc::ColorMode::Rgb, evophoto_doc::SampleType::U8);
+        evophoto_format::EvoPhotoWriter::new().save_dir(&doc, &inside.join("native.evophoto"), &evophoto_format::SaveOptions::default()).unwrap();
+        let loaded = workspace.open_evophoto("native.evophoto").unwrap().expect("the directory form loads");
         assert_eq!(loaded.name, doc.name);
         assert_eq!((loaded.size.width, loaded.size.height), (16, 12));
     }
 
     #[test]
-    fn open_pcraft_reports_zip_files_and_missing_paths_clearly() {
-        let (inside, _, workspace) = roots("pcraft-errors");
-        let doc = photocraft_doc::Document::new("Zipped", photocraft_doc::Size::new(4, 4), photocraft_doc::ColorMode::Rgb, photocraft_doc::SampleType::U8);
-        let zip = inside.join("zipped.pcraft");
-        photocraft_format::PcraftWriter::new().save_path(&doc, &zip, &photocraft_format::SaveOptions::default()).unwrap();
+    fn open_evophoto_reports_zip_files_and_missing_paths_clearly() {
+        let (inside, _, workspace) = roots("evophoto-errors");
+        let doc = evophoto_doc::Document::new("Zipped", evophoto_doc::Size::new(4, 4), evophoto_doc::ColorMode::Rgb, evophoto_doc::SampleType::U8);
+        let zip = inside.join("zipped.evophoto");
+        evophoto_format::EvoPhotoWriter::new().save_path(&doc, &zip, &evophoto_format::SaveOptions::default()).unwrap();
         assert!(zip.is_file());
-        assert!(workspace.open_pcraft("zipped.pcraft").unwrap().is_none(), "the zip form falls back to the bytes path");
-        let error = workspace.open_pcraft("missing.pcraft").unwrap_err().to_string();
+        assert!(workspace.open_evophoto("zipped.evophoto").unwrap().is_none(), "the zip form falls back to the bytes path");
+        let error = workspace.open_evophoto("missing.evophoto").unwrap_err().to_string();
         assert!(error.contains("failed"), "a missing path propagates its io error: {error}");
-        assert!(AuthorizedWorkspace::default().open_pcraft("x.pcraft").is_err(), "no read authority fails closed");
+        assert!(AuthorizedWorkspace::default().open_evophoto("x.evophoto").is_err(), "no read authority fails closed");
     }
 
     #[cfg(unix)]
     #[test]
-    fn open_pcraft_rejects_non_regular_entries_and_escaping_symlinks() {
-        let (inside, _, workspace) = roots("pcraft-nonregular");
-        let bundle = inside.join("native.pcraft");
+    fn open_evophoto_rejects_non_regular_entries_and_escaping_symlinks() {
+        let (inside, _, workspace) = roots("evophoto-nonregular");
+        let bundle = inside.join("native.evophoto");
         std::fs::create_dir_all(bundle.join("manifest.json")).unwrap();
-        let error = workspace.open_pcraft("native.pcraft").unwrap_err().to_string();
+        let error = workspace.open_evophoto("native.evophoto").unwrap_err().to_string();
         assert!(error.contains("not a regular file"), "a directory entry is refused, not streamed: {error}");
 
-        let (inside2, _, workspace2) = roots("pcraft-symlink");
-        let bundle2 = inside2.join("native.pcraft");
+        let (inside2, _, workspace2) = roots("evophoto-symlink");
+        let bundle2 = inside2.join("native.evophoto");
         std::fs::create_dir(&bundle2).unwrap();
         std::os::unix::fs::symlink("/dev/zero", bundle2.join("manifest.json")).unwrap();
-        assert!(workspace2.open_pcraft("native.pcraft").is_err(), "an escaping symlink entry is refused");
+        assert!(workspace2.open_evophoto("native.evophoto").is_err(), "an escaping symlink entry is refused");
     }
 
     fn temp_files(dir: &Path) -> Vec<String> {
@@ -616,7 +616,7 @@ mod tests {
         #[cfg(target_os = "macos")]
         const TAG: &str = "com.apple.metadata:_kMDItemUserTags";
         #[cfg(not(target_os = "macos"))]
-        const TAG: &str = "user.photocraft.test";
+        const TAG: &str = "user.evophoto.test";
 
         let (inside, _, workspace) = roots("xattr");
         let path = inside.join("doc.psd");
@@ -796,13 +796,13 @@ mod tests {
         assert!(authorize_engine_step("file.open", &serde_json::json!({})).is_err());
         assert!(authorize_engine_step("actions.play", &serde_json::json!({})).is_ok());
         // An allowed command can't reach a denied one by running it on its own behalf.
-        let mut session = photocraft_engine::Session::new();
+        let mut session = evophoto_engine::Session::new();
         session.execute("file.new", serde_json::json!({"width": 4, "height": 4})).unwrap();
         session.authorize = Some(authorize_desktop_engine_step);
         let params = serde_json::json!({"to": "grayscale"});
         assert!(authorize_desktop_engine_command("file.automate.conditionalModeChange", &params).is_ok());
         assert!(session.execute("file.automate.conditionalModeChange", params).is_err());
-        assert_eq!(session.active().unwrap().doc.mode, photocraft_engine::doc::ColorMode::Rgb);
+        assert_eq!(session.active().unwrap().doc.mode, evophoto_engine::doc::ColorMode::Rgb);
         assert!(authorize_desktop_engine_step("file.saveACopy", &serde_json::json!({})).is_err());
     }
 
@@ -899,19 +899,19 @@ mod tests {
     #[test]
     fn registry_filesystem_path_params_are_classified() {
         let probe = serde_json::json!({
-            "path": "/outside/photocraft-probe",
-            "file": "/outside/photocraft-probe.icc",
-            "mapPath": "/outside/photocraft-probe.png",
-            "profile": "/outside/photocraft-probe.icc",
-            "workingRgb": "/outside/photocraft-probe.icc",
-            "workingCmyk": "/outside/photocraft-probe.icc",
-            "workingGray": "/outside/photocraft-probe.icc",
-            "input": "/outside/photocraft-input",
-            "output": "/outside/photocraft-output",
-            "paths": ["/outside/photocraft-probe.psd"],
+            "path": "/outside/evophoto-probe",
+            "file": "/outside/evophoto-probe.icc",
+            "mapPath": "/outside/evophoto-probe.png",
+            "profile": "/outside/evophoto-probe.icc",
+            "workingRgb": "/outside/evophoto-probe.icc",
+            "workingCmyk": "/outside/evophoto-probe.icc",
+            "workingGray": "/outside/evophoto-probe.icc",
+            "input": "/outside/evophoto-input",
+            "output": "/outside/evophoto-output",
+            "paths": ["/outside/evophoto-probe.psd"],
         });
         let preference_probe = serde_json::json!({"path": ".scriptEvents", "value": {}});
-        let unclassified: Vec<_> = photocraft_engine::command_specs()
+        let unclassified: Vec<_> = evophoto_engine::command_specs()
             .iter()
             .filter(|spec| documents_filesystem_path_params(spec.id, spec.params))
             .filter(|spec| {

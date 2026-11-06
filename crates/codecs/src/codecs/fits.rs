@@ -110,7 +110,7 @@ struct Header {
     cards: Vec<Card>,
     /// First-occurrence index of each non-HIERARCH keyword, so `get` is O(1). The card
     /// count and the number of looked-up keywords (NAXIS1..NAXISn) are both file-controlled,
-    /// so a linear scan per lookup lets a crafted header multiply commentary cards by axis
+    /// so a linear scan per lookup lets a built header multiply commentary cards by axis
     /// count into quadratic work.
     index: HashMap<String, usize>,
     /// Offset of the data unit.
@@ -758,12 +758,12 @@ mod tests {
     fn strings_with_quotes_and_hierarch_round_trip() {
         let mut w = Writer { out: Vec::new() };
         w.text("OBSERVER", "O'Brien");
-        w.text("Software", "photocraft 1.0");
+        w.text("Software", "evophoto 1.0");
         w.text("HISTORY", "stacked");
         let cards: Vec<Card> = w.out.chunks(CARD).map(parse_card).collect();
         assert_eq!(cards[0].value, Some(Value::Str("O'Brien".into())));
         assert!(cards[1].hierarch && cards[1].key == "Software");
-        assert_eq!(cards[1].value, Some(Value::Str("photocraft 1.0".into())));
+        assert_eq!(cards[1].value, Some(Value::Str("evophoto 1.0".into())));
         assert_eq!((cards[2].key.as_str(), cards[2].text.as_str()), ("HISTORY", "stacked"));
     }
 }

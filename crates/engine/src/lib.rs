@@ -1,4 +1,4 @@
-//! The PhotoCraft engine façade: open documents, history, and the command registry.
+//! The EvoPhoto engine façade: open documents, history, and the command registry.
 //!
 //! Every user-visible action is a command with a stable id (Photoshop-style, such as
 //! `layer.newAdjustmentLayer.invert`) and JSON parameters. Every frontend goes through the same
@@ -144,14 +144,14 @@ mod wia_cmds;
 
 use std::sync::Arc;
 
-use photocraft_doc::{Document, LayerId};
-use photocraft_ops::{History, LayerTarget};
+use evophoto_doc::{Document, LayerId};
+use evophoto_ops::{History, LayerTarget};
 use serde_json::Value;
 
 pub use commands::{CommandSpec, command_specs};
-pub use photocraft_doc as doc;
-pub use photocraft_paint as paint;
-pub use photocraft_paint::BrushSettings;
+pub use evophoto_doc as doc;
+pub use evophoto_paint as paint;
+pub use evophoto_paint::BrushSettings;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EngineError {
@@ -178,21 +178,21 @@ pub enum EngineError {
 
 pub type Result<T> = std::result::Result<T, EngineError>;
 
-impl From<photocraft_raster::AllocationError> for EngineError {
-    fn from(error: photocraft_raster::AllocationError) -> Self {
+impl From<evophoto_raster::AllocationError> for EngineError {
+    fn from(error: evophoto_raster::AllocationError) -> Self {
         Self::Other(format!("not enough memory for this operation ({error}); the document was not changed"))
     }
 }
 
 /// The pixels of a raster layer (typically one a command just created), as an error instead
 /// of a panic if the layer has none.
-pub(crate) fn pixels_mut(l: &mut photocraft_doc::Layer) -> Result<&mut photocraft_raster::Surface> {
+pub(crate) fn pixels_mut(l: &mut evophoto_doc::Layer) -> Result<&mut evophoto_raster::Surface> {
     let id = l.id;
     l.surface_mut().ok_or_else(|| EngineError::Other(format!("layer {id:?} has no pixels")))
 }
 
 /// The active document's active layer, for `enabled` predicates.
-pub(crate) fn active_layer_of(s: &Session) -> std::result::Result<&photocraft_doc::Layer, String> {
+pub(crate) fn active_layer_of(s: &Session) -> std::result::Result<&evophoto_doc::Layer, String> {
     let d = s.active().ok_or("no document open")?;
     d.active_layer.and_then(|id| d.doc.layer(id)).ok_or_else(|| "no active layer".into())
 }
@@ -218,11 +218,11 @@ pub struct DocState {
     pub revision: u64,
     pub saved_revision: u64,
     /// Native save cache shared with this document's workers, released with the editing state.
-    pub pcraft_cache: photocraft_io::PcraftExportCache,
+    pub evophoto_cache: evophoto_io::EvoPhotoExportCache,
     /// How much of `revision` came from view-only changes (channel eyes, targeting): pixel caches can ignore those.
     pub view_revision: u64,
     /// Area changed by the latest revision (None = assume everything changed).
-    pub last_damage: Option<photocraft_geom::Rect>,
+    pub last_damage: Option<evophoto_geom::Rect>,
     /// Coalescing key of the latest history step (see [`Session::execute`]'s `coalesce` param).
     pub coalesce: Option<String>,
     /// Channels panel: targeted channel and eye toggles (view state, not history).
@@ -242,7 +242,7 @@ pub struct DocState {
     pub floating: Option<float_cmds::Floating>,
     /// Color Sampler points (`view.colorSamplers.*`, #1046): numbered sample positions in document
     /// pixel coordinates. Per-document view state: discarded when the document closes, never saved
-    /// to `.pcraft` or PSD, and not a history step.
+    /// to `.evophoto` or PSD, and not a history step.
     pub color_samplers: Vec<[f64; 2]>,
     /// History panel snapshots, oldest first (`history.newSnapshot`, #2966). Kept for the
     /// session only, as in Photoshop: not history states, and not saved with the document.
@@ -250,7 +250,7 @@ pub struct DocState {
     /// The id the next snapshot gets; ids are never reused, so deleting one keeps the others.
     next_snapshot: u64,
     /// The snapshot set as the History Brush's source (`history.setSource {snapshot}`); `None`:
-    /// the source is a state, kept by the history ([`photocraft_ops::History::brush_source`]).
+    /// the source is a state, kept by the history ([`evophoto_ops::History::brush_source`]).
     pub(crate) source_snapshot: Option<u64>,
 }
 
@@ -283,7 +283,7 @@ impl DocState {
             source_read_only: false,
             revision: 1,
             saved_revision: 1,
-            pcraft_cache: Default::default(),
+            evophoto_cache: Default::default(),
             view_revision: 0,
             last_damage: None,
             coalesce: None,
@@ -339,17 +339,17 @@ impl DocState {
 pub struct ToolState {
     pub foreground: [f32; 4],
     pub background: [f32; 4],
-    pub brush: photocraft_paint::BrushSettings,
+    pub brush: evophoto_paint::BrushSettings,
     /// Brush presets (built-ins plus user presets; see `brush.presets.*`).
-    pub presets: Vec<photocraft_paint::BrushPreset>,
+    pub presets: Vec<evophoto_paint::BrushPreset>,
     /// Bumped whenever `presets` changes ([`Session::brush_presets_changed`]); the preset store
     /// syncs when it moves.
     pub presets_rev: u64,
     /// Mixer Brush paint carried between strokes.
-    pub mixer: photocraft_paint::mixer::MixerState,
+    pub mixer: evophoto_paint::mixer::MixerState,
     /// The coalescing key of the running `tools.setBrush` gesture and the brush before it, so the
     /// gesture journals as one call ([`brush_cmds::coalesce_journal`]).
-    pub brush_gesture: Option<(String, photocraft_paint::BrushSettings)>,
+    pub brush_gesture: Option<(String, evophoto_paint::BrushSettings)>,
     /// Name of the preset the current brush was last picked from. Kept across later edits (the
     /// preset stays "the current brush" so `brush.presets.update` can overwrite it); cleared when
     /// the brush is reset or the preset is gone.
@@ -425,11 +425,11 @@ impl Default for ToolState {
             foreground: [0.0, 0.0, 0.0, 1.0],
             background: [1.0, 1.0, 1.0, 1.0],
             // Photoshop's Brush tool starts at 10 % Smoothing.
-            brush: photocraft_paint::BrushSettings {
-                smoothing: photocraft_paint::brush::Smoothing { amount: 0.1, ..Default::default() },
+            brush: evophoto_paint::BrushSettings {
+                smoothing: evophoto_paint::brush::Smoothing { amount: 0.1, ..Default::default() },
                 ..Default::default()
             },
-            presets: photocraft_paint::presets::builtin(),
+            presets: evophoto_paint::presets::builtin(),
             presets_rev: 0,
             mixer: Default::default(),
             brush_gesture: None,
@@ -447,20 +447,20 @@ impl Default for ToolState {
 /// copies them (Paste Layer Style puts them all on each target).
 #[derive(Clone, Debug)]
 pub struct CopiedStyle {
-    pub effects: photocraft_doc::Effects,
-    pub blend: photocraft_color::BlendMode,
+    pub effects: evophoto_doc::Effects,
+    pub blend: evophoto_color::BlendMode,
     pub fill: f32,
-    pub advanced: photocraft_doc::AdvancedBlending,
-    pub blend_if: photocraft_doc::BlendIf,
+    pub advanced: evophoto_doc::AdvancedBlending,
+    pub blend_if: evophoto_doc::BlendIf,
     pub excluded_channels: u32,
     /// The colour mode it was copied in: Blend If's channel ranges and the channel restrictions
     /// only carry over to a document in the same mode.
-    pub mode: photocraft_color::ColorMode,
+    pub mode: evophoto_color::ColorMode,
 }
 
 /// The commands whose [`Session::precheck`] is complete: it accepts what `execute` does (Free
 /// Transform applies its box before these, and only when they will run), but for the group
-/// nesting limit ([`photocraft_doc::MAX_GROUP_DEPTH`]): grouping layers already that deep is
+/// nesting limit ([`evophoto_doc::MAX_GROUP_DEPTH`]): grouping layers already that deep is
 /// refused only as the edit is made. Layer via Copy and
 /// Cut aren't: whether they have anything to copy (a selection over transparent pixels, a group
 /// or fill layer) is known only when they run.
@@ -481,14 +481,14 @@ pub struct Session {
     /// ([`CopiedStyle`]: blend mode, fill opacity, Advanced Blending, Blend If, channels).
     pub style_clipboard: Option<CopiedStyle>,
     /// Shape path context menu: copied vector fill and stroke styles.
-    pub path_fill_clipboard: Option<photocraft_doc::Fill>,
-    pub path_stroke_clipboard: Option<photocraft_doc::ShapeStroke>,
+    pub path_fill_clipboard: Option<evophoto_doc::Fill>,
+    pub path_stroke_clipboard: Option<evophoto_doc::ShapeStroke>,
     /// Colour management: proofing state, monitor profile, display transforms.
     pub color: color_cmds::ColorState,
     /// Open Edit Contents documents and the smart objects they update.
     pub smart_links: Vec<smart_cmds::SmartLink>,
     /// Type › Save Default Type Styles: character and paragraph style new type layers start from.
-    pub type_defaults: Option<(photocraft_doc::text::CharStyle, photocraft_doc::text::ParagraphStyle)>,
+    pub type_defaults: Option<(evophoto_doc::text::CharStyle, evophoto_doc::text::ParagraphStyle)>,
     /// Quick Mask Options (colour, opacity, colour indicates) used when entering Quick Mask.
     pub quick_mask_options: channel_cmds::QuickMaskOptions,
     /// Colour channel the running command may change (a single colour channel is targeted).
@@ -516,7 +516,7 @@ pub struct Session {
     /// Gate for every command the session runs, including the ones a command runs on its own
     /// behalf and `actions.play` steps. Untrusted sessions (MCP, the control channel) install
     /// the same check a top-level request sees. `None` runs everything, which is what a local
-    /// UI and `photocraft-cli run` do.
+    /// UI and `evophoto-cli run` do.
     pub authorize: Option<fn(&str, &serde_json::Value) -> Result<()>>,
     /// A further route for File › Print when neither `lp` nor a CUPS server over IPP is
     /// reachable (the XDG Print portal in a Flatpak); see `print_cmds::Spooler`.
@@ -528,10 +528,10 @@ pub struct Session {
     samplers_removed: usize,
     /// The canvas-geometry map the next [`Session::edit`] applies to the Color Sampler points (crop,
     /// Canvas Size, Image Size, rotation set it just before their edit). Consumed by the edit.
-    sampler_map: Option<photocraft_geom::Affine>,
+    sampler_map: Option<evophoto_geom::Affine>,
     /// The same edit's map in edge coordinates, for the painting symmetry (Image Rotation maps the
     /// samplers' pixel centres instead). Consumed by the edit.
-    symmetry_map: Option<photocraft_geom::Affine>,
+    symmetry_map: Option<evophoto_geom::Affine>,
     /// Each open document's linked smart objects' files: size and modification time when last
     /// seen ([`link_watch`]).
     pub link_stamps: std::collections::HashMap<(u64, String), link_watch::Stamp>,
@@ -601,13 +601,13 @@ impl Session {
     /// Image Size, rotation), dropping the ones that land outside the new canvas. View state: the
     /// points stay pinned to their pixels, no history step. Cleared by the edit it is set for.
     /// The painting symmetry moves through `a` too.
-    pub(crate) fn set_sampler_map(&mut self, a: photocraft_geom::Affine) {
+    pub(crate) fn set_sampler_map(&mut self, a: evophoto_geom::Affine) {
         self.set_canvas_map(a, a);
     }
 
     /// [`set_sampler_map`](Self::set_sampler_map) for an edit whose sampler map differs from its
     /// geometry map (a flip or rotation maps pixel centres): `geometry` moves the painting symmetry.
-    pub(crate) fn set_canvas_map(&mut self, geometry: photocraft_geom::Affine, samplers: photocraft_geom::Affine) {
+    pub(crate) fn set_canvas_map(&mut self, geometry: evophoto_geom::Affine, samplers: evophoto_geom::Affine) {
         self.sampler_map = Some(samplers);
         self.symmetry_map = Some(geometry);
     }
@@ -632,7 +632,7 @@ impl Session {
     pub fn add_document(&mut self, mut doc: Document, path: Option<String>) -> usize {
         // Persisted IDs can overlap the allocator, so check every replacement too.
         while self.docs.iter().any(|st| st.doc.id == doc.id) {
-            doc.id = photocraft_doc::DocId::fresh();
+            doc.id = evophoto_doc::DocId::fresh();
         }
         let mut st = DocState::new(doc, path);
         st.history.max_states = self.prefs.get().performance.history_states.max(1) as usize;
@@ -873,7 +873,7 @@ impl Session {
             let bounds = st.doc.bounds();
             let n = st.color_samplers.len();
             st.color_samplers.retain_mut(|p| {
-                let q = a.apply(photocraft_geom::Point::new(p[0], p[1]));
+                let q = a.apply(evophoto_geom::Point::new(p[0], p[1]));
                 *p = [q.x, q.y];
                 bounds.contains(q.x.floor() as i32, q.y.floor() as i32)
             });
@@ -933,7 +933,7 @@ impl Session {
         if clean {
             st.saved_revision = st.revision;
         }
-        st.last_damage = Some(photocraft_geom::Rect::EMPTY);
+        st.last_damage = Some(evophoto_geom::Rect::EMPTY);
         Ok(())
     }
 
@@ -958,18 +958,18 @@ impl Session {
         if clean {
             st.saved_revision = st.revision;
         }
-        st.last_damage = Some(photocraft_geom::Rect::EMPTY);
+        st.last_damage = Some(evophoto_geom::Rect::EMPTY);
         Ok(())
     }
 
     /// Re-renders the pixels of type layers whose font arrived after they were drawn (the web
-    /// build fetches served fonts on demand, `photocraft_text::served`). The layers' model is
+    /// build fetches served fonts on demand, `evophoto_text::served`). The layers' model is
     /// unchanged, so this is no history step and leaves a clean document clean. Unknown documents
     /// and layers are skipped. A document a background job is computing from must not move under
     /// it: its layers are returned, to try again later.
-    pub fn refresh_type_layers(&mut self, layers: &[(photocraft_doc::DocId, LayerId)]) -> Vec<(photocraft_doc::DocId, LayerId)> {
+    pub fn refresh_type_layers(&mut self, layers: &[(evophoto_doc::DocId, LayerId)]) -> Vec<(evophoto_doc::DocId, LayerId)> {
         let mut busy = Vec::new();
-        let mut docs: Vec<photocraft_doc::DocId> = Vec::new();
+        let mut docs: Vec<evophoto_doc::DocId> = Vec::new();
         for (d, _) in layers {
             if !docs.contains(d) {
                 docs.push(*d);
@@ -986,7 +986,7 @@ impl Session {
             let mut doc = (*snapshot).clone();
             let mut changed = false;
             for (_, id) in mine {
-                if let Some(photocraft_doc::Layer { content: photocraft_doc::LayerContent::Text(t), .. }) = doc.layer_mut(*id) {
+                if let Some(evophoto_doc::Layer { content: evophoto_doc::LayerContent::Text(t), .. }) = doc.layer_mut(*id) {
                     type_cmds::refresh(&snapshot, t);
                     changed = true;
                 }
@@ -1021,7 +1021,7 @@ impl Session {
                 if clean {
                     st.saved_revision = st.revision;
                 }
-                st.last_damage = Some(photocraft_geom::Rect::EMPTY);
+                st.last_damage = Some(evophoto_geom::Rect::EMPTY);
                 true
             }
             Some((mut d, layers)) => {

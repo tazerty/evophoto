@@ -1,7 +1,7 @@
 //! The pre-#7921 Smart Blur (every neighbour read per channel through `Image::get`) stays as an
 //! exact oracle: the offset fast path must give the same bits for every mode, depth and layout.
 use super::*;
-use photocraft_color::ColorMode;
+use evophoto_color::ColorMode;
 
 #[allow(clippy::too_many_arguments)]
 fn smart_blur_oracle(src: &Image, out: Rect, ctx: &Ctx, radius: f32, threshold: f32, quality: BlurQuality, mode: SmartBlurMode) -> Vec<f32> {

@@ -12,10 +12,10 @@
 //! `?x100 thumb.gif` is exported into `<document>-assets/` whenever the document is saved while
 //! the feature is on; a `default` layer (`default 50% low/ + 200% @2x`) adds variants.
 
-use photocraft_algo::quantize::{self, Dither, Forced, PaletteKind};
-use photocraft_doc::slices::{self, ResolvedSlice, SliceKind};
-use photocraft_doc::{DocId, Document, LayerContent, LayerId};
-use photocraft_geom::Rect;
+use evophoto_algo::quantize::{self, Dither, Forced, PaletteKind};
+use evophoto_doc::slices::{self, ResolvedSlice, SliceKind};
+use evophoto_doc::{DocId, Document, LayerContent, LayerId};
+use evophoto_geom::Rect;
 use serde_json::{Value, json};
 
 use crate::commands::CommandSpec;
@@ -338,7 +338,7 @@ pub fn web_document(doc: &Document, p: &Value, st: &WebSettings) -> Result<(Docu
     let mut tmp = Session::new();
     tmp.add_document(doc.clone(), None);
     let mode = doc.mode;
-    if mode != photocraft_color::ColorMode::Rgb {
+    if mode != evophoto_color::ColorMode::Rgb {
         tmp.execute("image.mode.rgb", json!({}))?;
     }
     if st.convert_to_srgb && doc.icc_profile.is_some() {
@@ -417,8 +417,8 @@ pub fn web_exif(doc: &Document, m: WebMetadata) -> Option<&[u8]> {
 
 /// The response's warnings: EXIF that a JPEG couldn't hold (one segment, about 64 KB).
 fn web_warnings(st: &WebSettings, exif: Option<&[u8]>, dpi: f32) -> Vec<String> {
-    exif.filter(|x| st.format == WebFormat::Jpeg && !photocraft_codecs::web::jpeg_exif_fits(x, Some(dpi)))
-        .map(|x| photocraft_codecs::FidelityWarning::MetadataTooLarge { what: "EXIF", bytes: x.len() }.to_string())
+    exif.filter(|x| st.format == WebFormat::Jpeg && !evophoto_codecs::web::jpeg_exif_fits(x, Some(dpi)))
+        .map(|x| evophoto_codecs::FidelityWarning::MetadataTooLarge { what: "EXIF", bytes: x.len() }.to_string())
         .into_iter()
         .collect()
 }
@@ -452,7 +452,7 @@ pub fn optimize(
         [p[0] * p[3] + matte[0] * (1.0 - p[3]), p[1] * p[3] + matte[1] * (1.0 - p[3]), p[2] * p[3] + matte[2] * (1.0 - p[3]), 1.0]
     };
     let (ww, hh) = (w as u32, h as u32);
-    let e = |e: photocraft_codecs::CodecError| other(e);
+    let e = |e: evophoto_codecs::CodecError| other(e);
     let mut look: Vec<u8> = Vec::new();
     let mut color_table = Vec::new();
     let mut transparent_index = None;
@@ -469,16 +469,16 @@ pub fn optimize(
             if preview {
                 look = if alpha { data.clone() } else { data.as_chunks::<3>().0.iter().flat_map(|c| [c[0], c[1], c[2], 255]).collect() };
             }
-            let layout = if alpha { photocraft_codecs::ChannelLayout::Rgba } else { photocraft_codecs::ChannelLayout::Rgb };
-            let meta = photocraft_codecs::Metadata { dpi: Some((dpi, dpi)), xmp: xmp.map(str::to_string), ..Default::default() };
-            let img = photocraft_codecs::Image::from_u8(ww, hh, layout, data).map_err(e)?.with_icc(icc.map(<[u8]>::to_vec)).with_meta(meta);
-            let opts = photocraft_codecs::EncodeOptions {
+            let layout = if alpha { evophoto_codecs::ChannelLayout::Rgba } else { evophoto_codecs::ChannelLayout::Rgb };
+            let meta = evophoto_codecs::Metadata { dpi: Some((dpi, dpi)), xmp: xmp.map(str::to_string), ..Default::default() };
+            let img = evophoto_codecs::Image::from_u8(ww, hh, layout, data).map_err(e)?.with_icc(icc.map(<[u8]>::to_vec)).with_meta(meta);
+            let opts = evophoto_codecs::EncodeOptions {
                 png_interlaced: st.interlaced,
                 embed_icc: icc.is_some(),
                 embed_metadata: xmp.is_some(),
                 ..Default::default()
             };
-            (photocraft_codecs::encode(&img, photocraft_codecs::Format::Png, &opts).map_err(e)?, None)
+            (evophoto_codecs::encode(&img, evophoto_codecs::Format::Png, &opts).map_err(e)?, None)
         }
         WebFormat::Jpeg => {
             let mut rgb = Vec::with_capacity(w * h * 3);
@@ -489,12 +489,12 @@ pub fn optimize(
             // Save for Web's 0–100 quality → encoder 1–100.
             let q = st.quality.max(1);
             let bytes =
-                photocraft_codecs::web::encode_jpeg_rgb8(ww, hh, &rgb, q, st.progressive, st.optimized, icc.filter(|_| st.embed_icc), Some(dpi), exif, xmp)
+                evophoto_codecs::web::encode_jpeg_rgb8(ww, hh, &rgb, q, st.progressive, st.optimized, icc.filter(|_| st.embed_icc), Some(dpi), exif, xmp)
                     .map_err(e)?;
             if preview {
                 // The preview shows the compression artefacts.
-                look = match photocraft_codecs::decode(&bytes) {
-                    Ok(img) => img.convert(photocraft_codecs::ChannelLayout::Rgba, photocraft_codecs::SampleType::U8).data().to_vec(),
+                look = match evophoto_codecs::decode(&bytes) {
+                    Ok(img) => img.convert(evophoto_codecs::ChannelLayout::Rgba, evophoto_codecs::SampleType::U8).data().to_vec(),
                     Err(_) => rgb.as_chunks::<3>().0.iter().flat_map(|c| [c[0], c[1], c[2], 255]).collect(),
                 };
             }
@@ -517,7 +517,7 @@ pub fn optimize(
             if preview {
                 look = white.iter().flat_map(|b| if *b { [255, 255, 255, 255] } else { [0, 0, 0, 255] }).collect();
             }
-            (photocraft_codecs::web::encode_wbmp(ww, hh, &white).map_err(e)?, Some(2))
+            (evophoto_codecs::web::encode_wbmp(ww, hh, &white).map_err(e)?, Some(2))
         }
         WebFormat::Gif | WebFormat::Png8 => {
             let transparent = st.transparency && region().any(|p| p[3] < 0.5);
@@ -584,9 +584,9 @@ pub fn optimize(
             }
             let tt = t.map(|v| v as u8);
             let bytes = if st.format == WebFormat::Gif {
-                photocraft_codecs::web::encode_gif_indexed(ww, hh, &idx, &pal, tt, st.interlaced).map_err(e)?
+                evophoto_codecs::web::encode_gif_indexed(ww, hh, &idx, &pal, tt, st.interlaced).map_err(e)?
             } else {
-                photocraft_codecs::encode_png_indexed(ww, hh, &idx, &pal, tt, None, None).map_err(e)?
+                evophoto_codecs::encode_png_indexed(ww, hh, &idx, &pal, tt, None, None).map_err(e)?
             };
             if preview {
                 indices = idx;
@@ -898,7 +898,7 @@ fn save_for_web_impl(s: &mut Session, p: &Value, write: &mut dyn FnMut(&str, &[u
     let d = s.active().ok_or(EngineError::NoDocument)?;
     let doc = d.doc.clone();
     let (wdoc, sx, sy) = web_document(&doc, p, &st)?;
-    let buf = photocraft_compose::flatten(&wdoc);
+    let buf = evophoto_compose::flatten(&wdoc);
     let bw = wdoc.size.width as usize;
     let icc = wdoc.icc_profile.as_deref().map(|v| v.as_slice());
     let xmp = web_xmp(&doc, st.metadata);
@@ -912,7 +912,7 @@ fn save_for_web_impl(s: &mut Session, p: &Value, write: &mut dyn FnMut(&str, &[u
         .iter()
         .filter(|r| match (&numbers, pick) {
             (Some(n), _) => n.contains(&(r.number as u64)),
-            (None, "user") => r.origin != photocraft_doc::SliceOrigin::Auto,
+            (None, "user") => r.origin != evophoto_doc::SliceOrigin::Auto,
             _ => true,
         })
         .collect();
@@ -1006,7 +1006,7 @@ fn save_for_web_impl(s: &mut Session, p: &Value, write: &mut dyn FnMut(&str, &[u
         let grid = cells.len() > 1;
         let spacer = grid.then(|| if images.is_empty() { "spacer.gif".to_string() } else { format!("{images}/spacer.gif") });
         if let Some(sp) = &spacer {
-            let gif = photocraft_codecs::web::encode_gif_indexed(1, 1, &[0], &[[0, 0, 0]], Some(0), false).map_err(other)?;
+            let gif = evophoto_codecs::web::encode_gif_indexed(1, 1, &[0], &[[0, 0, 0]], Some(0), false).map_err(other)?;
             write(&web_derived_path(&dir, sp, native_paths)?, &gif)?;
         }
         let page = html_table(&base, wdoc.size.width, wdoc.size.height, &cells, spacer.as_deref());
@@ -1101,8 +1101,8 @@ fn quick_export(s: &mut Session, p: &Value) -> Result<Value> {
     if fmt == "exr" {
         // EXR keeps floating-point scene values. The ordinary exporter converts to linear
         // light; the web/sRGB pipeline would instead clamp HDR and negative values.
-        let opts = photocraft_io::ExportOptions { xmp: photocraft_io::XmpEmbed::None, ..Default::default() };
-        let out = photocraft_io::export(&doc, "exr", &opts).map_err(other)?;
+        let opts = evophoto_io::ExportOptions { xmp: evophoto_io::XmpEmbed::None, ..Default::default() };
+        let out = evophoto_io::export(&doc, "exr", &opts).map_err(other)?;
         write_file(&path, &out.bytes)?;
         crate::automate_cmds::fire_event(s, "export");
         return Ok(json!({"path": path, "format": fmt, "bytes": out.bytes.len(), "warnings": out.warnings}));
@@ -1147,7 +1147,7 @@ fn quick_export(s: &mut Session, p: &Value) -> Result<Value> {
     let q = Value::Object(o);
     let st = WebSettings::from_params(&q, cmd)?;
     let (wdoc, _, _) = web_document(&doc, &json!({}), &st)?;
-    let buf = photocraft_compose::flatten(&wdoc);
+    let buf = evophoto_compose::flatten(&wdoc);
     let xmp = web_xmp(&doc, st.metadata);
     let exif = web_exif(&doc, st.metadata);
     let opt = optimize(
@@ -1475,7 +1475,7 @@ pub fn generate_assets(doc: &Document, dir: &str) -> (Vec<String>, Vec<Value>) {
                     written.insert(key);
                     return Ok(reported);
                 }
-                let buf = photocraft_compose::flatten(&wdoc);
+                let buf = evophoto_compose::flatten(&wdoc);
                 let o = optimize(&buf.px, wdoc.size.width as usize, wdoc.bounds(), &st, None, None, None, wdoc.resolution_dpi, false)?;
                 let (out, reported) = asset_output_path(dir, &rel)?;
                 write_file(&out, &o.bytes)?;
@@ -1494,7 +1494,7 @@ pub fn generate_assets(doc: &Document, dir: &str) -> (Vec<String>, Vec<Value>) {
 /// `<document folder>/<document name>-assets`.
 /// Whether any pixel of `doc` is not fully transparent.
 fn has_pixels(doc: &Document) -> bool {
-    photocraft_compose::render(doc, doc.bounds()).px.iter().any(|q| q[3] > 0.0)
+    evophoto_compose::render(doc, doc.bounds()).px.iter().any(|q| q[3] > 0.0)
 }
 
 pub fn assets_dir(doc_path: &str) -> String {

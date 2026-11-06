@@ -1,5 +1,5 @@
-use photocraft_doc::LayerMask;
-use photocraft_engine::Session;
+use evophoto_doc::LayerMask;
+use evophoto_engine::Session;
 use serde_json::json;
 
 const COMMANDS: [&str; 7] = [

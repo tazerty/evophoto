@@ -469,7 +469,7 @@ pub fn parse_pattern_block_with(data: &[u8], budget: &mut PatternBudget) -> Resu
 }
 
 /// Whether `Patt` / `Pat2` / `Pat3` block data keeps a pattern's transparency in the user mask
-/// array, as PhotoCraft wrote it before #8054. Photoshop refuses such a file, so a save must
+/// array, as EvoPhoto wrote it before #8054. Photoshop refuses such a file, so a save must
 /// rewrite the block rather than keep it. Unreadable data counts as `false`.
 pub fn block_has_user_mask(data: &[u8]) -> bool {
     let mut r = Rd { b: data, p: 0 };
@@ -626,7 +626,7 @@ mod tests {
             let written: Vec<usize> = slots.iter().enumerate().filter(|(_, s)| s.1).map(|(i, _)| i).collect();
             assert_eq!((slots.len(), written), (26, vec![0, 1, 2, 25]), "{depth}-bit");
             assert!(!block_has_user_mask(&block));
-            // The layout older PhotoCraft builds wrote still opens, and is detected.
+            // The layout older EvoPhoto builds wrote still opens, and is detected.
             block[slots[24].0..end].rotate_left(4);
             let (slots, _) = vma_slots(&block, &p);
             assert!(slots[24].1 && !slots[25].1);

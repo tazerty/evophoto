@@ -5,7 +5,7 @@
 # with a single Chinese form. Other contexts disambiguate the English meaning.
 # Escapes inside columns: \n, \t, \\. Keep {name} placeholders and trailing ….
 #
-# Original translations from the meaning of PhotoCraft's English source keys,
+# Original translations from the meaning of EvoPhoto's English source keys,
 # including the current menus, panels and platform-specific shortcut templates.
 # No proprietary translation resources were consulted or extracted.
 # Licensed MIT OR Apache-2.0, as the code.
@@ -1386,7 +1386,7 @@
 	Lumbra	Lumbra
 	Lumbra Manages Colors	由 Lumbra 管理颜色
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — 用 Rust 编写的开源原生图像编辑器。
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	基于开源软件 PhotoCraft（MIT OR Apache-2.0）。
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	基于开源软件 EvoPhoto（MIT OR Apache-2.0）。
 	Pin Depth:	控制点深度：
 	Pixel Length:	像素长度：
 	Pixels/Centimeter	像素/厘米
@@ -2381,7 +2381,7 @@ cameraRaw	Blending	混合
 	Use tablet pressure to change pen width	使用绘图板压力以更改钢笔宽度
 
 
-# About ▸ Contributors / Models (credits, craftrules standards/contributors.md)
+# About ▸ Contributors / Models (credits, evorules standards/contributors.md)
 	About	关于
 	Contributors	贡献者
 	Models	模型
@@ -2884,7 +2884,7 @@ curves	Smooth	平滑
 	Sent to {printer}	已发送到 {printer}
 	set in Print Settings…	在打印设置中设置…
 	ICO is limited to 256 × 256 pixels	ICO 最大为 256 × 256 像素
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	检查更新…
 	Lumbra Updates	Lumbra 更新
 	Checking for updates…	正在检查更新…

@@ -12,7 +12,7 @@
 # Clean-room: every entry was written from the plain meaning of the English label using ordinary
 # Japanese computing vocabulary (レイヤー, ぼかし, 選択範囲 ...). No proprietary localisation
 # resource, string table or product UI was consulted or copied; add entries the same way.
-# Product and technology names (PhotoCraft, OpenType, CMYK, Lab ...) stay in Latin
+# Product and technology names (EvoPhoto, OpenType, CMYK, Lab ...) stay in Latin
 # letters; the trailing "…" of dialog commands is kept.
 
 # Layer Mask Display Options (the layer mask rubylith's colour and opacity)
@@ -1354,7 +1354,7 @@
 	Lumbra	Lumbra
 	Lumbra Manages Colors	Lumbra でカラーを管理
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — Rust で書かれた、オープンソースのネイティブ画像エディター。
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	オープンソースソフトウェア PhotoCraft（MIT OR Apache-2.0）をベースにしています。
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	オープンソースソフトウェア EvoPhoto（MIT OR Apache-2.0）をベースにしています。
 	Pin Depth:	ピンの深さ:
 	Pixel Length:	ピクセル長:
 	Pixels/Centimeter	ピクセル/センチメートル
@@ -2316,7 +2316,7 @@ cameraRaw	Color	カラー
 	Use tablet pressure to change pen width	タブレットの筆圧を使用してペンの幅を変更
 
 
-# About ▸ Contributors / Models (credits, craftrules standards/contributors.md)
+# About ▸ Contributors / Models (credits, evorules standards/contributors.md)
 	About	バージョン情報
 	Contributors	コントリビューター
 	Models	モデル
@@ -3405,7 +3405,7 @@ fontWeight	Italic	斜体
 	Mouse Controls	マウス操作
 	Mouse Coordinates	マウス座標
 	NTSC (1953)	NTSC (1953)
-	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= photocraft`.	Wayland ではネイティブのファイルのドラッグ&ドロップにまだ対応していません。ファイル › 開く を使うか、XWayland 上で `WAYLAND_DISPLAY= photocraft` として Lumbra を実行してください。
+	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= evophoto`.	Wayland ではネイティブのファイルのドラッグ&ドロップにまだ対応していません。ファイル › 開く を使うか、XWayland 上で `WAYLAND_DISPLAY= evophoto` として Lumbra を実行してください。
 	New Brush	新規ブラシ
 	New Channel	新規チャンネル
 	New Layer from Brush	ブラシから新規レイヤー
@@ -3913,7 +3913,7 @@ curves	Smooth	スムーズ
 	Reset All Locked Settings	ロックされた設定をすべて初期化
 	Copy Texture to Other Tools	テクスチャを他のツールにコピー
 	ICO is limited to 256 × 256 pixels	ICO は 256 × 256 ピクセルまでです
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	アップデートを確認…
 	Lumbra Updates	Lumbra のアップデート
 	Checking for updates…	アップデートを確認中…

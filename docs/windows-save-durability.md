@@ -1,7 +1,7 @@
 # Windows native-save durability
 
 An acknowledged overwrite must reopen as the complete new document after a Windows/NTFS
-power loss. [Issue #7858](https://github.com/storytold/photocraft/issues/7858) demonstrated
+power loss. [Issue #7858](https://github.com/tazerty/evophoto/issues/7858) demonstrated
 that flushing a temporary file before replacement did not establish this guarantee: a fresh
 Windows boot recovered the previous ZIP or directory bundle after Save returned success.
 
@@ -49,8 +49,8 @@ document, preservation of old objects, barriers on reused objects, and successfu
 Run the format tests and repository checks:
 
 ```sh
-cargo test -p photocraft-format
-cargo clippy -p photocraft-format --all-targets -- -D warnings
+cargo test -p evophoto-format
+cargo clippy -p evophoto-format --all-targets -- -D warnings
 cargo xtask layers
 cargo xtask wasm
 cargo xtask test-corpus -p io
@@ -69,8 +69,8 @@ part of the production save implementation. Archive comparisons must account for
 build's generator-version stamp while still comparing all document payloads exactly.
 
 This change addresses Windows/NTFS publication. The existing Unix flush-error policy is
-handled separately by [#5420](https://github.com/storytold/photocraft/pull/5420). Preview
+handled separately by [#5420](https://github.com/tazerty/evophoto/pull/5420). Preview
 replacement/deletion ordering on failed directory saves remains tracked by
-[#7548](https://github.com/storytold/photocraft/issues/7548) and
-[#7549](https://github.com/storytold/photocraft/issues/7549). VM tests do not establish
+[#7548](https://github.com/tazerty/evophoto/issues/7548) and
+[#7549](https://github.com/tazerty/evophoto/issues/7549). VM tests do not establish
 physical-controller or firmware-cache behavior, or guarantees on other filesystems.

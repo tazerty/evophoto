@@ -1,50 +1,50 @@
 //! The menu bar from the keyboard (#4988): Alt / F10 focus the bar, Alt+letter opens a menu,
 //! letters run rows, and the shortcuts wait while the bar has the keyboard.
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::menu_keys::Keys;
 use crate::menu_nav::{Nav, is_open};
 use egui_kittest::{Harness, kittest::Queryable};
 use serde_json::json;
 
-fn app() -> PhotocraftApp {
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+fn app() -> EvoPhotoApp {
+    let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({"width": 64, "height": 48})).unwrap();
     app.sync_views();
     app
 }
 
 /// The menu bar alone, as `menu_nav_tests` drives it.
-fn bar() -> Harness<'static, PhotocraftApp> {
+fn bar() -> Harness<'static, EvoPhotoApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1280.0, 720.0)).build_ui_state(
         |ui, app| {
             crate::menus::menu_bar(app, ui);
         },
         app(),
     );
-    PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+    EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
     h.run_steps(3);
     h
 }
 
-fn key(h: &mut Harness<'static, PhotocraftApp>, k: egui::Key) {
+fn key(h: &mut Harness<'static, EvoPhotoApp>, k: egui::Key) {
     h.key_press(k);
     h.run_steps(3);
 }
 
-fn alt_key(h: &mut Harness<'static, PhotocraftApp>, k: egui::Key) {
+fn alt_key(h: &mut Harness<'static, EvoPhotoApp>, k: egui::Key) {
     h.event_modifiers(egui::Event::Key { key: k, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::ALT }, egui::Modifiers::ALT);
     h.run_steps(3);
 }
 
 /// A tap on Alt: down, then up with nothing else pressed between.
-fn alt_tap(h: &mut Harness<'static, PhotocraftApp>) {
+fn alt_tap(h: &mut Harness<'static, EvoPhotoApp>) {
     h.key_down(egui::Key::AltLeft);
     h.run_steps(2);
     h.key_up(egui::Key::AltLeft);
     h.run_steps(3);
 }
 
-fn rows(h: &Harness<'static, PhotocraftApp>, level: usize) -> Vec<crate::menu_nav::Row> {
+fn rows(h: &Harness<'static, EvoPhotoApp>, level: usize) -> Vec<crate::menu_nav::Row> {
     Nav::current(&h.ctx).rows.get(level).cloned().unwrap_or_default()
 }
 
@@ -111,7 +111,7 @@ fn alt_with_a_wheel_scroll_or_a_lost_focus_is_no_tap() {
 /// holding Alt alone long enough to repeat is still a tap.
 #[test]
 fn a_held_alt_repeating_after_the_wheel_is_no_tap() {
-    let repeat = |h: &mut Harness<'static, PhotocraftApp>| {
+    let repeat = |h: &mut Harness<'static, EvoPhotoApp>| {
         h.event_modifiers(
             egui::Event::Key { key: egui::Key::AltLeft, physical_key: None, pressed: true, repeat: true, modifiers: egui::Modifiers::ALT },
             egui::Modifiers::ALT,
@@ -264,7 +264,7 @@ fn underlined_text_marks_the_mnemonic_once_and_keeps_the_prefix() {
 #[test]
 fn the_shortcuts_wait_while_the_keyboard_is_on_the_bar() {
     let mut h = Harness::builder().with_size(egui::vec2(1280.0, 800.0)).with_max_steps(64).build_eframe(|cc| {
-        PhotocraftApp::setup_context(&cc.egui_ctx, Default::default());
+        EvoPhotoApp::setup_context(&cc.egui_ctx, Default::default());
         let mut app = app();
         app.services.native_menu = None;
         app
@@ -318,7 +318,7 @@ fn labels_without_latin_letters_show_their_english_key() {
 #[test]
 fn a_command_shortcut_leaves_the_bar_and_runs() {
     let mut h = Harness::builder().with_size(egui::vec2(1280.0, 800.0)).with_max_steps(64).build_eframe(|cc| {
-        PhotocraftApp::setup_context(&cc.egui_ctx, Default::default());
+        EvoPhotoApp::setup_context(&cc.egui_ctx, Default::default());
         let mut app = app();
         app.services.native_menu = None;
         app
@@ -378,9 +378,9 @@ fn every_menu_row_starts_its_label_after_one_checkmark_column() {
 }
 
 /// The whole app (shortcuts, dialogs and the menu bar), for keys other handlers see first.
-fn whole_app() -> Harness<'static, PhotocraftApp> {
+fn whole_app() -> Harness<'static, EvoPhotoApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1280.0, 800.0)).with_max_steps(16).build_eframe(|cc| {
-        PhotocraftApp::setup_context(&cc.egui_ctx, Default::default());
+        EvoPhotoApp::setup_context(&cc.egui_ctx, Default::default());
         app()
     });
     h.run_steps(4);
@@ -388,18 +388,18 @@ fn whole_app() -> Harness<'static, PhotocraftApp> {
 }
 
 /// `key` pressed and released with `mods` held, as the platform reports a chord.
-fn chord(h: &mut Harness<'static, PhotocraftApp>, key: egui::Key, mods: egui::Modifiers) {
+fn chord(h: &mut Harness<'static, EvoPhotoApp>, key: egui::Key, mods: egui::Modifiers) {
     h.event_modifiers(egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: mods }, mods);
     h.event_modifiers(egui::Event::Key { key, physical_key: None, pressed: false, repeat: false, modifiers: mods }, mods);
     h.run_steps(2);
 }
 
-fn alt_down(h: &mut Harness<'static, PhotocraftApp>, mods: egui::Modifiers) {
+fn alt_down(h: &mut Harness<'static, EvoPhotoApp>, mods: egui::Modifiers) {
     h.event_modifiers(egui::Event::Key { key: egui::Key::AltLeft, physical_key: None, pressed: true, repeat: false, modifiers: mods }, mods);
     h.run_steps(2);
 }
 
-fn alt_up(h: &mut Harness<'static, PhotocraftApp>) {
+fn alt_up(h: &mut Harness<'static, EvoPhotoApp>) {
     h.event_modifiers(
         egui::Event::Key { key: egui::Key::AltLeft, physical_key: None, pressed: false, repeat: false, modifiers: egui::Modifiers::NONE },
         egui::Modifiers::NONE,
@@ -435,7 +435,7 @@ fn alt_held_through_a_shortcut_does_not_put_the_keyboard_on_the_bar() {
 fn alt_held_during_a_drag_is_no_tap() {
     let mut h = bar();
     let at = egui::pos2(640.0, 400.0);
-    let button = |h: &mut Harness<'static, PhotocraftApp>, pressed: bool, mods: egui::Modifiers| {
+    let button = |h: &mut Harness<'static, EvoPhotoApp>, pressed: bool, mods: egui::Modifiers| {
         h.event_modifiers(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: mods }, mods);
         h.run_steps(2);
     };
@@ -467,7 +467,7 @@ fn alt_held_during_a_drag_is_no_tap() {
     assert_eq!(Keys::current(&h.ctx).focus, None, "one frame");
     // Two buttons: the right one let go while the left is still down. Alt pressed then is still
     // pressed during the left-button drag.
-    let btn = |h: &mut Harness<'static, PhotocraftApp>, button: egui::PointerButton, pressed: bool| {
+    let btn = |h: &mut Harness<'static, EvoPhotoApp>, button: egui::PointerButton, pressed: bool| {
         h.event_modifiers(egui::Event::PointerButton { pos: at, button, pressed, modifiers: none }, none);
         h.run_steps(2);
     };

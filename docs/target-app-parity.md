@@ -1,8 +1,8 @@
-# PhotoCraft vs Adobe Photoshop: target-app parity
+# EvoPhoto vs Adobe Photoshop: target-app parity
 
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-22 · **Change:** minor (Help › Check for Updates and an opt-out check once per launch, DIST-220-1 partial, #5485; area type, TYPE-218-10 partial, Type scorecard 5 / 5 / 0; compound layer properties export as separate Photoshop Set events, #8304; JPEG Options dialog landed, FILE-215-19 partial; Print › Functions › Bleed through `file.print`; Content-Aware Move live preview for every selection size, TOOL-213-4 done, #6680; retouching evidence: Pattern Stamp and Background Eraser draw live, only the Mixer Brush is left of TOOL-213-7; fill and adjustment layers copy and paste whole, UI-217-23 partial, #2344; shape layers take Density and Feather, TOOL-214-12 done, #5846; on-canvas corner radius widgets, TOOL-214-12; `.atn` import maps 112 events; Free Transform H/V skew fields; stale rows corrected against `main` and the scorecard, estimates unchanged; Photoshop Actions `.atn` load and save; 2026-10-10: Tilt-Shift measurements added; earlier the same day: major, full re-measure against Photoshop 2026 27.11.0; merged `parity-estimate.md` and the roadmap's honest assessment; stale missing-tool rows corrected: Color Replacement and Red Eye are live toolbar tools, Frame landed; percentages unchanged) · **Target:** Adobe Photoshop 2026
 
-The authoritative answer to "how close is PhotoCraft to Photoshop, and how much work is left". The
+The authoritative answer to "how close is EvoPhoto to Photoshop, and how much work is left". The
 one-page summary is [`ROADMAP.md`](../ROADMAP.md); the ranked work list is [`gaps.md`](gaps.md);
 the measured checklists are [`scorecard.md`](scorecard.md) (`cargo xtask scorecard`) and
 [`parity-checklist.md`](parity-checklist.md) (`cargo xtask parity`). Detail by dimension:
@@ -10,7 +10,7 @@ the measured checklists are [`scorecard.md`](scorecard.md) (`cargo xtask scoreca
 [file formats](file-format-parity.md), [hardware](hardware-parity.md),
 [localization](localization-parity.md).
 
-## Headline (2026-10-10, PhotoCraft 0.6.0, `main` at 3e000bc1)
+## Headline (2026-10-10, EvoPhoto 0.6.0, `main` at 3e000bc1)
 
 | Number | Value | Kind |
 |---|---|---|
@@ -49,11 +49,11 @@ architecture and the PSD writer are the serial parts.
   `Locales/` language packs, `Default Keyboard Shortcuts.kys` (67 toolbox tools, 107 menu commands
   with default shortcuts), `Required/` plug-ins (85 filter entries, 12 format plug-ins), presets,
   and strings in the main binary (81 "… Tool" titles; HDR/EDR, Metal, Touch Bar, pen features).
-- PhotoCraft's own Photoshop menu tree (`crates/ui-egui/src/menu_catalog.rs`, 628 items on 2026-10-10, 631 on 2026-10-12) was
+- EvoPhoto's own Photoshop menu tree (`crates/ui-egui/src/menu_catalog.rs`, 628 items on 2026-10-10, 631 on 2026-10-12) was
   written from Photoshop's menus; it is the denominator of the menu number. Photoshop's binary
   `Default Menus.mnu` was not parsed, so items added in 27.x that the catalog lacks would not show
   (Generative and cloud items are the likely ones).
-- User reports on GitHub (`storytold/photocraft`, 579 open issues on 2026-10-10) as evidence of
+- User reports on GitHub (`tazerty/evophoto`, 579 open issues on 2026-10-10) as evidence of
   depth and feel. Adobe's documentation and release notes for behaviour not visible in the bundle.
 
 ## Feature breadth: ~76% (weighted)
@@ -90,7 +90,7 @@ Weights reflect what a working Photoshop user depends on (photographers, retouch
 ## Mainstream practitioner: ~43%
 
 The same question for the typical professional Photoshop user (photographer, retoucher,
-designer), not the whole product. Method: craftrules `standards/progress-docs.md`. Areas a
+designer), not the whole product. Method: evorules `standards/progress-docs.md`. Areas a
 professional uses weekly (the [alpha-gate](roadmap.md#alpha-gate) workflows plus their everyday
 tools), depth from the [feature areas](#feature-areas) table. Left out: AI, plug-ins and
 scripting, Libraries/cloud, video, specialist hardware (tilt, Touch Bar), languages.
@@ -180,7 +180,7 @@ parity for the area and are already contained in the dimension rows above.
 | Automation, actions, batch, scripting | 45% | 120–200 | CLI/MCP/control channel ahead of Photoshop; Actions panel and recording not document-independent (AUTO-219-1/2); `.atn` load/save since 2026-10-12 (112 events mapped, the rest kept verbatim); compound layer properties export as separate Set events with rename last (#8304, 2026-10-21; independent Photoshop replay pending); no ExtendScript/UXP |
 | File I/O | 60% | 300–500 | See [file-format-parity.md](file-format-parity.md) |
 | Print, export, Save for Web | 50% | 60–100 | JPEG Options without Matte, progressive Scans or size preview (FILE-215-19), no Photoshop PDF, no separations, Save for Web settings not remembered |
-| Video / timeline, data-driven graphics | 30% | 100–200 | Menu items live; frame model persists in `.pcraft`; no PSD video-layer mapping |
+| Video / timeline, data-driven graphics | 30% | 100–200 | Menu items live; frame model persists in `.evophoto`; no PSD video-layer mapping |
 | Workspace, panels, preferences | 40% | 150–250 | 46 of 149 prefs do nothing; no floating/OS-window panel groups; Libraries, Comments, Contextual Task Bar missing |
 | AI / generative | 10% | 300–600 | See the dimension row |
 
@@ -248,7 +248,7 @@ evidence that later numbers build on.
 
 ## Feature-parity estimate of 2026-10-03 (from the former `docs/parity-estimate.md`)
 
-How close PhotoCraft is to Adobe Photoshop 2026, and how much Opus 5.5 work remains. Generated by
+How close EvoPhoto is to Adobe Photoshop 2026, and how much Opus 5.5 work remains. Generated by
 assessment, not a tool; revisit when a major arc lands. Menu coverage is from `cargo xtask parity`;
 fidelity is from the PSD oracle (`cargo xtask corpus` / `oracle_diff`).
 
@@ -282,7 +282,7 @@ just presence.
 | Filters (incl. Filter Gallery ×47, Liquify, blurs, render) | ~88% | Gallery looks are approximations; no Neural Filters |
 | Type / text engine, character & paragraph styles, glyphs | ~90% | Vertical type laid out and rendered (#199; no mojikumi or upright-Roman option yet); OpenType alternates thin |
 | Color management (ICC v2/v4, intents, soft-proof) | ~90% | Own pure-Rust CMS; no Adobe CMYK profiles (synthetic) |
-| File I/O: PSD, native .pcraft, flats (png/jpg/tiff/webp/exr/…) | ~85% | PSD oracle ~65% pixel-exact; most structure round-trips |
+| File I/O: PSD, native .evophoto, flats (png/jpg/tiff/webp/exr/…) | ~85% | PSD oracle ~65% pixel-exact; most structure round-trips |
 | Transform, warp, puppet, perspective, liquify | ~88% | No Face-Aware Liquify (needs a landmark model) |
 | Automation: CLI, MCP, headless server, control channel | ~95% | Ahead of Photoshop here (see below) |
 | Image modes (RGB/Gray/CMYK/Lab/Indexed/Duotone/Multichannel) | ~85% | Multichannel display-only; no ink-plate model |
@@ -325,7 +325,7 @@ in a handful of wall-clock hours using 8 parallel agents, so wall-clock ≈ agen
   caveat that pixel-for-pixel Firefly/Sensei parity is not achievable clean-room without trained
   models; we target functional equivalents.
 
-**Best single number:** PhotoCraft is **~82% of the way** to full Photoshop parity, and reaching a
+**Best single number:** EvoPhoto is **~82% of the way** to full Photoshop parity, and reaching a
 **95%, ships-for-most-users** state is roughly **25–40 wall-clock hours** of parallel Opus 5.5 work.
 Closing the last 5% (video + AI) is the long, uncertain tail.
 
@@ -438,10 +438,10 @@ filled bar. This extends UI reachability and does not claim Photoshop-authored s
 |---|---|---|---|
 | Menu wiring | 626/626 menu items dispatch a command (`parity-checklist.md`) | high but shallow | Says nothing about behaviour. |
 | PSD fidelity (rendering) | Corpus oracle 115/170 (68%): 30 differ, 26 have no usable reference, 1 import error. 2026-10-07: io corpus 146/170, psd-tools corpus 236/309 (was 229: Advanced Blending knockouts), Photoshop oracles 132/258 | medium | Push to 170/170 under way (effects/strokes, multi-instance effects, 16/32-bit and colour modes, references for skipped files). |
-| PSD round trip | 169/169 re-import identically; every adjustment layer and blend mode round-trips | high (within corpus) | Floors in `crates/io/tests/it/corpus.rs`; raise, never lower. Corpora: `cargo xtask corpus --all` (ours: https://github.com/storytold/photocraft-corpus). |
+| PSD round trip | 169/169 re-import identically; every adjustment layer and blend mode round-trips | high (within corpus) | Floors in `crates/io/tests/it/corpus.rs`; raise, never lower. Corpora: `cargo xtask corpus --all` (ours: https://github.com/tazerty/evophoto-corpus). |
 | OpenRaster read/write | 2026-10-09: 34 Krita 5.2.9-authored `.ora` files (27 blend modes, groups, pass-through, offsets, opacity, visibility, masks, 16-bit, gray) render within 3/255 of Krita's merged image (30) or differ for known reasons (4: Krita's lighter/darker-colour tie-break, Hard Mix at exactly 1, a linear-light 16-bit document); Krita re-opens our exports and renders them identically to its originals (33/34; Soft Light is written as `svg:soft-light`) | medium (one authoring app) | MyPaint and GIMP files untested. Masks are applied to pixels and layer styles dropped on save (reported). See [OpenRaster](ora.md). |
-| Paint.NET import | 2026-10-09: 14/14 local PDN3 textures preserve editable layers exactly through `.pcraft` and render within 2.142/255 of full-size previews; a supplied 5.x document (1280×720, 11 layers) passes editing/history/native saves and matches its thumbnail within 0.418/255 mean; all 14 blend modes exercised synthetically | medium (limited corpus) | Import only; metadata omitted. More current-version files and full-size exports needed. See [PDN support](pdn.md). |
-| Smart filters / text / effect shapes in PSDs | Measured on our Photoshop-authored set (https://github.com/storytold/photocraft-corpus, `corpus/photoshop`, 258 files): see the per-group floors in `crates/io/tests/it/corpus.rs` and `crates/engine/tests/it/photoshop_oracles.rs`. Smart objects and smart filters now survive PSD save and open (41 corpus files, 206 smart objects, round trip strict; Photoshop opens our exports with live filters); re-rendering Photoshop's smart filters with ours matches 5/30 (was 1/30) | low–medium | Remaining re-render gaps are filter maths (Gaussian/Motion Blur, Unsharp Mask, Emboss, Add Noise RNG) and bicubic placement. |
+| Paint.NET import | 2026-10-09: 14/14 local PDN3 textures preserve editable layers exactly through `.evophoto` and render within 2.142/255 of full-size previews; a supplied 5.x document (1280×720, 11 layers) passes editing/history/native saves and matches its thumbnail within 0.418/255 mean; all 14 blend modes exercised synthetically | medium (limited corpus) | Import only; metadata omitted. More current-version files and full-size exports needed. See [PDN support](pdn.md). |
+| Smart filters / text / effect shapes in PSDs | Measured on our Photoshop-authored set (https://github.com/tazerty/evophoto-corpus, `corpus/photoshop`, 258 files): see the per-group floors in `crates/io/tests/it/corpus.rs` and `crates/engine/tests/it/photoshop_oracles.rs`. Smart objects and smart filters now survive PSD save and open (41 corpus files, 206 smart objects, round trip strict; Photoshop opens our exports with live filters); re-rendering Photoshop's smart filters with ours matches 5/30 (was 1/30) | low–medium | Remaining re-render gaps are filter maths (Gaussian/Motion Blur, Unsharp Mask, Emboss, Add Noise RNG) and bicubic placement. |
 | Core editing (layers, masks, selections, adjustments, filters, transforms) | Broad engine coverage; many interaction bugs fixed after 0.2.0 (adjustment dialogs, Curves, crop, Move/Transform modifiers, gesture origin) | medium | Fixes not yet user-validated. |
 | UI / UX polish | Shortcut audit 214 → 0 failures; dock, Layers rows and menus reworked; first visual-QA sweep found 14 defects (#147–#157). 2026-10-07: the keyboard-only shortcuts with no menu item (⌥[ ⌥] ⌥, ⌥. layer navigation, ⇧⌥[ ⇧⌥] to extend the selection, 1–0 for opacity and ⇧ for flow or fill, ⇧[ ⇧] hardness, ⌥⌘T to transform a copy and ⌥⇧⌘T to step and repeat), ⌥-click colour sampling with painting tools, double-click a Layers row for Layer Style, File › New from Clipboard, a centred main window and remembered Liquify settings (#352, #417, #350, #368, #419, #418). 2026-10-09: canvas zoom is physical at any display scale — 100% is one document pixel per physical display pixel, and every screen-space overlay, cursor, scrollbar, navigator and fit follows it (#1943) | low–medium | Needs recurring visual QA with realistic documents. |
 | Tools | 2026-10-10: Pencil, Mixer Brush, Color Replacement, Patch, Content-Aware Move, Vertical Type, Pattern Stamp and Rotate View are toolbar tools. The only tool still missing is Art History Brush: Frame landed (#2914), Red Eye is a live toolbar tool (`paint.redEye`, TOOL-213-17) and Perspective Crop landed (2026-10-10, #1043, `image.perspectiveCrop`) | low–medium | Patch has a live healing preview. Content-Aware Move is done (`TOOL-213-4`): Move/Extend, Structure/Color, Sample All Layers, Transform On Drop, and a live result preview for every selection the command takes (coarse first for large ones, then exact; 2026-10-16, #6680). Magic/Background Eraser added; live gradients in progress (#180). Magnetic Lasso added 2026-10-08 (live-wire edge tracing, Width/Contrast/Frequency, `select.magneticLasso`). Pattern Stamp added 2026-10-08 (S flyout, `paint.patternStamp`, Aligned / Impressionist). Rotate View (2026-10-09) turns the canvas camera around its centre without rewriting pixels; Reset View and Match Rotation copy the angle. Crop rotation (2026-10-09, #1792): dragging outside the crop frame turns it (⇧ 15° steps, angle readout), and ↵ rotates the document and crops in one undo step (`image.crop` `angle`); the frame turns over the image as in Photoshop's Classic Mode, and the options-bar Straighten is still missing. |
@@ -457,7 +457,7 @@ filled bar. This extends UI reachability and does not claim Photoshop-authored s
 | Localisation | 2026-10-07: 10 UI languages; menu, `tl!`, blend mode, preference and brush-section coverage enforced by tests; live switching and scoped Preferences previews | medium | Engine errors/status messages still partly English; CJK web fonts, browser-locale detection, and RTL remain open. |
 
 2026-10-08: Motion Blur adds adaptive FFT convolution for wide streaks while retaining the
-row kernel merged in [#902](https://github.com/storytold/photocraft/pull/902) for shorter
+row kernel merged in [#902](https://github.com/tazerty/evophoto/pull/902) for shorter
 streaks and unsupported cases. Native release medians of three paired runs on an Intel
 i7-9750H with 12 Rayon workers, synthetic RGBA8 at 30° / distance 1000: 24 MP
 22.594 → 9.785 s (2.31×), and 1.5 MP
@@ -512,7 +512,7 @@ parametric and four point curves, HSL, Color Grading, sharpening/noise detail, g
 post-crop vignette controls. Two revisions of one supplied Photoshop ACR 18.4 PSD preserve their
 filter descriptors without edits. The updated revision stays opaque because of active manual
 Optics and unverified vignette style; a descriptor projection verifies its supported controls.
-Synthetic 8/16/32-bit PSD → edit → `.pcraft` → PSD tests preserve the filter stack, mask and
+Synthetic 8/16/32-bit PSD → edit → `.evophoto` → PSD tests preserve the filter stack, mask and
 undo/redo. Unmapped Camera Raw fields/versions remain opaque; Photoshop
 acceptance of generated exports and pixel parity are still unverified. Corpus floors above are
 unchanged.
@@ -546,7 +546,7 @@ See [method, raw measurements and reproduction](five-algorithm-performance.md).
 
 1. **Ship the fixes:** cut 0.2.1 once the current batch lands, so users validate them.
 2. **PSD fidelity to 170/170** with round trips, plus the Photoshop-authored reference set for smart
-   filters, the text engine and effect shapes (https://github.com/storytold/photocraft-corpus, fetched by
+   filters, the text engine and effect shapes (https://github.com/tazerty/evophoto-corpus, fetched by
    `cargo xtask corpus --all`); enforce floors in `corpus.rs`.
 3. **Workflow acceptance tests:** 30–50 real tasks (retouch a portrait, social post with text and
    effects, composite with masks and adjustment layers, CMYK print prep…) scripted end to end and
@@ -556,7 +556,7 @@ See [method, raw measurements and reproduction](five-algorithm-performance.md).
    Content-Aware Move's Transform On Drop and live result preview are done (2026-10-16).
    Pencil, Mixer Brush, Patch, Vertical Type, Pattern Stamp and Rotate View are already available on the toolbar.
 5. **Complex-document performance** (#125/#128) and GPU tiling beyond the texture limit (#49).
-6. **Recurring visual QA** (`cargo run -p photocraft-engine --example designer_psd`) and fast
+6. **Recurring visual QA** (`cargo run -p evophoto-engine --example designer_psd`) and fast
    turnaround on user reports (OS, document size, layer count, screenshot).
 7. Later / needs decisions: generative AI backend (#41), scripting compatibility (ExtendScript /
    UXP / .atn), Flathub (#173), Wayland pen pressure (#79).
@@ -570,7 +570,7 @@ See [method, raw measurements and reproduction](five-algorithm-performance.md).
 | 2026-10-19 | minor | JPEG Options dialog landed (FILE-215-19 partial: no Matte, progressive Scans or size preview); percentages unchanged |
 | 2026-10-18 | minor | Layers: with no selection, Copy takes fill and adjustment layers whole and Paste recreates them (#2344); UI-217-23 stays partial; percentages unchanged |
 | 2026-10-16 | minor | Content-Aware Move: live result preview for every selection the command takes (TOOL-213-4 done, #6680); percentages unchanged |
-| 2026-10-15 | minor | Vector shapes: shape layers take Density and Feather (Properties › Masks), PSD and .pcraft round trip; TOOL-214-12 done (#5846); estimates unchanged |
+| 2026-10-15 | minor | Vector shapes: shape layers take Density and Feather (Properties › Masks), PSD and .evophoto round trip; TOOL-214-12 done (#5846); estimates unchanged |
 | 2026-10-15 | minor | Type: area type, text wrapping inside a closed path or shape with holes and dents (TYPE-218-10, partial: PSD saves it as paragraph text); Type scorecard 5 done / 4 partial / 1 missing; Type figure (40%) and percentages unchanged |
 | 2026-10-15 | minor | Print: Functions › Bleed (`file.print` / `file.printOneCopy` `bleed`, corner crop marks on the trim line, PDF and Windows paths); the Print dialog field is still missing; percentages unchanged |
 | 2026-10-13 | minor | Vector shapes: on-canvas corner radius widgets on live rectangles (TOOL-214-12); estimates unchanged |

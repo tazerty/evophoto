@@ -1,7 +1,7 @@
 use super::*;
 use crate::{FilterParams, apply_tiled};
-use photocraft_color::{ColorMode, PixelFormat, SampleType};
-use photocraft_raster::Surface;
+use evophoto_color::{ColorMode, PixelFormat, SampleType};
+use evophoto_raster::Surface;
 
 fn image(rect: Rect, n: usize, kind: usize) -> Image {
     let mut img = Image::new(rect, n);
@@ -33,7 +33,7 @@ fn swept_blocks_match_the_pixel_search() {
     // count and whether the samples are CMYK ink, so modes that agree on both repeat those cases.
     // A run takes a quarter of the rest, a different quarter each day.
     let mut seen = std::collections::HashSet::new();
-    let sweep = photocraft_testkit::Sweep::new(4);
+    let sweep = evophoto_testkit::Sweep::new(4);
     let mut case = 0;
     for mode in MODELS {
         for alpha in [false, true] {

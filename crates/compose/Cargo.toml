@@ -1,5 +1,5 @@
 [package]
-name = "photocraft-compose"
+name = "evophoto-compose"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,11 +8,11 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-photocraft-geom = { workspace = true }
-photocraft-color = { workspace = true }
-photocraft-raster = { workspace = true }
-photocraft-doc = { workspace = true }
-photocraft-vector = { workspace = true }
+evophoto-geom = { workspace = true }
+evophoto-color = { workspace = true }
+evophoto-raster = { workspace = true }
+evophoto-doc = { workspace = true }
+evophoto-vector = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rayon = { workspace = true }
@@ -20,8 +20,8 @@ rayon = { workspace = true }
 [dev-dependencies]
 proptest = { workspace = true }
 criterion = { workspace = true }
-photocraft-paint = { workspace = true }
-photocraft-cms = { workspace = true }
+evophoto-paint = { workspace = true }
+evophoto-cms = { workspace = true }
 
 [[bench]]
 name = "compose"

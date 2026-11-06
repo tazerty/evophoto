@@ -92,14 +92,14 @@ const NO_RETRY: RenameRetry = RenameRetry { attempts: 0, first_delay_ms: 0 };
 #[test]
 fn a_failed_publication_flush_is_reported_and_can_be_retried() {
     let d = TempDir::new("publication-flush");
-    let p = d.0.join("document.pcraft");
+    let p = d.0.join("document.evophoto");
     std::fs::write(&p, ORIGINAL).unwrap();
     let fs = Faulty { fail_sync_dir: Some(Err(io::ErrorKind::Other)), ..Default::default() };
 
     let error = atomic_write_with(&fs, NO_RETRY, &p, b"new document").unwrap_err();
     assert_eq!(fs.synced.get(), 1, "{error}");
     assert_eq!(error.kind(), io::ErrorKind::Other);
-    assert!(error.to_string().contains("document.pcraft"), "{error}");
+    assert!(error.to_string().contains("document.evophoto"), "{error}");
     assert!(error.to_string().contains("may not survive"), "{error}");
     assert!(!error.to_string().contains(UNCHANGED), "the replacement already happened: {error}");
     assert_eq!(std::fs::read(&p).unwrap(), b"new document");
@@ -453,13 +453,13 @@ fn sync_file_flushes_a_local_file() {
 #[test]
 fn a_failed_directory_flush_is_reported_not_swallowed() {
     let d = TempDir::new("syncdir");
-    let p = d.0.join("doc.pcraft");
+    let p = d.0.join("doc.evophoto");
     std::fs::write(&p, ORIGINAL).unwrap();
     let fs = Faulty { fail_sync_dir: Some(Err(io::ErrorKind::Other)), ..Default::default() };
     let e = atomic_write_with(&fs, NO_RETRY, &p, b"new").unwrap_err();
     assert_eq!(e.kind(), io::ErrorKind::Other);
     let msg = e.to_string();
-    assert!(msg.contains("doc.pcraft") && msg.contains("may not survive"), "{msg}");
+    assert!(msg.contains("doc.evophoto") && msg.contains("may not survive"), "{msg}");
     assert_eq!(std::fs::read(&p).unwrap(), b"new", "published: the new bytes are in place");
     assert_no_temp(&d.0);
 }
@@ -471,7 +471,7 @@ fn a_failed_directory_flush_is_reported_not_swallowed() {
 #[test]
 fn a_directory_flush_the_file_system_cannot_do_still_saves() {
     let d = TempDir::new("syncdir-unsupported");
-    let p = d.0.join("doc.pcraft");
+    let p = d.0.join("doc.evophoto");
     let fs = Faulty { fail_sync_dir: Some(Err(io::ErrorKind::Unsupported)), ..Default::default() };
     atomic_write_with(&fs, NO_RETRY, &p, b"new").unwrap();
     assert_eq!(std::fs::read(&p).unwrap(), b"new");

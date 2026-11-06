@@ -477,10 +477,10 @@ pub struct Panels {
     /// (#6760). Only a view of the moment: not saved, and the panels' own flags stay untouched.
     #[serde(skip)]
     pub full_screen_chrome: bool,
-    /// The right dock's icon rail. An app that embeds PhotoCraft's UI can hide it for a simpler view.
+    /// The right dock's icon rail. An app that embeds EvoPhoto's UI can hide it for a simpler view.
     #[serde(default = "yes")]
     pub rail: bool,
-    /// The title bar with the in-window menus. An app that embeds PhotoCraft's UI and draws its own
+    /// The title bar with the in-window menus. An app that embeds EvoPhoto's UI and draws its own
     /// bar can hide it; the caption buttons of a custom title bar go with it.
     #[serde(default = "yes")]
     pub menu_bar: bool,
@@ -541,7 +541,7 @@ pub enum DialogKind {
 pub struct View {
     /// Screen (device) pixels per document pixel: the user-facing zoom (`100%` is `1.0`).
     /// Canvas geometry works in egui points and divides by `ctx.pixels_per_point`
-    /// (`PhotocraftApp::point_zoom`), so neither the display scale nor Interface › UI Scale
+    /// (`EvoPhotoApp::point_zoom`), so neither the display scale nor Interface › UI Scale
     /// magnifies the image (#1943, #2121).
     pub zoom: f32,
     /// Document-space point shown at the canvas centre.
@@ -647,7 +647,7 @@ pub struct ToolOptions {
     /// true = "Classic gradient" (paints the pixels).
     pub gradient_classic: bool,
     /// Blend mode used by both live and classic gradient drags.
-    pub gradient_blend_mode: photocraft_color::BlendMode,
+    pub gradient_blend_mode: evophoto_color::BlendMode,
     pub fill_opacity: f32,
     /// Paint Bucket fill source: false = Foreground colour, true = Pattern (Patterns panel selection).
     pub bucket_fill_pattern: bool,
@@ -729,7 +729,7 @@ pub struct ToolOptions {
     pub marquee_width: f32,
     #[serde(default = "one")]
     pub marquee_height: f32,
-    /// The unit Fixed Size's Width and Height show (a [`photocraft_engine::prefs::Unit`] name,
+    /// The unit Fixed Size's Width and Height show (a [`evophoto_engine::prefs::Unit`] name,
     /// picked by right-clicking them); the size itself stays in pixels (#7910).
     #[serde(default = "default_marquee_unit")]
     pub marquee_unit: String,
@@ -837,7 +837,7 @@ pub struct ToolOptions {
     #[serde(default = "fifty")]
     pub red_eye_darken: f32,
     /// Eyedropper › Sample Size: 1 = Point Sample, else the side of the averaged square (3, 5,
-    /// 11, 31, 51, 101; `photocraft_engine::sample_cmds::SAMPLE_SIZES`). Shared, as in Photoshop,
+    /// 11, 31, 51, 101; `evophoto_engine::sample_cmds::SAMPLE_SIZES`). Shared, as in Photoshop,
     /// with the ⌥-click eyedropper of the painting tools, the dialog eyedroppers and the Info panel.
     #[serde(default = "one_u32")]
     pub eyedropper_size: u32,
@@ -891,8 +891,8 @@ fn default_brush_tool() -> Tool {
     Tool::Brush
 }
 
-fn default_layer_filter_mode() -> photocraft_color::BlendMode {
-    photocraft_color::BlendMode::Normal
+fn default_layer_filter_mode() -> evophoto_color::BlendMode {
+    evophoto_color::BlendMode::Normal
 }
 
 fn one_u32() -> u32 {
@@ -965,7 +965,7 @@ impl Default for ToolOptions {
             gradient_reverse: false,
             gradient_dither: true,
             gradient_classic: false,
-            gradient_blend_mode: photocraft_color::BlendMode::Normal,
+            gradient_blend_mode: evophoto_color::BlendMode::Normal,
             fill_opacity: 100.0,
             bucket_fill_pattern: false,
             type_font: "Inter".into(),
@@ -1104,7 +1104,7 @@ pub struct TransformSession {
     pub interpolation: String,
     /// Warp mode (Edit › Transform › Warp): the warp being edited over `rect`, in document px.
     #[serde(default)]
-    pub warp: Option<photocraft_geom::warp::Warp>,
+    pub warp: Option<evophoto_geom::warp::Warp>,
     /// Select › Transform Selection: the box transforms the selection outline, not pixels.
     #[serde(default)]
     pub selection: bool,
@@ -1170,14 +1170,14 @@ pub enum MadeLayer {
 pub struct BoxResize {
     pub handle: u8,
     pub shape: [f32; 4],
-    pub aff: photocraft_geom::Affine,
+    pub aff: evophoto_geom::Affine,
 }
 
 /// In-progress inline type editing (Type tool). Offsets are character indices.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TextEdit {
     pub layer: u64,
-    /// Id of the document being edited (layer ids can repeat across documents, e.g. one .pcraft
+    /// Id of the document being edited (layer ids can repeat across documents, e.g. one .evophoto
     /// opened twice). `None`: the active document.
     #[serde(default)]
     pub document: Option<u64>,
@@ -1206,7 +1206,7 @@ pub struct TextEdit {
 pub struct TypeTransform {
     pub document: u64,
     pub revision: u64,
-    pub original: photocraft_geom::Affine,
+    pub original: evophoto_geom::Affine,
     pub frame: TransformSession,
     pub(crate) gesture: crate::transform_tool::Gesture,
 }
@@ -1457,13 +1457,13 @@ pub struct UiState {
     #[serde(default = "default_brush_tool")]
     pub brush_tool: Tool,
     #[serde(default)]
-    pub tool_brushes: Vec<(Tool, photocraft_engine::paint::BrushSettings)>,
+    pub tool_brushes: Vec<(Tool, evophoto_engine::paint::BrushSettings)>,
     /// Pen path under construction.
     #[serde(default)]
     pub pen: Option<crate::vector_ui::PenPath>,
     /// The document the pen path is drawn on; switching away commits it to that Work Path.
     #[serde(default)]
-    pub pen_doc: Option<photocraft_doc::DocId>,
+    pub pen_doc: Option<evophoto_doc::DocId>,
     #[serde(default)]
     pub stroke_editor: Option<crate::shape_stroke_ui::StrokeEditor>,
     /// Direct Selection tool: selected anchors and the drag in progress (#790).
@@ -1492,7 +1492,7 @@ pub struct UiState {
     pub layer_filter_name: String,
     /// Layers panel blend-mode filter.
     #[serde(default = "default_layer_filter_mode")]
-    pub layer_filter_mode: photocraft_color::BlendMode,
+    pub layer_filter_mode: evophoto_color::BlendMode,
     /// Actions panel: which row is selected and which are expanded. The list lives on the session.
     #[serde(default)]
     pub actions: crate::actions::ActionsUi,
@@ -1540,9 +1540,9 @@ pub struct UiState {
     pub dock: crate::dock::DockLayout,
     /// Authoritative custom panel membership and placement; legacy fields are compatibility projections.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub docking: Option<craft_ui::docking::Layout<String>>,
+    pub docking: Option<evo_ui::docking::Layout<String>>,
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
-    pub docking_hidden: std::collections::BTreeMap<String, craft_ui::docking::Location<String>>,
+    pub docking_hidden: std::collections::BTreeMap<String, evo_ui::docking::Location<String>>,
     /// Invalidates in-flight gestures when a workspace is replaced.
     #[serde(skip)]
     pub docking_generation: u64,
@@ -1578,7 +1578,7 @@ pub struct UiState {
     /// The document the polygon is drawn on (set at its first click): another document becoming
     /// active drops it (`canvas::polygon_cancel_stale`).
     #[serde(default)]
-    pub polygon_doc: Option<photocraft_doc::DocId>,
+    pub polygon_doc: Option<evophoto_doc::DocId>,
     /// Magnetic Lasso border in progress (`magnetic_lasso_ui`).
     #[serde(default)]
     pub magnetic: crate::magnetic_lasso_ui::MagneticLasso,

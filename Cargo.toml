@@ -1,7 +1,8 @@
 [workspace]
+exclude = ["vendor/evo-libs", "vendor/winprint"]
 resolver = "3"
 members = ["crates/*", "apps/*", "xtask"]
-default-members = ["crates/*", "apps/photocraft", "apps/photocraft-cli", "xtask"]
+default-members = ["crates/*", "apps/evophoto", "apps/evophoto-cli", "xtask"]
 
 [workspace.package]
 version = "0.16.0"
@@ -10,38 +11,38 @@ license = "MIT OR Apache-2.0"
 rust-version = "1.95"
 
 [workspace.dependencies]
-craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "5c874d51eeb3de70e735c8ce87a59a7dedd47675", features = ["serde"] }
+evo-ui = { path = "vendor/evo-libs/evo-ui", features = ["serde"] }
 # internal
-photocraft-geom = { path = "crates/geom" }
-photocraft-color = { path = "crates/color" }
-photocraft-cms = { path = "crates/cms" }
-photocraft-raster = { path = "crates/raster" }
-photocraft-doc = { path = "crates/doc" }
-photocraft-ops = { path = "crates/ops" }
-photocraft-psd = { path = "crates/psd" }
-photocraft-codecs = { path = "crates/codecs" }
-photocraft-raw = { path = "crates/raw" }
-photocraft-affinity = { path = "crates/affinity" }
-photocraft-compose = { path = "crates/compose" }
-photocraft-gpu = { path = "crates/gpu" }
-photocraft-paint = { path = "crates/paint" }
-photocraft-algo = { path = "crates/algo" }
-photocraft-io = { path = "crates/io" }
-photocraft-text = { path = "crates/text" }
-photocraft-vector = { path = "crates/vector" }
-photocraft-format = { path = "crates/format" }
-photocraft-automation = { path = "crates/automation" }
-photocraft-plugins = { path = "crates/plugins" }
-photocraft-engine = { path = "crates/engine" }
-photocraft-ui-egui = { path = "crates/ui-egui" }
-photocraft-testkit = { path = "crates/testkit" }
-photocraft-tablet = { path = "crates/tablet" }
-photocraft-ipp = { path = "crates/ipp" }
+evophoto-geom = { path = "crates/geom" }
+evophoto-color = { path = "crates/color" }
+evophoto-cms = { path = "crates/cms" }
+evophoto-raster = { path = "crates/raster" }
+evophoto-doc = { path = "crates/doc" }
+evophoto-ops = { path = "crates/ops" }
+evophoto-psd = { path = "crates/psd" }
+evophoto-codecs = { path = "crates/codecs" }
+evophoto-raw = { path = "crates/raw" }
+evophoto-affinity = { path = "crates/affinity" }
+evophoto-compose = { path = "crates/compose" }
+evophoto-gpu = { path = "crates/gpu" }
+evophoto-paint = { path = "crates/paint" }
+evophoto-algo = { path = "crates/algo" }
+evophoto-io = { path = "crates/io" }
+evophoto-text = { path = "crates/text" }
+evophoto-vector = { path = "crates/vector" }
+evophoto-format = { path = "crates/format" }
+evophoto-automation = { path = "crates/automation" }
+evophoto-plugins = { path = "crates/plugins" }
+evophoto-engine = { path = "crates/engine" }
+evophoto-ui-egui = { path = "crates/ui-egui" }
+evophoto-testkit = { path = "crates/testkit" }
+evophoto-tablet = { path = "crates/tablet" }
+evophoto-ipp = { path = "crates/ipp" }
 
 # external
-craft-print = { git = "https://github.com/storytold/craft-libs", rev = "3d37da389a3618ab9b76109da11416e9ca4ea719" }
-craft-docpath = { version = "0.1.0", git = "https://github.com/storytold/craft-libs", rev = "82a24b006eefa036b43c09a67fb9a3fbd17ffe63" }
-craft-jpeg = { git = "https://github.com/storytold/craft-libs", rev = "6e7f28518dd1cb57e1624bdc269c3c14316b13ae" }
+evo-print = { path = "vendor/evo-libs/evo-print" }
+evo-docpath = { path = "vendor/evo-libs/evo-docpath" }
+evo-jpeg = { path = "vendor/evo-libs/evo-jpeg" }
 thiserror = "2"
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
@@ -95,16 +96,16 @@ debug = "line-tables-only"
 # tests run no heavier pixel code of their own (that lives in the crates that stay optimized).
 # Measured on CI: Windows build 18.9 -> 15.4 min, test run 10.0 -> 10.5. `cargo run` and
 # `cargo build` use the dev profile and are unaffected.
-[profile.test.package.photocraft-ui-egui]
+[profile.test.package.evophoto-ui-egui]
 opt-level = 0
 
 [profile.release]
 lto = "thin"
 codegen-units = 1
 
-# The browser build (apps/photocraft-web, `data-cargo-profile` in its index.html). Hosts cap the
+# The browser build (apps/evophoto-web, `data-cargo-profile` in its index.html). Hosts cap the
 # size of a single file (Cloudflare Pages/Workers: 25 MiB), and the wasm is downloaded on every
-# visit, so this profile optimizes for size: fat LTO, opt-level "z" for PhotoCraft's own crates,
+# visit, so this profile optimizes for size: fat LTO, opt-level "z" for EvoPhoto's own crates,
 # "s" for dependencies and for the crates that decode files, and 3 for pixel processing (filters
 # and compositing). Dependencies stay at "s": at "z" the whole wasm grows (by 0.4 MB, measured).
 # panic stays the target default (wasm32-unknown-unknown aborts; AGENTS.md's `panic = "unwind"`
@@ -120,25 +121,25 @@ strip = "debuginfo"
 opt-level = "s"
 
 # Decoding and rasterizing keep their speed.
-[profile.wasm-release.package.photocraft-codecs]
+[profile.wasm-release.package.evophoto-codecs]
 opt-level = "s"
-[profile.wasm-release.package.photocraft-raw]
+[profile.wasm-release.package.evophoto-raw]
 opt-level = "s"
-[profile.wasm-release.package.photocraft-heif]
+[profile.wasm-release.package.evophoto-heif]
 opt-level = "s"
-[profile.wasm-release.package.photocraft-vector]
+[profile.wasm-release.package.evophoto-vector]
 opt-level = "s"
 
 # Large crates off the per-frame and per-pixel paths: the document model, file parsers run once
 # per open/save, JSON (settings, presets, control channel), SVG parsing, and shader translation
 # (runs when a pipeline is created). "z" keeps the wasm well under the size gate.
-[profile.wasm-release.package.photocraft-doc]
+[profile.wasm-release.package.evophoto-doc]
 opt-level = "z"
-[profile.wasm-release.package.photocraft-psd]
+[profile.wasm-release.package.evophoto-psd]
 opt-level = "z"
-[profile.wasm-release.package.photocraft-format]
+[profile.wasm-release.package.evophoto-format]
 opt-level = "z"
-[profile.wasm-release.package.photocraft-affinity]
+[profile.wasm-release.package.evophoto-affinity]
 opt-level = "z"
 [profile.wasm-release.package.serde_json]
 opt-level = "z"
@@ -163,16 +164,16 @@ opt-level = "z"
 # every interactive filter application; "z" there is the size lever of last resort (−331 KB),
 # taken because the gate is enforced in CI: if browser filters feel too slow, restore 3 here
 # and reclaim the bytes from a feature-gated decoder instead.
-[profile.wasm-release.package.photocraft-raster]
+[profile.wasm-release.package.evophoto-raster]
 opt-level = 3
-[profile.wasm-release.package.photocraft-color]
+[profile.wasm-release.package.evophoto-color]
 opt-level = 3
-[profile.wasm-release.package.photocraft-cms]
+[profile.wasm-release.package.evophoto-cms]
 opt-level = "z"
-[profile.wasm-release.package.photocraft-compose]
+[profile.wasm-release.package.evophoto-compose]
 opt-level = "z"
-[profile.wasm-release.package.photocraft-algo]
+[profile.wasm-release.package.evophoto-algo]
 opt-level = "z"
-[profile.wasm-release.package.photocraft-paint]
+[profile.wasm-release.package.evophoto-paint]
 opt-level = 3
 

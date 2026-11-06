@@ -19,7 +19,7 @@
 
 use serde_json::{Map, Value, json};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::state::{DialogKind, Tool, ToolOptions};
 
 pub const RESET: &str = "tool.reset";
@@ -33,7 +33,7 @@ pub fn owns(fields: &Map<String, Value>) -> bool {
 }
 
 /// Run `tool.reset` / `tool.resetAll`; `None` for any other command.
-pub fn invoke(app: &mut PhotocraftApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
+pub fn invoke(app: &mut EvoPhotoApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
     match id {
         RESET => {
             let tool = app.ui.tool;
@@ -62,13 +62,13 @@ pub fn body(ui: &mut egui::Ui) {
 }
 
 /// OK in the confirmation.
-pub fn confirm(app: &mut PhotocraftApp) -> Result<Value, String> {
+pub fn confirm(app: &mut EvoPhotoApp) -> Result<Value, String> {
     reset_all(app);
     Ok(json!({"reset": "all"}))
 }
 
 /// Reset Tool: `tool`'s options, its selection mode and its brush.
-fn reset_tool(app: &mut PhotocraftApp, tool: Tool) {
+fn reset_tool(app: &mut EvoPhotoApp, tool: Tool) {
     reset_options(&mut app.ui.tool_options, tool);
     if is_selection_tool(tool) {
         app.ui.selection_mode = 0;
@@ -82,14 +82,14 @@ fn reset_tool(app: &mut PhotocraftApp, tool: Tool) {
 }
 
 /// Reset All Tools: every option, the selection mode and every tool's brush.
-fn reset_all(app: &mut PhotocraftApp) {
+fn reset_all(app: &mut EvoPhotoApp) {
     app.ui.tool_options = ToolOptions::default();
     app.ui.selection_mode = 0;
     app.ui.tool_brushes.clear();
     reset_session_brush(app);
 }
 
-fn reset_session_brush(app: &mut PhotocraftApp) {
+fn reset_session_brush(app: &mut EvoPhotoApp) {
     app.session.tools.brush = crate::paint_mouse::fresh_brush(&app.session.tools.brush);
     app.session.tools.brush_gesture = None;
     app.session.tools.current_preset = None;
@@ -236,10 +236,10 @@ pub fn option_keys(tool: Tool) -> &'static [&'static str] {
 mod tests {
     use super::*;
 
-    fn app() -> PhotocraftApp {
-        let mut s = photocraft_engine::Session::new();
+    fn app() -> EvoPhotoApp {
+        let mut s = evophoto_engine::Session::new();
         s.execute("file.new", json!({"width": 8, "height": 8})).unwrap();
-        PhotocraftApp::new(s, crate::Services::default())
+        EvoPhotoApp::new(s, crate::Services::default())
     }
 
     /// Every option belongs to a tool, so Reset Tool and tool presets (#7356) miss none, and every

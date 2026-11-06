@@ -3,11 +3,11 @@
 
 use std::convert::Infallible;
 
-use photocraft_algo::resample::{Resample, crop_surface, resize_surface_in_canvas, translate_surface};
-use photocraft_color::{ColorMode, SampleType};
-use photocraft_doc::{Document, Effect, Effects, FxPaint, Layer, LayerContent, LayerId, Size};
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use evophoto_algo::resample::{Resample, crop_surface, resize_surface_in_canvas, translate_surface};
+use evophoto_color::{ColorMode, SampleType};
+use evophoto_doc::{Document, Effect, Effects, FxPaint, Layer, LayerContent, LayerId, Size};
+use evophoto_geom::Rect;
+use evophoto_raster::Surface;
 use serde_json::{Value, json};
 
 use crate::commands::CommandSpec;
@@ -107,7 +107,7 @@ pub(crate) fn reidentify_copied_layers(doc: &mut Document) {
         ids.insert(previous, layer.id);
     });
 
-    let remap = |comp: &mut photocraft_doc::LayerComp| {
+    let remap = |comp: &mut evophoto_doc::LayerComp| {
         for state in &mut comp.states {
             if let Some(&new_id) = ids.get(&state.layer) {
                 state.layer = new_id;
@@ -241,7 +241,7 @@ fn image_size(s: &mut Session, p: &Value) -> Result<Value> {
     if !matches!(resample, Method::None) && (nw, nh) != (ow, oh) {
         // Color Sampler points scale with the pixels (same map `transform_geometry` applies).
         let (sx, sy) = (f64::from(nw) / f64::from(ow.max(1)), f64::from(nh) / f64::from(oh.max(1)));
-        s.set_sampler_map(photocraft_geom::Affine { m: [sx, 0.0, 0.0, sy, 0.0, 0.0] });
+        s.set_sampler_map(evophoto_geom::Affine { m: [sx, 0.0, 0.0, sy, 0.0, 0.0] });
     }
     s.edit("Image Size", |doc, _| {
         if let Some(r) = dpi {
@@ -321,7 +321,7 @@ pub(crate) fn resample_doc(doc: &mut Document, nw: u32, nh: u32, filter: Resampl
         doc.selection = Some(resize_surface_in_canvas(sel, sx, sy, Resample::Bilinear, canvas));
     }
     // Vector geometry, guides and marks scale with the pixels; vectors re-render sharp.
-    crate::canvas_geom::transform_geometry(doc, &photocraft_geom::Affine { m: [sx, 0.0, 0.0, sy, 0.0, 0.0] });
+    crate::canvas_geom::transform_geometry(doc, &evophoto_geom::Affine { m: [sx, 0.0, 0.0, sy, 0.0, 0.0] });
     doc.size = Size::new(nw, nh);
     crate::canvas_geom::refresh(doc, crate::canvas_geom::Refresh::All);
     let Ok(()) = crate::smart_cmds::restore_unrendered(doc, taken, |c| Ok::<_, Infallible>(resize_surface_in_canvas(c, sx, sy, filter, canvas)));
@@ -332,12 +332,12 @@ fn bad(cmd: &str, msg: impl Into<String>) -> EngineError {
 }
 
 /// The flattened document, or an error when the canvas is over the compositor's render cap
-/// ([`photocraft_compose::MAX_RENDER_PIXELS`]; `flatten` returns an empty buffer then).
-fn flatten_whole(doc: &Document, cmd: &str) -> Result<photocraft_compose::Buffer> {
-    let buf = photocraft_compose::flatten(doc);
+/// ([`evophoto_compose::MAX_RENDER_PIXELS`]; `flatten` returns an empty buffer then).
+fn flatten_whole(doc: &Document, cmd: &str) -> Result<evophoto_compose::Buffer> {
+    let buf = evophoto_compose::flatten(doc);
     let (w, h) = (doc.size.width, doc.size.height);
     if buf.px.len() as u64 != u64::from(w) * u64::from(h) {
-        return Err(bad(cmd, format!("the document ({w} x {h} px) is too large to flatten (limit {} pixels)", photocraft_compose::MAX_RENDER_PIXELS)));
+        return Err(bad(cmd, format!("the document ({w} x {h} px) is too large to flatten (limit {} pixels)", evophoto_compose::MAX_RENDER_PIXELS)));
     }
     Ok(buf)
 }
@@ -371,7 +371,7 @@ pub(crate) fn translate_doc(doc: &mut Document, cmd: &str, dx: i32, dy: i32) -> 
     }
     // Type, shapes, smart objects, vector masks, paths, guides, slices, notes… (caches above
     // are already translated exactly, so nothing needs re-rendering for the move itself).
-    crate::canvas_geom::transform_geometry(doc, &photocraft_geom::Affine::translate(f64::from(dx), f64::from(dy)));
+    crate::canvas_geom::transform_geometry(doc, &evophoto_geom::Affine::translate(f64::from(dx), f64::from(dy)));
     Ok(())
 }
 
@@ -417,7 +417,7 @@ fn crop_doc(doc: &mut Document, cmd: &str, r: Rect, delete_pixels: bool, extensi
         && let LayerContent::Raster(surf) = &mut bg.content
     {
         let old = old_canvas.translate(dx, dy);
-        let px = photocraft_raster::from_rgba(&surf.format(), [extension[0], extension[1], extension[2], 1.0]);
+        let px = evophoto_raster::from_rgba(&surf.format(), [extension[0], extension[1], extension[2], 1.0]);
         fill_background_extension(surf, Rect::from_xywh(0, 0, r.width(), r.height()), old, &px);
     }
     if extends {
@@ -521,7 +521,7 @@ fn canvas_size(s: &mut Session, p: &Value) -> Result<Value> {
     let dx = ((nw as f64 - ow) * ax).round() as i32;
     let dy = ((nh as f64 - oh) * ay).round() as i32;
     let ext = extension_color(s, p);
-    s.set_sampler_map(photocraft_geom::Affine::translate(f64::from(dx), f64::from(dy)));
+    s.set_sampler_map(evophoto_geom::Affine::translate(f64::from(dx), f64::from(dy)));
     s.edit("Canvas Size", |doc, _| {
         translate_doc(doc, "image.canvasSize", dx, dy)?;
         doc.size = Size::new(nw, nh);
@@ -545,7 +545,7 @@ fn canvas_size(s: &mut Session, p: &Value) -> Result<Value> {
             && let Some(bg) = doc.background_mut()
             && let LayerContent::Raster(surf) = &mut bg.content
         {
-            let px = photocraft_raster::from_rgba(&surf.format(), ext);
+            let px = evophoto_raster::from_rgba(&surf.format(), ext);
             fill_background_extension(surf, canvas, old, &px);
         }
         Ok(())
@@ -643,12 +643,12 @@ impl CropTarget {
 
     /// Where Color Sampler points go: shifted by the crop's origin, then scaled with the pixels
     /// when [`Self::apply`] resamples the cropped area `r` (as Image Size scales them).
-    fn sampler_map(&self, r: Rect) -> photocraft_geom::Affine {
-        let shift = photocraft_geom::Affine::translate(-f64::from(r.x0), -f64::from(r.y0));
+    fn sampler_map(&self, r: Rect) -> evophoto_geom::Affine {
+        let shift = evophoto_geom::Affine::translate(-f64::from(r.x0), -f64::from(r.y0));
         match self.size {
             Some((w, h)) if r.width() > 0 && r.height() > 0 => {
                 let (sx, sy) = (f64::from(w) / f64::from(r.width()), f64::from(h) / f64::from(r.height()));
-                shift.then(&photocraft_geom::Affine { m: [sx, 0.0, 0.0, sy, 0.0, 0.0] })
+                shift.then(&evophoto_geom::Affine { m: [sx, 0.0, 0.0, sy, 0.0, 0.0] })
             }
             _ => shift,
         }
@@ -863,7 +863,7 @@ fn trim(s: &mut Session, p: &Value) -> Result<Value> {
         if side("right") { b.x1 } else { canvas.x1 },
         if side("bottom") { b.y1 } else { canvas.y1 },
     );
-    s.set_sampler_map(photocraft_geom::Affine::translate(-f64::from(r.x0), -f64::from(r.y0)));
+    s.set_sampler_map(evophoto_geom::Affine::translate(-f64::from(r.x0), -f64::from(r.y0)));
     let extension = s.tools.background;
     s.edit("Trim", |doc, _| crop_doc(doc, "image.trim", r, true, extension))?;
     Ok(json!({ "x": r.x0, "y": r.y0, "width": r.width(), "height": r.height() }))
@@ -896,7 +896,7 @@ pub(crate) fn change_depth(doc: &mut Document, depth: SampleType) {
     // value is quantised to 8 or 16 bits). Masks, alpha and channels are not colour.
     let crosses = (current == SampleType::F32) != (depth == SampleType::F32) && matches!(doc.mode, ColorMode::Rgb | ColorMode::Grayscale);
     let to_linear = depth == SampleType::F32;
-    let transfer = photocraft_compose::adjust::Transfer::for_document(doc.mode, if to_linear { current } else { depth });
+    let transfer = evophoto_compose::adjust::Transfer::for_document(doc.mode, if to_linear { current } else { depth });
     if crosses && !to_linear {
         for_each_surface(&mut doc.layers, false, &mut |surf, _| surf.map_color(|v| transfer.encode(v).clamp(0.0, 1.0)));
     }
@@ -915,13 +915,13 @@ pub(crate) fn change_depth(doc: &mut Document, depth: SampleType) {
 fn duplicate(s: &mut Session, p: &Value) -> Result<Value> {
     let d = s.active().ok_or(EngineError::NoDocument)?;
     let mut doc = (*d.doc).clone();
-    doc.id = photocraft_doc::DocId::fresh();
+    doc.id = evophoto_doc::DocId::fresh();
     doc.name = p.get("name").and_then(Value::as_str).map(str::to_string).unwrap_or_else(|| format!("{} copy", d.doc.name));
     if p.get("mergedOnly").and_then(Value::as_bool).unwrap_or(false) {
         let buf = flatten_whole(&doc, "image.duplicate")?;
         let fmt = doc.pixel_format();
         let mut surf = Surface::new(fmt);
-        let vals: Vec<f32> = buf.px.iter().flat_map(|q| photocraft_raster::from_rgba(&fmt, *q)).collect();
+        let vals: Vec<f32> = buf.px.iter().flat_map(|q| evophoto_raster::from_rgba(&fmt, *q)).collect();
         surf.write_region(doc.bounds(), &vals);
         surf.prune();
         // As Photoshop: a source with a Background gives one (opaque, locked); otherwise a plain
@@ -938,7 +938,7 @@ fn duplicate(s: &mut Session, p: &Value) -> Result<Value> {
         doc.last_document_state = None;
         // Likewise, variables drove template layers that no longer exist: drop the whole
         // binding set (defs, data sets and the active index) on the flattened copy.
-        doc.variables = photocraft_doc::Variables::default();
+        doc.variables = evophoto_doc::Variables::default();
     }
     reidentify_copied_layers(&mut doc);
     let name = doc.name.clone();
@@ -1090,7 +1090,7 @@ mod tests {
         s.edit("paint", |doc, active| {
             let l = doc.layer_mut(active.unwrap()).unwrap();
             l.surface_mut().unwrap().fill_rect(Rect::new(10, 5, 20, 15), &[1.0, 0.0, 0.0, 1.0]);
-            l.mask = Some(photocraft_doc::LayerMask::reveal_all());
+            l.mask = Some(evophoto_doc::LayerMask::reveal_all());
             l.effects.items.push(Effect::default_drop_shadow());
             Ok(())
         })
@@ -1109,7 +1109,7 @@ mod tests {
         s.edit("video", |doc, active| {
             let l = doc.layer_mut(active.unwrap()).unwrap();
             let frame = l.surface().unwrap().clone();
-            let mut v = photocraft_doc::VideoData::new(vec![frame.clone(), frame.clone()], 24.0);
+            let mut v = evophoto_doc::VideoData::new(vec![frame.clone(), frame.clone()], 24.0);
             v.original_frames = Some(vec![frame.clone(), frame]);
             l.video = Some(v);
             Ok(())
@@ -1134,7 +1134,7 @@ mod tests {
             let red = l.surface().unwrap().clone();
             let mut blue = red.clone();
             blue.fill_rect(Rect::new(0, 0, 40, 20), &[0.0, 0.0, 1.0, 1.0]);
-            let mut v = photocraft_doc::VideoData::new(vec![red.clone(), blue.clone()], 24.0);
+            let mut v = evophoto_doc::VideoData::new(vec![red.clone(), blue.clone()], 24.0);
             v.original_frames = Some(vec![red, blue]);
             l.video = Some(v);
             Ok(())
@@ -1243,7 +1243,7 @@ mod tests {
                 s.execute("select.all", json!({})).unwrap();
                 s.execute("image.imageSize", json!({"width": w, "resample": resample})).unwrap();
                 let d = doc(&s);
-                let flat = photocraft_compose::flatten(d);
+                let flat = evophoto_compose::flatten(d);
                 let (w, h) = (flat.rect.width() as usize, flat.rect.height() as usize);
                 let mid = flat.px[(h / 2) * w + w / 2];
                 assert!((mid[3] - 1.0).abs() < 1e-3, "{depth} {resample}: {mid:?}");
@@ -1487,7 +1487,7 @@ mod tests {
             s.execute("layer.smartObjects.convertToSmartObject", json!({})).unwrap();
             s.edit("unlink", |doc, active| {
                 if let LayerContent::Smart(sm) = &mut doc.layer_mut(active.unwrap()).unwrap().content {
-                    sm.source = photocraft_doc::SmartSource::Linked { path: "missing-photocraft-test-source.psd".into() };
+                    sm.source = evophoto_doc::SmartSource::Linked { path: "missing-evophoto-test-source.psd".into() };
                 }
                 Ok(())
             })
@@ -1547,7 +1547,7 @@ mod tests {
     /// from empty ones: the added area takes the colour, the kept area stays (#7086).
     #[test]
     fn an_alpha_less_background_extension_takes_the_colour() {
-        let mut surf = Surface::new(photocraft_color::PixelFormat::GRAY8);
+        let mut surf = Surface::new(evophoto_color::PixelFormat::GRAY8);
         surf.fill_rect(Rect::new(-50, 0, 100, 100), &[0.6]);
         let kept = surf.pixel(50, 50);
         fill_background_extension(&mut surf, Rect::new(-60, 0, 100, 100), Rect::new(0, 0, 100, 100), &[0.0]);
@@ -1647,7 +1647,7 @@ mod tests {
     /// frame spans several tiles, at several depths and angles).
     #[test]
     fn turned_crop_deleting_pixels_matches_turning_the_whole_canvas() {
-        use photocraft_color::PixelFormat;
+        use evophoto_color::PixelFormat;
         let pixels = || (0..500).flat_map(|y| (0..700).map(move |x| (x, y)));
         for depth in [8, 16, 32] {
             for angle in [3.0, -7.5, 33.0, 181.0] {
@@ -1662,7 +1662,7 @@ mod tests {
                         let gray: Vec<f32> = pixels().map(|(x, y)| wave(y, x, 4)).collect();
                         let l = doc.layer_mut(active.unwrap()).unwrap();
                         l.surface_mut().unwrap().write_region(all, &rgba);
-                        let mut mask = photocraft_doc::LayerMask::reveal_all();
+                        let mut mask = evophoto_doc::LayerMask::reveal_all();
                         mask.surface.write_region(all, &gray);
                         l.mask = Some(mask);
                         let bg = doc.background_mut().unwrap().surface_mut().unwrap();
@@ -1670,7 +1670,7 @@ mod tests {
                         let fmt = PixelFormat::new(ColorMode::Grayscale, doc.pixel_format().sample, false);
                         let mut ch = Surface::new(fmt);
                         ch.write_region(all, &gray);
-                        doc.channels.push(photocraft_doc::AlphaChannel::new("Alpha 1", ch));
+                        doc.channels.push(evophoto_doc::AlphaChannel::new("Alpha 1", ch));
                         Ok(())
                     })
                     .unwrap();

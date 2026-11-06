@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Build and package PhotoCraft for Linux (<arch> is x86_64, aarch64 or riscv64):
+# Build and package EvoPhoto for Linux (<arch> is x86_64, aarch64 or riscv64):
 #
-#   $DIST/photocraft-<version>-linux-<arch>.AppImage  any distro with glibc >= the build host's
-#   $DIST/photocraft-<version>-linux-<arch>.AppImage.zsync  delta updates (needs zsyncmake)
-#   $DIST/photocraft-<version>-linux-<arch>.deb       Debian, Ubuntu, Mint, Pop!_OS, ...
-#   $DIST/photocraft-<version>-linux-<arch>.rpm       Fedora, openSUSE, RHEL, ...
-#   $DIST/photocraft-<version>-linux-<arch>.tar.gz    plain FHS-style tree (bin/, share/)
+#   $DIST/evophoto-<version>-linux-<arch>.AppImage  any distro with glibc >= the build host's
+#   $DIST/evophoto-<version>-linux-<arch>.AppImage.zsync  delta updates (needs zsyncmake)
+#   $DIST/evophoto-<version>-linux-<arch>.deb       Debian, Ubuntu, Mint, Pop!_OS, ...
+#   $DIST/evophoto-<version>-linux-<arch>.rpm       Fedora, openSUSE, RHEL, ...
+#   $DIST/evophoto-<version>-linux-<arch>.tar.gz    plain FHS-style tree (bin/, share/)
 #
 # Usage: packaging/linux/package.sh [--skip-build] [--formats "appimage deb rpm tar"]
 #
@@ -23,7 +23,7 @@ set -euo pipefail
 HERE="$ROOT/packaging/linux"
 # shellcheck source=verified-download.sh
 . "$HERE/verified-download.sh"
-APP_ID=ai.storyteller.photocraft
+APP_ID=ai.storyteller.evophoto
 
 SKIP_BUILD=0
 FORMATS="appimage deb rpm tar"
@@ -43,21 +43,21 @@ case "$ARCH" in
   aarch64 | arm64) ARCH=aarch64; DEB_ARCH=arm64 ;;
   *) echo "unsupported architecture $ARCH" >&2; exit 2 ;;
 esac
-export PHOTOCRAFT_MAINTAINER="${PHOTOCRAFT_MAINTAINER:-PhotoCraft maintainers <photocraft@storyteller.ai>}"
-BASENAME="photocraft-$VERSION-linux-$ARCH"
+export EVOPHOTO_MAINTAINER="${EVOPHOTO_MAINTAINER:-EvoPhoto maintainers <evophoto@storyteller.ai>}"
+BASENAME="evophoto-$VERSION-linux-$ARCH"
 
-echo "==> PhotoCraft $VERSION for Linux $ARCH ($FORMATS)"
+echo "==> EvoPhoto $VERSION for Linux $ARCH ($FORMATS)"
 
-# The man-and-completions example writes photocraft-cli's man pages and shell completions below. It
+# The man-and-completions example writes evophoto-cli's man pages and shell completions below. It
 # is built in its own cargo run: built with the binaries, its dev-dependencies' features would be
 # unified into them.
 if [[ "$SKIP_BUILD" = 0 ]]; then
   if [[ -n "${CROSS_TARGET:-}" ]]; then
-    (cd "$ROOT" && cargo build --release --locked -p photocraft -p photocraft-cli --features heif --bins --target "$CROSS_TARGET")
-    (cd "$ROOT" && cargo build --release --locked -p photocraft-cli --features heif --example man-and-completions --target "$CROSS_TARGET")
+    (cd "$ROOT" && cargo build --release --locked -p evophoto -p evophoto-cli --features heif --bins --target "$CROSS_TARGET")
+    (cd "$ROOT" && cargo build --release --locked -p evophoto-cli --features heif --example man-and-completions --target "$CROSS_TARGET")
   else
-    (cd "$ROOT" && cargo build --release --locked -p photocraft -p photocraft-cli --features heif --bins)
-    (cd "$ROOT" && cargo build --release --locked -p photocraft-cli --features heif --example man-and-completions)
+    (cd "$ROOT" && cargo build --release --locked -p evophoto -p evophoto-cli --features heif --bins)
+    (cd "$ROOT" && cargo build --release --locked -p evophoto-cli --features heif --example man-and-completions)
   fi
 fi
 BIN="$CARGO_TARGET_DIR/${CROSS_TARGET:+$CROSS_TARGET/}release"
@@ -66,28 +66,28 @@ STAGE="$WORK/root"
 rm -rf "$WORK"
 
 # ---- stage an FHS tree (shared by every format) -------------------------------------------------
-install -Dm755 "$BIN/photocraft" "$STAGE/usr/bin/photocraft"
-install -Dm755 "$BIN/photocraft-cli" "$STAGE/usr/bin/photocraft-cli"
-"${CROSS_COMPILE:-}strip" "$STAGE/usr/bin/photocraft" "$STAGE/usr/bin/photocraft-cli" 2>/dev/null || true
+install -Dm755 "$BIN/evophoto" "$STAGE/usr/bin/evophoto"
+install -Dm755 "$BIN/evophoto-cli" "$STAGE/usr/bin/evophoto-cli"
+"${CROSS_COMPILE:-}strip" "$STAGE/usr/bin/evophoto" "$STAGE/usr/bin/evophoto-cli" 2>/dev/null || true
 install -Dm644 "$HERE/$APP_ID.desktop" "$STAGE/usr/share/applications/$APP_ID.desktop"
 install -Dm644 "$HERE/$APP_ID.mime.xml" "$STAGE/usr/share/mime/packages/$APP_ID.xml"
 mkdir -p "$STAGE/usr/share/metainfo"
-sed -e "s/@VERSION@/$VERSION/g" -e "s/@DATE@/$PHOTOCRAFT_BUILD_DATE/g" \
+sed -e "s/@VERSION@/$VERSION/g" -e "s/@DATE@/$EVOPHOTO_BUILD_DATE/g" \
   "$HERE/$APP_ID.metainfo.xml.in" >"$STAGE/usr/share/metainfo/$APP_ID.metainfo.xml"
 mkdir -p "$STAGE/usr/share/icons"
 cp -R "$ROOT/assets/app-icon/hicolor" "$STAGE/usr/share/icons/"
-mkdir -p "$STAGE/usr/share/doc/photocraft"
-copy_docs "$STAGE/usr/share/doc/photocraft"
-# photocraft-cli's man pages and shell completions, from its clap definition, written by the
+mkdir -p "$STAGE/usr/share/doc/evophoto"
+copy_docs "$STAGE/usr/share/doc/evophoto"
+# evophoto-cli's man pages and shell completions, from its clap definition, written by the
 # example built above. A cross build runs it through $EMULATOR, like the --version check at the
 # end, and leaves them out without one, as a --skip-build run whose prebuilt binaries came without
 # the example does. zsh reads site-functions on Fedora and openSUSE; the deb also links the
 # completion into Debian's vendor-completions (nfpm.yaml).
 CLI_DOCS="$BIN/examples/man-and-completions"
 if [[ -n "${CROSS_TARGET:-}" ]] && [[ -z "${EMULATOR:-}" ]]; then
-  warn "no EMULATOR to run the $CROSS_TARGET build, so photocraft-cli's man pages and completions are left out"
+  warn "no EMULATOR to run the $CROSS_TARGET build, so evophoto-cli's man pages and completions are left out"
 elif [[ ! -x "$CLI_DOCS" ]]; then
-  warn "$CLI_DOCS is not built, so photocraft-cli's man pages and completions are left out"
+  warn "$CLI_DOCS is not built, so evophoto-cli's man pages and completions are left out"
 else
   if [[ -n "${CROSS_TARGET:-}" ]]; then
     "$EMULATOR" "$CLI_DOCS" "$WORK/cli-docs"
@@ -95,9 +95,9 @@ else
     "$CLI_DOCS" "$WORK/cli-docs"
   fi
   install -Dm644 -t "$STAGE/usr/share/man/man1" "$WORK"/cli-docs/*.1
-  install -Dm644 "$WORK/cli-docs/photocraft-cli.bash" "$STAGE/usr/share/bash-completion/completions/photocraft-cli"
-  install -Dm644 "$WORK/cli-docs/_photocraft-cli" "$STAGE/usr/share/zsh/site-functions/_photocraft-cli"
-  install -Dm644 "$WORK/cli-docs/photocraft-cli.fish" "$STAGE/usr/share/fish/vendor_completions.d/photocraft-cli.fish"
+  install -Dm644 "$WORK/cli-docs/evophoto-cli.bash" "$STAGE/usr/share/bash-completion/completions/evophoto-cli"
+  install -Dm644 "$WORK/cli-docs/_evophoto-cli" "$STAGE/usr/share/zsh/site-functions/_evophoto-cli"
+  install -Dm644 "$WORK/cli-docs/evophoto-cli.fish" "$STAGE/usr/share/fish/vendor_completions.d/evophoto-cli.fish"
 fi
 
 if command -v desktop-file-validate >/dev/null; then
@@ -126,7 +126,7 @@ if has deb || has rpm; then
   # Without the completions (a cross build with no EMULATOR) the deb's zsh symlink would dangle,
   # so its entry is dropped too.
   DROP_ZSH_LINK=
-  [[ -f "$STAGE/usr/share/zsh/site-functions/_photocraft-cli" ]] || DROP_ZSH_LINK='\|^  - src: /usr/share/zsh/site-functions/|,/packager: deb/d;'
+  [[ -f "$STAGE/usr/share/zsh/site-functions/_evophoto-cli" ]] || DROP_ZSH_LINK='\|^  - src: /usr/share/zsh/site-functions/|,/packager: deb/d;'
   sed "${DROP_ZSH_LINK}s|\${STAGE}|$STAGE|g" "$HERE/nfpm.yaml" >"$WORK/nfpm.yaml"
   for fmt in deb rpm; do
     if has "$fmt"; then (cd "$ROOT" && nfpm package -f "$WORK/nfpm.yaml" -p "$fmt" -t "$DIST/$BASENAME.$fmt"); fi
@@ -135,7 +135,7 @@ fi
 
 # ---- AppImage -----------------------------------------------------------------------------------
 if has appimage; then
-  APPDIR="$WORK/PhotoCraft.AppDir"
+  APPDIR="$WORK/EvoPhoto.AppDir"
   cp -R "$STAGE" "$APPDIR"
   mv "$APPDIR/usr/share/doc" "$WORK/doc-unused"
   # AppRun is a script, not a symlink: it installs the .desktop entry and icons into
@@ -189,8 +189,8 @@ if has appimage; then
   # file and fetch only the blocks that changed in a newer release, through the .zsync published
   # next to each AppImage on GitHub Releases. `latest` is the newest published release that is
   # not a pre-release. A fork's builds point at its own releases through GITHUB_REPOSITORY.
-  REPO="${GITHUB_REPOSITORY:-storytold/photocraft}"
-  UPDATE_INFO="gh-releases-zsync|${REPO%%/*}|${REPO#*/}|latest|photocraft-*-linux-$ARCH.AppImage.zsync"
+  REPO="${GITHUB_REPOSITORY:-tazerty/evophoto}"
+  UPDATE_INFO="gh-releases-zsync|${REPO%%/*}|${REPO#*/}|latest|evophoto-*-linux-$ARCH.AppImage.zsync"
   # Extract-and-run: works without FUSE (containers, CI). The output embeds the static runtime,
   # so users don't need libfuse2 either. With zsyncmake on the host (CI installs the zsync
   # package) appimagetool also writes the .zsync, into its working directory, hence the cd.
@@ -205,9 +205,9 @@ if has appimage; then
 fi
 
 if [[ -z "${CROSS_TARGET:-}" ]]; then
-  "$STAGE/usr/bin/photocraft-cli" --version
+  "$STAGE/usr/bin/evophoto-cli" --version
 elif [[ -n "${EMULATOR:-}" ]]; then
-  "$EMULATOR" "$STAGE/usr/bin/photocraft-cli" --version
+  "$EMULATOR" "$STAGE/usr/bin/evophoto-cli" --version
 fi
 echo "==> done"
 ls -lh "$DIST"

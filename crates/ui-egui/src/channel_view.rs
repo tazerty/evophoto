@@ -8,13 +8,13 @@
 //! recomposited per frame.
 
 use egui::{Color32, TextureOptions};
-use photocraft_doc::{AlphaChannel, ColorMode, Document};
-use photocraft_engine::channel_cmds::{ChannelView, color_count};
-use photocraft_engine::mask_view_cmds::MaskViewMode;
-use photocraft_geom::Rect;
-use photocraft_raster::{Surface, from_rgba, to_rgba};
+use evophoto_doc::{AlphaChannel, ColorMode, Document};
+use evophoto_engine::channel_cmds::{ChannelView, color_count};
+use evophoto_engine::mask_view_cmds::MaskViewMode;
+use evophoto_geom::Rect;
+use evophoto_raster::{Surface, from_rgba, to_rgba};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 
 /// Largest overlay texture side; bigger documents show a downsampled overlay.
 const MAX_SIDE: u32 = 4096;
@@ -84,7 +84,7 @@ impl Default for Look {
 
 impl Look {
     /// The current preferences of `s`.
-    pub fn of(s: &photocraft_engine::Session) -> Self {
+    pub fn of(s: &evophoto_engine::Session) -> Self {
         let p = s.prefs();
         Self { in_color: p.interface.show_channels_in_color, mask_rgb: p.layer_mask_overlay.rgb(), mask_opacity: p.layer_mask_overlay.alpha() }
     }
@@ -96,7 +96,7 @@ fn composite(doc: &Document, r: Rect, factor: u32) -> Vec<[f32; 4]> {
     let (w, h) = (r.width().div_ceil(factor), r.height().div_ceil(factor));
     let mut out = Vec::with_capacity((w * h) as usize);
     let f = factor as i32;
-    let _ = photocraft_compose::render_bands(doc, r, 0, |band| -> Result<(), ()> {
+    let _ = evophoto_compose::render_bands(doc, r, 0, |band| -> Result<(), ()> {
         let first = band.rect.y0 + (r.y0 - band.rect.y0).rem_euclid(f);
         for y in (first..band.rect.y1).step_by(factor as usize) {
             for x in (r.x0..r.x1).step_by(factor as usize) {
@@ -112,7 +112,7 @@ fn composite(doc: &Document, r: Rect, factor: u32) -> Vec<[f32; 4]> {
 
 /// The channel view of `r` (document pixels, sampled every `factor` px) as premultiplied pixels,
 /// or `None` when the plain composite is all there is to show.
-pub fn render(doc: &Document, v: &ChannelView, r: Rect, factor: u32, look: Look, active: Option<photocraft_doc::LayerId>) -> Option<Vec<Color32>> {
+pub fn render(doc: &Document, v: &ChannelView, r: Rect, factor: u32, look: Look, active: Option<evophoto_doc::LayerId>) -> Option<Vec<Color32>> {
     let mut unused = None;
     render_with_source(doc, v, r, factor, look, active, CompositeSource { cached: None, fresh: &mut unused })
 }
@@ -123,7 +123,7 @@ fn render_with_source(
     r: Rect,
     factor: u32,
     look: Look,
-    active: Option<photocraft_doc::LayerId>,
+    active: Option<evophoto_doc::LayerId>,
     source: CompositeSource<'_>,
 ) -> Option<Vec<Color32>> {
     if v.is_plain(doc) || r.is_empty() {
@@ -138,11 +138,11 @@ fn render_with_source(
     let feathered_mask = v
         .layer_mask
         .and_then(|view| doc.layer(view.layer))
-        .filter(|layer| layer.mask.as_ref().is_some_and(|mask| mask.enabled && photocraft_compose::masks::feather_sigma(mask.feather) > 0.0))
+        .filter(|layer| layer.mask.as_ref().is_some_and(|mask| mask.enabled && evophoto_compose::masks::feather_sigma(mask.feather) > 0.0))
         .and_then(|layer| {
             let mut pixel_mask_layer = layer.clone();
             pixel_mask_layer.vector_mask = None;
-            photocraft_compose::masks::combined_mask(&pixel_mask_layer, doc.bounds())
+            evophoto_compose::masks::combined_mask(&pixel_mask_layer, doc.bounds())
         });
     let shown_mask = layer_mask.map(|(m, mode)| (feathered_mask.as_ref().unwrap_or(&m.surface), mode));
     let only_mask = ChannelView { layer_mask: None, ..v.clone() }.is_plain(doc);
@@ -219,7 +219,7 @@ fn render_with_source(
         vec![[0.0; 4]; n]
     };
     // Rubylith: `color` at `opacity` × coverage over the accumulated pixels.
-    let mut tint = |values: Vec<f32>, color: photocraft_color::Color, opacity: f32, coverage: &dyn Fn(f32) -> f32| {
+    let mut tint = |values: Vec<f32>, color: evophoto_color::Color, opacity: f32, coverage: &dyn Fn(f32) -> f32| {
         let c = color.to_rgb();
         for (o, val) in out.iter_mut().zip(values) {
             let a = (coverage(val.clamp(0.0, 1.0)) * opacity).clamp(0.0, 1.0);
@@ -242,7 +242,7 @@ fn render_with_source(
     // Display Options colour and opacity (red at 50 % unless set).
     if !solo_mask && let Some((m, MaskViewMode::Overlay)) = shown_mask {
         let [cr, cg, cb] = mask_rgb;
-        tint(sample(m, r, factor), photocraft_color::Color::rgb(cr, cg, cb), mask_opacity, &|x| 1.0 - x);
+        tint(sample(m, r, factor), evophoto_color::Color::rgb(cr, cg, cb), mask_opacity, &|x| 1.0 - x);
     }
     Some(out.into_iter().map(|p| Color32::from_rgba_premultiplied(q(p[0]), q(p[1]), q(p[2]), q(p[3]))).collect())
 }
@@ -285,7 +285,7 @@ fn view_key(v: &ChannelView, look: Look) -> u64 {
 }
 
 /// Make the channel-view texture of document `idx` current; `None` = nothing to draw.
-pub fn ensure(app: &mut PhotocraftApp, ctx: &egui::Context, idx: usize) -> Option<egui::TextureId> {
+pub fn ensure(app: &mut EvoPhotoApp, ctx: &egui::Context, idx: usize) -> Option<egui::TextureId> {
     let st = app.session.documents().get(idx)?;
     let view = st.channel_view.clone();
     let active = st.active_layer;
@@ -389,8 +389,8 @@ pub fn ensure(app: &mut PhotocraftApp, ctx: &egui::Context, idx: usize) -> Optio
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_engine::Session;
-    use photocraft_engine::channel_cmds::ChannelTarget;
+    use evophoto_engine::Session;
+    use evophoto_engine::channel_cmds::ChannelTarget;
     use serde_json::json;
 
     fn session() -> Session {
@@ -406,7 +406,7 @@ mod tests {
         s.execute("edit.fill", json!({"color": "#398db2"})).unwrap();
         let doc = &s.active().unwrap().doc;
         let rect = doc.bounds();
-        let full = photocraft_compose::render(doc, rect);
+        let full = evophoto_compose::render(doc, rect);
         let full_ref = &full;
         for factor in [1, 2, 3, 5] {
             let expected: Vec<_> = (0..rect.height())
@@ -425,7 +425,7 @@ mod tests {
 
     #[test]
     fn channel_eyes_reuse_composite_until_pixels_change() {
-        let mut app = PhotocraftApp::new(Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 64, "height": 32})).unwrap();
         app.run("edit.fill", json!({"color": "#4080c0"})).unwrap();
         app.sync_views();
@@ -564,7 +564,7 @@ mod tests {
         let bounds = st.doc.bounds();
         let layer = st.doc.layer(st.active_layer.unwrap()).unwrap();
         let raw = layer.mask.as_ref().unwrap().surface.sample_channel(0, 0, 0);
-        let effective = photocraft_compose::masks::combined_mask(layer, bounds).unwrap();
+        let effective = evophoto_compose::masks::combined_mask(layer, bounds).unwrap();
         let softened = effective.sample_channel(0, 0, 0);
         assert!((softened - raw).abs() > 0.01, "the fixture has a visible feather at its edge");
 
@@ -599,7 +599,7 @@ mod tests {
         assert_eq!(render(&st.doc, &st.channel_view, b, 1, green, st.active_layer).unwrap()[0], Color32::from_rgb(0, 255, 191));
     }
 
-    /// `cargo test --release -p photocraft-ui-egui --lib mask_view_switch_24mp -- --ignored --nocapture`
+    /// `cargo test --release -p evophoto-ui-egui --lib mask_view_switch_24mp -- --ignored --nocapture`
     #[test]
     #[ignore = "benchmark"]
     fn mask_view_switch_24mp() {
@@ -673,7 +673,7 @@ mod tests {
     /// The canvas texture cache is keyed by the preference, so toggling it rebuilds the view.
     #[test]
     fn ensure_honours_show_channels_in_color() {
-        let mut app = PhotocraftApp::new(Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 8, "height": 8})).unwrap();
         app.sync_views();
         app.run("channel.target", json!({"channel": "green"})).unwrap();

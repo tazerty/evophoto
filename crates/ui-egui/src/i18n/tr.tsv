@@ -4,7 +4,7 @@
 # Clean-room: every entry was written from the plain meaning of the English label using ordinary
 # Turkish computing vocabulary (katman, seçim, maske, ayar katmanı, fırça, degrade ...). No
 # proprietary localisation resource, string table or product UI was consulted or copied; add
-# entries the same way. Product and technology names (PhotoCraft, OpenType, CMYK, Lab ...)
+# entries the same way. Product and technology names (EvoPhoto, OpenType, CMYK, Lab ...)
 # stay as they are; the trailing "…" of dialog commands is kept.
 #
 # Custom paper dimensions in Print Settings.
@@ -1306,7 +1306,7 @@
 	Perspective Warp is not active	Perspektif Çarpıtma etkin değil
 	Perspective Warp: draw planes along the image's perspective, then switch to Warp	Perspektif Çarpıtma: görüntünün perspektifi boyunca düzlemler çizin, ardından Çarpıtma'ya geçin
 	Photo Filter	Fotoğraf Filtresi
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	Açık kaynaklı bir yazılım olan PhotoCraft'a dayanır (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Açık kaynaklı bir yazılım olan EvoPhoto'a dayanır (MIT OR Apache-2.0).
 	Lumbra	Lumbra
 	Lumbra Manages Colors	Lumbra Renkleri Yönetir
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — Rust'ta yazılmış açık kaynaklı, yerel bir görüntü düzenleyici.
@@ -3424,7 +3424,7 @@ cameraRaw	Color	Renk
 	Modify Date	Değiştirilme Tarihi
 	Mosaic	Mozaik
 	Motion Blur	Hareket Bulanıklığı
-	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= photocraft`.	Yerel dosya sürükle ve bırak özelliği henüz Wayland'de desteklenmiyor. Dosya › Aç'ı kullanın veya Lumbra'yı XWayland altında `WAYLAND_DISPLAY= photocraft` ile çalıştırın.
+	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= evophoto`.	Yerel dosya sürükle ve bırak özelliği henüz Wayland'de desteklenmiyor. Dosya › Aç'ı kullanın veya Lumbra'yı XWayland altında `WAYLAND_DISPLAY= evophoto` ile çalıştırın.
 	Neon Glow	Neon Işıma
 	New Guide Layout	Yeni Kılavuz Düzeni
 	New Path	Yeni Yol

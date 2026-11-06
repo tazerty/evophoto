@@ -22,7 +22,7 @@
 //! GPU resources live in the renderer's `callback_resources` type map; the per-frame callback only
 //! carries plain view parameters, so it is `Send + Sync` on every target (including wasm).
 //!
-//! The document pixels still come from the CPU compositor (`photocraft-compose`) for now; the wgpu
+//! The document pixels still come from the CPU compositor (`evophoto-compose`) for now; the wgpu
 //! compositor (M5) will render straight into these tiles.
 
 use std::collections::HashMap;
@@ -32,7 +32,7 @@ use std::sync::atomic::Ordering;
 use eframe::egui_wgpu::{self, CallbackResources, CallbackTrait, RenderState, ScreenDescriptor};
 use eframe::wgpu;
 
-pub use photocraft_gpu::{DeviceHealth, Fault};
+pub use evophoto_gpu::{DeviceHealth, Fault};
 
 /// Default tile side; documents up to this size (and the device limit) use a single texture.
 pub const DEFAULT_TILE: u32 = 8192;
@@ -46,7 +46,7 @@ const FORMAT_HIGH: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 /// Largest high-bit document (in pixels) given an `Rgba16Float` canvas texture: 100 MP is
 /// 800 MB at level 0, about 1.07 GB with mips (twice the `Rgba8Unorm` cost). Bigger 16/32-bit
 /// documents (a 14000² one would need 2.1 GB) use `Rgba8Unorm`, so they stay on the GPU like
-/// 8-bit ones. `PHOTOCRAFT_CANVAS_F16=0` turns the float canvas off, `=1` ignores this budget.
+/// 8-bit ones. `EVOPHOTO_CANVAS_F16=0` turns the float canvas off, `=1` ignores this budget.
 pub const F16_BUDGET_PX: u64 = 100_000_000;
 const VIEW_UNIFORM_SIZE: u64 = 128;
 const VIEW_FLOATS: usize = 32;
@@ -96,11 +96,11 @@ pub struct ViewParams {
 /// When high-bit documents get an `Rgba16Float` canvas texture.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum HighPolicy {
-    /// The adapter can't render to or filter `Rgba16Float`, or `PHOTOCRAFT_CANVAS_F16=0`.
+    /// The adapter can't render to or filter `Rgba16Float`, or `EVOPHOTO_CANVAS_F16=0`.
     Off,
     /// Up to [`F16_BUDGET_PX`].
     Budget,
-    /// Always (`PHOTOCRAFT_CANVAS_F16=1`).
+    /// Always (`EVOPHOTO_CANVAS_F16=1`).
     Always,
 }
 
@@ -114,7 +114,7 @@ pub struct GpuCanvas {
     rs: RenderState,
     tile: u32,
     high: HighPolicy,
-    health: photocraft_gpu::DeviceHealth,
+    health: evophoto_gpu::DeviceHealth,
     /// [`video_memory`] of the adapter, detected once.
     vram: Option<u64>,
     /// [`canvas_budget`], shared with the paint callback's resources: [`GpuCanvas::format_for`]
@@ -127,7 +127,7 @@ pub struct GpuCanvas {
 /// samples one mip level and renders into another of the same texture (#892, Intel UHD 620).
 /// Everywhere else it renders straight into the level: on an NVIDIA DX12 adapter the scratch
 /// textures, created per level on every refresh, cost about 1 ms of CPU time per brush dab
-/// (#4515). `PHOTOCRAFT_SEPARATE_MIPS` (`setting`) forces it on (`1`) or off (`0`).
+/// (#4515). `EVOPHOTO_SEPARATE_MIPS` (`setting`) forces it on (`1`) or off (`0`).
 pub fn separate_mip_targets(backend: wgpu::Backend, vendor: u32, setting: Option<&str>) -> bool {
     const INTEL: u32 = 0x8086;
     match setting.map(str::trim) {
@@ -151,23 +151,23 @@ impl GpuCanvas {
         Self::with_tile(rs, None)
     }
 
-    /// Like [`GpuCanvas::new`] with a preferred texture tile side (`PHOTOCRAFT_GPU_TILE` wins).
+    /// Like [`GpuCanvas::new`] with a preferred texture tile side (`EVOPHOTO_GPU_TILE` wins).
     pub fn with_tile(rs: &RenderState, tile: Option<u32>) -> Self {
         let max = rs.device.limits().max_texture_dimension_2d;
-        let env_tile = std::env::var("PHOTOCRAFT_GPU_TILE").ok().and_then(|v| v.parse::<u32>().ok());
+        let env_tile = std::env::var("EVOPHOTO_GPU_TILE").ok().and_then(|v| v.parse::<u32>().ok());
         let tile = env_tile.or(tile).unwrap_or(DEFAULT_TILE).clamp(64, max);
-        let high = match std::env::var("PHOTOCRAFT_CANVAS_F16").ok().as_deref() {
+        let high = match std::env::var("EVOPHOTO_CANVAS_F16").ok().as_deref() {
             _ if !supports_f16_canvas(&rs.adapter) => HighPolicy::Off,
             Some("0") => HighPolicy::Off,
             Some("1") => HighPolicy::Always,
             _ => HighPolicy::Budget,
         };
         // Device loss and uncaptured errors mark this flag instead of panicking (#243).
-        let health = photocraft_gpu::DeviceHealth::watch(&rs.device);
+        let health = evophoto_gpu::DeviceHealth::watch(&rs.device);
         let mut res = Resources::new(&rs.device, &rs.queue, rs.target_format, high != HighPolicy::Off);
         res.health = health.clone();
         let info = rs.adapter.get_info();
-        res.separate_mip_targets = separate_mip_targets(info.backend, info.vendor, std::env::var("PHOTOCRAFT_SEPARATE_MIPS").ok().as_deref());
+        res.separate_mip_targets = separate_mip_targets(info.backend, info.vendor, std::env::var("EVOPHOTO_SEPARATE_MIPS").ok().as_deref());
         let vram = video_memory(&info);
         res.canvas_budget.store(canvas_budget(physical_memory(), vram), Ordering::Relaxed);
         let budget = res.canvas_budget.clone();
@@ -181,12 +181,12 @@ impl GpuCanvas {
     }
 
     /// The device's health flag (shared with the wgpu compositor and the paint callback).
-    pub fn health(&self) -> &photocraft_gpu::DeviceHealth {
+    pub fn health(&self) -> &evophoto_gpu::DeviceHealth {
         &self.health
     }
 
     /// Why the GPU can't be used any more (`None` while it can).
-    pub fn fault(&self) -> Option<photocraft_gpu::Fault> {
+    pub fn fault(&self) -> Option<evophoto_gpu::Fault> {
         self.health.fault()
     }
 
@@ -196,7 +196,7 @@ impl GpuCanvas {
         let mut r = self.rs.renderer.write();
         if let Some(res) = r.callback_resources.get_mut::<Resources>() {
             res.compositor = None;
-            res.compositor_failed = Some(photocraft_gpu::Unsupported(self.fault().map_or_else(|| "GPU canvas released".into(), |f| f.to_string())));
+            res.compositor_failed = Some(evophoto_gpu::Unsupported(self.fault().map_or_else(|| "GPU canvas released".into(), |f| f.to_string())));
             res.docs.clear();
             res.luts.clear();
             res.display_lut_signatures.clear();
@@ -223,7 +223,7 @@ impl GpuCanvas {
         self.rs.device.limits().max_texture_dimension_2d as usize
     }
 
-    pub fn format_for(&self, depth: photocraft_doc::SampleType, size: [u32; 2]) -> wgpu::TextureFormat {
+    pub fn format_for(&self, depth: evophoto_doc::SampleType, size: [u32; 2]) -> wgpu::TextureFormat {
         let px = size[0] as u64 * size[1] as u64;
         let high = match self.high {
             HighPolicy::Off => false,
@@ -234,7 +234,7 @@ impl GpuCanvas {
             }
             HighPolicy::Always => true,
         };
-        if high && depth != photocraft_doc::SampleType::U8 { FORMAT_HIGH } else { FORMAT }
+        if high && depth != evophoto_doc::SampleType::U8 { FORMAT_HIGH } else { FORMAT }
     }
 
     /// Format and GPU bytes (all tiles, all mip levels) of document `key`'s canvas texture.
@@ -272,7 +272,7 @@ impl GpuCanvas {
 
     /// Whether `doc`'s display textures fit [`canvas_budget`]; when they don't, nothing is
     /// created for it and it is drawn on the CPU canvas.
-    pub fn fits_canvas(&self, doc: &photocraft_doc::Document) -> bool {
+    pub fn fits_canvas(&self, doc: &evophoto_doc::Document) -> bool {
         let size = [doc.size.width, doc.size.height];
         let bytes = canvas_texture_bytes(size, self.tile, texel_bytes(self.format_for(doc.depth, size)));
         let r = self.rs.renderer.read();
@@ -292,7 +292,7 @@ impl GpuCanvas {
 
     /// The document area the view shows: full refreshes composite it last, so its layer pages
     /// are the ones still resident for the edits that follow.
-    pub fn set_focus(&self, focus: Option<photocraft_geom::Rect>) {
+    pub fn set_focus(&self, focus: Option<evophoto_geom::Rect>) {
         let mut r = self.rs.renderer.write();
         if let Some(res) = r.callback_resources.get_mut::<Resources>() {
             res.compositor_focus = focus;
@@ -303,7 +303,7 @@ impl GpuCanvas {
     /// anything. [`Compositor::render`] carries measurements out in its stats, but a refresh is
     /// the only thing that collects them, so the last refresh before the app goes idle would
     /// never be reported. The frame loop calls this so it is.
-    pub fn take_gpu_timing(&self) -> Option<photocraft_gpu::GpuTiming> {
+    pub fn take_gpu_timing(&self) -> Option<evophoto_gpu::GpuTiming> {
         let mut r = self.rs.renderer.write();
         r.callback_resources.get_mut::<Resources>()?.compositor.as_mut()?.take_gpu_timing()
     }
@@ -318,7 +318,7 @@ impl GpuCanvas {
 
     /// Whether `doc`'s layers fit the budget as it now stands, measured without a refresh (a GPU
     /// Memory change shows in the status bar at once). `None` before the compositor exists.
-    pub fn measure_fit(&self, doc: &photocraft_doc::Document) -> Option<LayerFit> {
+    pub fn measure_fit(&self, doc: &evophoto_doc::Document) -> Option<LayerFit> {
         let mut r = self.rs.renderer.write();
         let res = r.callback_resources.get_mut::<Resources>()?;
         let budget = res.compositor_budget;
@@ -355,8 +355,8 @@ impl GpuCanvas {
 
     /// Whether [`GpuCanvas::composite`] would draw `doc` with the wgpu compositor (rather than
     /// fall back to the CPU compositor).
-    pub fn supports(&self, doc: &photocraft_doc::Document) -> bool {
-        if std::env::var_os("PHOTOCRAFT_CPU_COMPOSE").is_some() || doc.size.width == 0 || doc.size.height == 0 {
+    pub fn supports(&self, doc: &evophoto_doc::Document) -> bool {
+        if std::env::var_os("EVOPHOTO_CPU_COMPOSE").is_some() || doc.size.width == 0 || doc.size.height == 0 {
             return false;
         }
         let r = self.rs.renderer.read();
@@ -367,7 +367,7 @@ impl GpuCanvas {
         match &res.compositor {
             Some(c) => c.supports(doc).is_ok(),
             // Layers larger than the texture limit are stored in pages, so any size qualifies.
-            None => photocraft_gpu::plan(doc).is_ok(),
+            None => evophoto_gpu::plan(doc).is_ok(),
         }
     }
 
@@ -430,14 +430,14 @@ impl GpuCanvas {
 
     /// Upload a CPU composite covering the whole document (a preview of a document of `depth`:
     /// see [`GpuCanvas::format_for`]).
-    pub fn upload_buffer_full(&self, doc: u64, buf: &photocraft_compose::Buffer, depth: photocraft_doc::SampleType) {
+    pub fn upload_buffer_full(&self, doc: u64, buf: &evophoto_compose::Buffer, depth: evophoto_doc::SampleType) {
         let size = [buf.rect.width(), buf.rect.height()];
         let format = self.format_for(depth, size);
         self.upload_full_as(doc, size, format, &texels(format, &buf.px));
     }
 
     /// Upload a CPU composite of a sub-rectangle (in document pixels, `buf.rect`).
-    pub fn upload_buffer_rect(&self, doc: u64, buf: &photocraft_compose::Buffer) -> bool {
+    pub fn upload_buffer_rect(&self, doc: u64, buf: &evophoto_compose::Buffer) -> bool {
         let r = buf.rect;
         let Some(format) = self.format_of(doc) else { return false };
         if r.x0 < 0 || r.y0 < 0 {
@@ -448,35 +448,35 @@ impl GpuCanvas {
 
     /// Composite `region` of `doc` with the wgpu compositor straight into its display texture
     /// (no CPU pixels, no upload of the composite). `encode_srgb` stores the sRGB encoding of the
-    /// composite (linear documents, see `photocraft_engine::display_color`). Returns `Err` when the
+    /// composite (linear documents, see `evophoto_engine::display_color`). Returns `Err` when the
     /// document uses features the GPU compositor doesn't cover yet; the caller then falls back to
     /// the CPU compositor.
     pub fn composite(
         &self,
-        doc: &photocraft_doc::Document,
-        region: photocraft_geom::Rect,
+        doc: &evophoto_doc::Document,
+        region: evophoto_geom::Rect,
         encode_srgb: bool,
-    ) -> Result<photocraft_gpu::Stats, photocraft_gpu::Unsupported> {
+    ) -> Result<evophoto_gpu::Stats, evophoto_gpu::Unsupported> {
         let (device, queue) = (&self.rs.device, &self.rs.queue);
         let size = [doc.size.width, doc.size.height];
         if size[0] == 0 || size[1] == 0 {
-            return Err(photocraft_gpu::Unsupported("empty document".into()));
+            return Err(evophoto_gpu::Unsupported("empty document".into()));
         }
-        if std::env::var_os("PHOTOCRAFT_CPU_COMPOSE").is_some() {
-            return Err(photocraft_gpu::Unsupported("disabled by PHOTOCRAFT_CPU_COMPOSE".into()));
+        if std::env::var_os("EVOPHOTO_CPU_COMPOSE").is_some() {
+            return Err(evophoto_gpu::Unsupported("disabled by EVOPHOTO_CPU_COMPOSE".into()));
         }
         if let Some(f) = self.fault() {
-            return Err(photocraft_gpu::Unsupported(f.to_string()));
+            return Err(evophoto_gpu::Unsupported(f.to_string()));
         }
         let mut renderer = self.rs.renderer.write();
-        let Some(res) = renderer.callback_resources.get_mut::<Resources>() else { return Err(photocraft_gpu::Unsupported("no GPU canvas".into())) };
+        let Some(res) = renderer.callback_resources.get_mut::<Resources>() else { return Err(evophoto_gpu::Unsupported("no GPU canvas".into())) };
         // A driver that couldn't build the pipelines once won't later: stay on the CPU compositor.
         if let Some(e) = &res.compositor_failed {
             return Err(e.clone());
         }
         let mut comp = match res.compositor.take() {
             Some(c) => c,
-            None => match photocraft_gpu::Compositor::try_new_with_format(device, photocraft_gpu::Compositor::preferred_acc_format(&self.rs.adapter)) {
+            None => match evophoto_gpu::Compositor::try_new_with_format(device, evophoto_gpu::Compositor::preferred_acc_format(&self.rs.adapter)) {
                 Ok(c) => c,
                 Err(e) => {
                     log::warn!("{e}; using the CPU compositor");
@@ -515,20 +515,20 @@ impl GpuCanvas {
             res.layer_fit = Some(fit);
             if !fit.fits() {
                 res.compositor = Some(comp);
-                return Err(photocraft_gpu::Unsupported(OVER_BUDGET.into()));
+                return Err(evophoto_gpu::Unsupported(OVER_BUDGET.into()));
             }
         }
         if fresh {
             let Some(tex) = DocTextures::new(device, res, size, self.tile, format) else {
                 res.docs.remove(&key);
                 res.compositor = Some(comp);
-                return Err(photocraft_gpu::Unsupported(OVER_CANVAS_BUDGET.into()));
+                return Err(evophoto_gpu::Unsupported(OVER_CANVAS_BUDGET.into()));
             };
             res.docs.insert(key, tex);
         }
         let (Some(pipe), Some(d)) = (res.encode_pipeline(format), res.docs.get(&key)) else {
             res.compositor = Some(comp);
-            return Err(photocraft_gpu::Unsupported(format!("no {format:?} canvas texture or pipeline")));
+            return Err(evophoto_gpu::Unsupported(format!("no {format:?} canvas texture or pipeline")));
         };
         let bgl = &res.encode_bgl;
         // A float canvas keeps values above 1.0 (32-bit documents, for the 32-bit preview).
@@ -539,7 +539,7 @@ impl GpuCanvas {
             comp.render(device, queue, doc, region, |enc, out| {
                 for t in &d.tiles {
                     let [tx, ty, tw, th] = t.rect.map(|v| v as i32);
-                    let r = out.rect.intersect(&photocraft_geom::Rect::from_xywh(tx, ty, tw as u32, th as u32));
+                    let r = out.rect.intersect(&evophoto_geom::Rect::from_xywh(tx, ty, tw as u32, th as u32));
                     if r.is_empty() {
                         continue;
                     }
@@ -574,18 +574,18 @@ impl GpuCanvas {
             })
         }));
         let Ok(result) = result else {
-            self.health.mark(photocraft_gpu::Fault::Lost("the GPU compositor stopped (internal error)".into()));
+            self.health.mark(evophoto_gpu::Fault::Lost("the GPU compositor stopped (internal error)".into()));
             res.docs.remove(&key);
-            return Err(photocraft_gpu::Unsupported("GPU device lost".into()));
+            return Err(evophoto_gpu::Unsupported("GPU device lost".into()));
         };
         // Lost during the refresh: its output can't be trusted.
         let result = match self.fault() {
-            Some(f) => Err(photocraft_gpu::Unsupported(f.to_string())),
+            Some(f) => Err(evophoto_gpu::Unsupported(f.to_string())),
             None => result,
         };
         if result.is_ok() {
             d.regenerate_mips(device, queue, res, [region.x0 as u32, region.y0 as u32, region.x1 as u32, region.y1 as u32]);
-            if std::env::var_os("PHOTOCRAFT_GPU_SYNC").is_some() {
+            if std::env::var_os("EVOPHOTO_GPU_SYNC").is_some() {
                 // Benchmarking: wait for the GPU so callers can time the whole refresh.
                 #[cfg(not(target_arch = "wasm32"))]
                 self.health.wait(device, None);
@@ -605,9 +605,9 @@ impl GpuCanvas {
     pub fn refresh(
         &self,
         key: u64,
-        doc: &photocraft_doc::Document,
-        damage: Option<photocraft_geom::Rect>,
-        display: Option<&photocraft_engine::display_color::CanvasDisplay>,
+        doc: &evophoto_doc::Document,
+        damage: Option<evophoto_geom::Rect>,
+        display: Option<&evophoto_engine::display_color::CanvasDisplay>,
     ) -> Refresh {
         self.refresh_with(key, doc, damage, display, false)
     }
@@ -618,9 +618,9 @@ impl GpuCanvas {
     pub fn refresh_with(
         &self,
         key: u64,
-        doc: &photocraft_doc::Document,
-        damage: Option<photocraft_geom::Rect>,
-        display: Option<&photocraft_engine::display_color::CanvasDisplay>,
+        doc: &evophoto_doc::Document,
+        damage: Option<evophoto_geom::Rect>,
+        display: Option<&evophoto_engine::display_color::CanvasDisplay>,
         defer: bool,
     ) -> Refresh {
         if let Some(f) = self.fault() {
@@ -648,7 +648,7 @@ impl GpuCanvas {
         }
         let region = damage.unwrap_or(bounds);
         let encode_srgb = display.is_some_and(|d| d.encode_srgb);
-        let gpu = if key == doc.id.0 { self.composite(doc, region, encode_srgb) } else { Err(photocraft_gpu::Unsupported("preview texture".into())) };
+        let gpu = if key == doc.id.0 { self.composite(doc, region, encode_srgb) } else { Err(evophoto_gpu::Unsupported("preview texture".into())) };
         match gpu {
             Ok(stats) => {
                 out.kind = if damage.is_some() { "gpu-rect" } else { "gpu-full" };
@@ -672,7 +672,7 @@ impl GpuCanvas {
                 out.kind = "rect";
                 return out;
             }
-            let buf = photocraft_compose::render(doc, r);
+            let buf = evophoto_compose::render(doc, r);
             let t1 = now_ms();
             if self.upload_buffer_rect(key, &texture_buffer(display, &buf)) {
                 out.kind = "rect";
@@ -692,12 +692,12 @@ impl GpuCanvas {
     /// Composite the whole of `doc` with the CPU compositor into document `key`'s texture, band by
     /// band (each band converted and uploaded before the next is rendered), so a huge document
     /// never needs a full-size float composite or texture-format copy in memory.
-    pub fn upload_composite(&self, key: u64, doc: &photocraft_doc::Document, display: Option<&photocraft_engine::display_color::CanvasDisplay>) {
+    pub fn upload_composite(&self, key: u64, doc: &evophoto_doc::Document, display: Option<&evophoto_engine::display_color::CanvasDisplay>) {
         let size = [doc.size.width, doc.size.height];
         let Some(format) = self.prepare_texture(key, doc) else { return };
         let (device, queue) = (&self.rs.device, &self.rs.queue);
         let mut rgba = Vec::new();
-        let _ = photocraft_compose::render_bands(doc, doc.bounds(), 0, |band| -> Result<(), ()> {
+        let _ = evophoto_compose::render_bands(doc, doc.bounds(), 0, |band| -> Result<(), ()> {
             if !self.health.is_ok() {
                 return Err(());
             }
@@ -724,7 +724,7 @@ impl GpuCanvas {
 
     /// Make sure document `key` has a display texture of `doc`'s size and format, keeping the one
     /// it has when that fits. Returns its format, or `None` when it can't be created.
-    pub fn prepare_texture(&self, key: u64, doc: &photocraft_doc::Document) -> Option<wgpu::TextureFormat> {
+    pub fn prepare_texture(&self, key: u64, doc: &evophoto_doc::Document) -> Option<wgpu::TextureFormat> {
         let size = [doc.size.width, doc.size.height];
         if size[0] == 0 || size[1] == 0 || !self.health.is_ok() {
             return None;
@@ -808,7 +808,7 @@ impl GpuCanvas {
 
     /// Set a separately sampled curve/matrix/curve display transform. CMS validates this
     /// representation and provides bounded tables; no profile interpretation lives in the UI.
-    pub fn set_display_matrix_shaper(&self, doc: u64, output: u32, shaper: &photocraft_cms::GpuMatrixShaper) {
+    pub fn set_display_matrix_shaper(&self, doc: u64, output: u32, shaper: &evophoto_cms::GpuMatrixShaper) {
         if !self.health.is_ok() {
             return;
         }
@@ -877,9 +877,9 @@ impl GpuCanvas {
 
 /// A CPU composite as the canvas texture stores it (`display`'s encoding; as is without one).
 fn texture_buffer<'a>(
-    display: Option<&photocraft_engine::display_color::CanvasDisplay>,
-    buf: &'a photocraft_compose::Buffer,
-) -> std::borrow::Cow<'a, photocraft_compose::Buffer> {
+    display: Option<&evophoto_engine::display_color::CanvasDisplay>,
+    buf: &'a evophoto_compose::Buffer,
+) -> std::borrow::Cow<'a, evophoto_compose::Buffer> {
     match display {
         Some(d) => d.texture_buffer(buf),
         None => std::borrow::Cow::Borrowed(buf),
@@ -890,8 +890,8 @@ fn texture_buffer<'a>(
 /// [`GpuCanvas::upload_rect`] takes. Runs anywhere (a redraw's worker converts its own pieces).
 pub fn display_texels(
     format: wgpu::TextureFormat,
-    display: Option<&photocraft_engine::display_color::CanvasDisplay>,
-    buf: &photocraft_compose::Buffer,
+    display: Option<&evophoto_engine::display_color::CanvasDisplay>,
+    buf: &evophoto_compose::Buffer,
 ) -> Vec<u8> {
     texels(format, &texture_buffer(display, buf).px)
 }
@@ -915,7 +915,7 @@ pub struct Refresh {
     /// rather than `composite_ms`, which measures encoding and submitting, not executing. It
     /// leaves out layer-tile uploads (`uploads` above counts them), so a first refresh of a
     /// document under-reports by more than the few per cent of a warm one.
-    pub gpu: Option<photocraft_gpu::GpuTiming>,
+    pub gpu: Option<evophoto_gpu::GpuTiming>,
     /// Why the wgpu compositor wasn't used.
     pub fallback: Option<String>,
 }
@@ -950,13 +950,13 @@ pub fn use_adapter_limits_with(setup: &mut egui_wgpu::WgpuSetup, on_adapter: imp
 
 /// How the app asks for its device: egui's defaults, the adapter's texture and buffer size
 /// limits ([`device_limits`]), and timestamp queries where the adapter has them, so the canvas
-/// can report how long the GPU actually spends compositing ([`photocraft_gpu::GpuTimer`]).
+/// can report how long the GPU actually spends compositing ([`evophoto_gpu::GpuTimer`]).
 /// A bench or test that builds its own device should use this rather than [`device_limits`]
 /// alone, or it measures a device the app never creates. (`bevel_bench`, `fx_bench` and
 /// `interactive_bench` still call [`device_limits`] directly and so report no GPU time.)
 pub fn device_descriptor(adapter: &wgpu::Adapter) -> wgpu::DeviceDescriptor<'static> {
     wgpu::DeviceDescriptor {
-        label: Some("photocraft wgpu device"),
+        label: Some("evophoto wgpu device"),
         required_limits: device_limits(adapter),
         required_features: timing_features(adapter),
         ..Default::default()
@@ -967,13 +967,13 @@ pub fn device_descriptor(adapter: &wgpu::Adapter) -> wgpu::DeviceDescriptor<'sta
 /// feature an adapter lacks fails device creation, and a canvas without GPU timing is far better
 /// than no canvas.
 ///
-/// `PHOTOCRAFT_NO_GPU_TIMING` suppresses the request as well as the timer
-/// ([`photocraft_gpu::Compositor::measure_gpu_time`]), so the variable also rescues a driver
+/// `EVOPHOTO_NO_GPU_TIMING` suppresses the request as well as the timer
+/// ([`evophoto_gpu::Compositor::measure_gpu_time`]), so the variable also rescues a driver
 /// that advertises the features and then fails or misbehaves on device creation — not only one
 /// whose timestamps come back wrong.
 pub fn timing_features(adapter: &wgpu::Adapter) -> wgpu::Features {
-    let want = photocraft_gpu::timing::FEATURES;
-    if std::env::var_os("PHOTOCRAFT_NO_GPU_TIMING").is_some() {
+    let want = evophoto_gpu::timing::FEATURES;
+    if std::env::var_os("EVOPHOTO_NO_GPU_TIMING").is_some() {
         return wgpu::Features::empty();
     }
     if adapter.features().contains(want) { want } else { wgpu::Features::empty() }
@@ -1026,7 +1026,7 @@ pub struct Perf {
     /// How long the GPU spent executing a recent composite (ms), from timestamp queries read
     /// back after the fact. `None` on the CPU compositor, on a device without timestamp queries
     /// and on wasm — there is then no honest number to report, and `composite_ms` is not one.
-    /// Excludes layer-tile uploads and end-of-batch work (see `photocraft_gpu::timing`), so it
+    /// Excludes layer-tile uploads and end-of-batch work (see `evophoto_gpu::timing`), so it
     /// is a few per cent under the GPU's full share of a warm refresh and further under a cold
     /// one.
     pub gpu_ms: Option<f64>,
@@ -1224,8 +1224,8 @@ impl Perf {
         }
     }
 
-    /// Record a GPU composite measurement that came back (see [`photocraft_gpu::GpuTiming`]).
-    pub fn record_gpu(&mut self, t: photocraft_gpu::GpuTiming) {
+    /// Record a GPU composite measurement that came back (see [`evophoto_gpu::GpuTiming`]).
+    pub fn record_gpu(&mut self, t: evophoto_gpu::GpuTiming) {
         self.gpu_ms = Some(t.ms);
         self.gpu_ms_px = t.px;
     }
@@ -1391,7 +1391,7 @@ pub const MIN_GPU_BUDGET: u64 = 512 << 20;
 
 /// Why a full refresh whose layer pages don't fit [`memory_budget`] (or GPU memory) goes to the
 /// CPU compositor.
-pub const OVER_BUDGET: &str = photocraft_gpu::OVER_BUDGET;
+pub const OVER_BUDGET: &str = evophoto_gpu::OVER_BUDGET;
 
 /// GPU memory the wgpu compositor may hold for layer pages and effect maps.
 ///
@@ -1463,12 +1463,12 @@ pub fn canvas_texture_bytes(size: [u32; 2], tile: u32, bpp: u64) -> u64 {
     total
 }
 
-/// Physical memory of this machine in bytes, if known. `PHOTOCRAFT_RAM_MB` overrides it (to
+/// Physical memory of this machine in bytes, if known. `EVOPHOTO_RAM_MB` overrides it (to
 /// simulate a smaller machine).
 pub fn physical_memory() -> Option<u64> {
     static RAM: std::sync::OnceLock<Option<u64>> = std::sync::OnceLock::new();
     *RAM.get_or_init(|| {
-        if let Some(mb) = std::env::var("PHOTOCRAFT_RAM_MB").ok().and_then(|v| v.trim().parse::<u64>().ok()) {
+        if let Some(mb) = std::env::var("EVOPHOTO_RAM_MB").ok().and_then(|v| v.trim().parse::<u64>().ok()) {
             return mb.checked_mul(1 << 20);
         }
         detect_physical_memory()
@@ -1507,11 +1507,11 @@ fn detect_physical_memory() -> Option<u64> {
 /// The memory of `adapter` itself, in bytes, when it is a discrete GPU and the platform reports
 /// it: DXGI's dedicated video memory on Windows, amdgpu's VRAM size on Linux. `None` for
 /// integrated and software adapters, whose textures live in system memory (the RAM-based
-/// budgets already cover them), and where nothing reports it. `PHOTOCRAFT_VRAM_MB` overrides it
+/// budgets already cover them), and where nothing reports it. `EVOPHOTO_VRAM_MB` overrides it
 /// for any adapter, simulating a discrete card of that size: on an integrated GPU the budget then
 /// stops charging the document's pixels too, as for a real card (a development switch).
 pub fn video_memory(adapter: &wgpu::AdapterInfo) -> Option<u64> {
-    if let Some(mb) = std::env::var("PHOTOCRAFT_VRAM_MB").ok().and_then(|v| v.trim().parse::<u64>().ok()) {
+    if let Some(mb) = std::env::var("EVOPHOTO_VRAM_MB").ok().and_then(|v| v.trim().parse::<u64>().ok()) {
         return mb.checked_mul(1 << 20).filter(|b| *b > 0);
     }
     if adapter.device_type != wgpu::DeviceType::DiscreteGpu {
@@ -1587,11 +1587,11 @@ struct Resources {
     /// the level directly (see [`separate_mip_targets`]).
     separate_mip_targets: bool,
     /// The wgpu layer compositor (created on first use).
-    compositor: Option<photocraft_gpu::Compositor>,
+    compositor: Option<evophoto_gpu::Compositor>,
     /// Why the wgpu compositor couldn't be created (then the CPU compositor is used).
-    compositor_failed: Option<photocraft_gpu::Unsupported>,
+    compositor_failed: Option<evophoto_gpu::Unsupported>,
     /// The device's health: the paint callback issues no GPU work once it's lost.
-    health: photocraft_gpu::DeviceHealth,
+    health: evophoto_gpu::DeviceHealth,
     /// GPU memory the compositor may hold (`None`: its default), and the document area the
     /// view shows; applied before every composite.
     compositor_budget: Option<u64>,
@@ -1599,7 +1599,7 @@ struct Resources {
     /// (bytes): when they don't fit, full refreshes go to the CPU ([`OVER_BUDGET`]).
     layer_fit: Option<LayerFit>,
     compositor_cache_budget: Option<u64>,
-    compositor_focus: Option<photocraft_geom::Rect>,
+    compositor_focus: Option<evophoto_geom::Rect>,
     /// GPU bytes one document's display texture set may take (see [`canvas_budget`]).
     canvas_budget: std::sync::Arc<std::sync::atomic::AtomicU64>,
     encode_bgl: wgpu::BindGroupLayout,
@@ -1641,7 +1641,7 @@ fn lut_bind_group(
     bgl: &wgpu::BindGroupLayout,
     size: u32,
     bytes: &[u8],
-    shaper: Option<&photocraft_cms::GpuMatrixShaper>,
+    shaper: Option<&evophoto_cms::GpuMatrixShaper>,
 ) -> wgpu::BindGroup {
     let extent = wgpu::Extent3d { width: size, height: size, depth_or_array_layers: size };
     let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -1922,7 +1922,7 @@ impl Resources {
             separate_mip_targets: false,
             compositor: None,
             compositor_failed: None,
-            health: photocraft_gpu::DeviceHealth::new(),
+            health: evophoto_gpu::DeviceHealth::new(),
             compositor_budget: None,
             layer_fit: None,
             compositor_cache_budget: None,
@@ -2639,7 +2639,7 @@ mod tests {
     /// this refresh's. Runs anywhere — the GPU timing tests need hardware and CI has none.
     #[test]
     fn a_gpu_measurement_stands_until_replaced_and_a_cpu_refresh_clears_it() {
-        let timing = |ms, px| photocraft_gpu::GpuTiming { ms, px, spans: 1 };
+        let timing = |ms, px| evophoto_gpu::GpuTiming { ms, px, spans: 1 };
         let refresh = |kind, gpu| Refresh { kind, gpu, ..Default::default() };
         let mut perf = Perf::default();
         assert_eq!(perf.gpu_ms, None, "nothing is reported before a measurement");
@@ -2732,7 +2732,7 @@ mod tests {
         assert!(!separate_mip_targets(Dx12, amd, None));
         assert!(!separate_mip_targets(Vulkan, intel, None));
         assert!(!separate_mip_targets(Metal, 0, None));
-        // PHOTOCRAFT_SEPARATE_MIPS forces either way; anything else leaves the default.
+        // EVOPHOTO_SEPARATE_MIPS forces either way; anything else leaves the default.
         assert!(separate_mip_targets(Dx12, nvidia, Some("1")));
         assert!(!separate_mip_targets(Dx12, intel, Some(" 0 ")));
         assert!(separate_mip_targets(Dx12, intel, Some("yes")));

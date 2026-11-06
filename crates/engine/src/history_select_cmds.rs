@@ -106,7 +106,7 @@ mod tests {
         s
     }
 
-    type Look = (Arc<photocraft_doc::Document>, Option<photocraft_doc::LayerId>, Vec<photocraft_doc::LayerId>, Vec<String>, Vec<String>);
+    type Look = (Arc<evophoto_doc::Document>, Option<evophoto_doc::LayerId>, Vec<evophoto_doc::LayerId>, Vec<String>, Vec<String>);
 
     /// What the panel can see of a session: the document, the targeted layers, the entries and
     /// the redo states.

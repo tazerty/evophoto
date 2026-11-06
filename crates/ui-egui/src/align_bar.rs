@@ -5,7 +5,7 @@
 use serde_json::json;
 
 use crate::theme::Tokens;
-use crate::{PhotocraftApp, icons};
+use crate::{EvoPhotoApp, icons};
 
 /// (command id, icon, label). The labels are the Layer menu's, already translated.
 const ALIGN: [(&str, &str, &str); 6] = [
@@ -29,7 +29,7 @@ const DISTRIBUTE: [(&str, &str, &str); 8] = [
 ];
 
 /// The six align icons followed by a menu holding both groups with icons and names.
-pub fn options(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn options(app: &mut EvoPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     ui.spacing_mut().item_spacing.x = 0.0;
     for (cmd, icon, label) in ALIGN {
@@ -67,7 +67,7 @@ mod tests {
 
     #[test]
     fn every_button_is_a_live_command_with_an_icon() {
-        let specs = photocraft_engine::command_specs();
+        let specs = evophoto_engine::command_specs();
         for (cmd, icon, _) in ALIGN.iter().chain(DISTRIBUTE.iter()) {
             assert!(specs.iter().any(|c| c.id == *cmd), "{cmd} is not a command");
             assert!(icons::exists(icon), "{icon} is not embedded");

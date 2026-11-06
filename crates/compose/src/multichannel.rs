@@ -7,8 +7,8 @@
 //! (selected / masked areas) still prints, as a transparent black ink, like Photoshop shows it.
 //! Its value is stored as-is (1 = selected, white in the Channels panel), so its ink is `1 − value`.
 
-use photocraft_doc::Document;
-use photocraft_geom::Rect;
+use evophoto_doc::Document;
+use evophoto_geom::Rect;
 
 use crate::Buffer;
 
@@ -18,7 +18,7 @@ pub fn inks(doc: &Document, rect: Rect) -> Buffer {
     let mut vals = Vec::new();
     for ch in &doc.channels {
         let alpha = ch.spot.is_none();
-        let (ink, solidity) = ch.spot.unwrap_or((photocraft_color::Color::BLACK, 0.0));
+        let (ink, solidity) = ch.spot.unwrap_or((evophoto_color::Color::BLACK, 0.0));
         // An empty alpha channel (all black) is solid black ink, so it can't be skipped.
         if !alpha && ch.surface.content_bounds().intersect(&rect).is_empty() {
             continue;
@@ -43,14 +43,14 @@ pub fn inks(doc: &Document, rect: Rect) -> Buffer {
 
 /// The starting backdrop of a document render: the inks for Multichannel, else transparent.
 pub(crate) fn backdrop(doc: &Document, rect: Rect) -> Buffer {
-    if doc.mode == photocraft_color::ColorMode::Multichannel { inks(doc, rect) } else { Buffer::transparent(rect) }
+    if doc.mode == evophoto_color::ColorMode::Multichannel { inks(doc, rect) } else { Buffer::transparent(rect) }
 }
 
 #[cfg(test)]
 mod tests {
-    use photocraft_color::{Color, ColorMode, PixelFormat, SampleType};
-    use photocraft_doc::{AlphaChannel, Document, Size};
-    use photocraft_raster::Surface;
+    use evophoto_color::{Color, ColorMode, PixelFormat, SampleType};
+    use evophoto_doc::{AlphaChannel, Document, Size};
+    use evophoto_raster::Surface;
 
     use super::*;
 

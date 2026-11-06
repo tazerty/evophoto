@@ -7,8 +7,8 @@
 
 use std::ops::Range;
 
-use photocraft_doc::vector::{FillRule, Path, PathOp};
-use photocraft_geom::Point;
+use evophoto_doc::vector::{FillRule, Path, PathOp};
+use evophoto_geom::Point;
 
 /// Pieces each curved segment is cut into (about 0.1 px off a 300 px bubble's curve).
 const CURVE_PIECES: usize = 16;
@@ -360,7 +360,7 @@ fn boolean(a: &[(f32, f32)], b: &[(f32, f32)], f: impl Fn(bool, bool) -> bool) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_doc::vector::{FillRule, Knot, Path, PathOp, Subpath};
+    use evophoto_doc::vector::{FillRule, Knot, Path, PathOp, Subpath};
 
     fn poly(pts: &[(f64, f64)]) -> Path {
         Path::new(vec![Subpath::polygon(pts)])
@@ -422,7 +422,7 @@ mod tests {
         // A circle of radius 50 centred on (50, 50) from four kappa curves.
         let k = 0.552_284_75 * 50.0;
         let c = |x: f64, y: f64, ix: f64, iy: f64, ox: f64, oy: f64| {
-            Knot::smooth(photocraft_geom::Point::new(x, y), photocraft_geom::Point::new(ix, iy), photocraft_geom::Point::new(ox, oy))
+            Knot::smooth(evophoto_geom::Point::new(x, y), evophoto_geom::Point::new(ix, iy), evophoto_geom::Point::new(ox, oy))
         };
         let circle = Subpath {
             closed: true,
@@ -444,7 +444,7 @@ mod tests {
     fn ellipse() -> Subpath {
         let (cx, cy, rx, ry) = (130.0, 80.0, 130.0, 80.0);
         let (kx, ky) = (0.552_284_75 * rx, 0.552_284_75 * ry);
-        let p = photocraft_geom::Point::new;
+        let p = evophoto_geom::Point::new;
         let c = |x: f64, y: f64, ix: f64, iy: f64, ox: f64, oy: f64| Knot::smooth(p(x, y), p(ix, iy), p(ox, oy));
         Subpath {
             closed: true,

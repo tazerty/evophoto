@@ -1,7 +1,7 @@
 //! GPU compositor (architecture §7.2, milestone M5).
 //!
 //! Renders a [`Document`] with wgpu, producing the same straight-alpha composite as the CPU
-//! reference (`photocraft-compose`) within ~1/255:
+//! reference (`evophoto-compose`) within ~1/255:
 //!
 //! - **Residency.** Layer and mask surfaces live on the GPU in square *pages* (up to [`PAGE`]²,
 //!   never above the device's texture limit) covering their allocated tiles. A page is uploaded
@@ -48,11 +48,11 @@ use std::collections::HashMap;
 use std::num::NonZeroU64;
 use std::sync::Arc;
 
-use photocraft_color::{PixelFormat, SampleType};
-use photocraft_compose::effects::FieldKind;
-use photocraft_doc::{DocId, Document, LayerContent, LayerId, Pattern};
-use photocraft_geom::{Rect, TILE_SIZE, TileCoord};
-use photocraft_raster::{Surface, Tile};
+use evophoto_color::{PixelFormat, SampleType};
+use evophoto_compose::effects::FieldKind;
+use evophoto_doc::{DocId, Document, LayerContent, LayerId, Pattern};
+use evophoto_geom::{Rect, TILE_SIZE, TileCoord};
+use evophoto_raster::{Surface, Tile};
 
 pub use health::{DeviceHealth, Fault};
 pub use plan::{Kernel, Plan, Role, Unsupported, plan};
@@ -451,8 +451,8 @@ pub struct Compositor {
     temps: Vec<(Tex, u64)>,
     patterns: HashMap<String, CachedPattern>,
     /// The colour mode of the document being encoded: patterns paint in it
-    /// (`photocraft_compose::pattern::pattern_rgba`).
-    pattern_mode: photocraft_color::ColorMode,
+    /// (`evophoto_compose::pattern::pattern_rgba`).
+    pattern_mode: evophoto_color::ColorMode,
     /// The document being encoded, which owns the patterns it paints with.
     pattern_doc: DocId,
     /// GPU memory pattern textures may hold ([`PATTERN_BUDGET`] by default).
@@ -783,7 +783,7 @@ impl Compositor {
             prefix: prefix::Prefix::default(),
             temps: Vec::new(),
             patterns: HashMap::new(),
-            pattern_mode: photocraft_color::ColorMode::Rgb,
+            pattern_mode: evophoto_color::ColorMode::Rgb,
             pattern_doc: DocId(0),
             pattern_budget: PATTERN_BUDGET,
             max_dim: 0,
@@ -980,7 +980,7 @@ impl Compositor {
 
     /// How far beyond a page cell the effect maps of `f` must be computed to be exact in it.
     fn fx_apron(doc: &Document, f: &plan::FxLayer<'_>) -> i32 {
-        let vector_shape = matches!(f.layer.content, LayerContent::Shape(_)) && photocraft_compose::effect_outline(f.layer).is_none();
+        let vector_shape = matches!(f.layer.content, LayerContent::Shape(_)) && evophoto_compose::effect_outline(f.layer).is_none();
         let progs: Vec<fx::MapProgram> = f
             .layer
             .effects
@@ -1011,8 +1011,8 @@ impl Compositor {
                 // Effect noise is speckled in the CPU maps; keep CPU and GPU identical by
                 // rendering noise-carrying effects on the CPU path.
                 let noisy = match e {
-                    photocraft_doc::Effect::DropShadow(s) | photocraft_doc::Effect::InnerShadow(s) => s.noise > 0.0,
-                    photocraft_doc::Effect::OuterGlow(g) | photocraft_doc::Effect::InnerGlow(g) => g.noise > 0.0,
+                    evophoto_doc::Effect::DropShadow(s) | evophoto_doc::Effect::InnerShadow(s) => s.noise > 0.0,
+                    evophoto_doc::Effect::OuterGlow(g) | evophoto_doc::Effect::InnerGlow(g) => g.noise > 0.0,
                     _ => false,
                 };
                 if noisy {
@@ -1103,10 +1103,10 @@ impl Compositor {
     /// A measurement arrives a frame or two after the refresh it belongs to, so it carries that
     /// refresh's own pixel count; take it with [`Compositor::take_gpu_timing`].
     pub fn measure_gpu_time(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) -> bool {
-        // `PHOTOCRAFT_NO_GPU_TIMING` turns it off: a kill switch for a driver whose timestamp
+        // `EVOPHOTO_NO_GPU_TIMING` turns it off: a kill switch for a driver whose timestamp
         // queries misbehave, and the control arm for measuring what the queries themselves
         // cost — the device is identical either way, so only the instrumentation varies.
-        if std::env::var_os("PHOTOCRAFT_NO_GPU_TIMING").is_some() {
+        if std::env::var_os("EVOPHOTO_NO_GPU_TIMING").is_some() {
             return false;
         }
         if self.timer.is_none() {
@@ -1237,9 +1237,9 @@ impl Compositor {
             return Err(Unsupported(f.to_string()));
         }
         // CMYK layers convert through the document's own CMYK profile (uploads and plan colours).
-        let space = photocraft_compose::cmyk_space(doc);
+        let space = evophoto_compose::cmyk_space(doc);
         self.cmyk = space.as_ref().map_or(0, |s| s.id);
-        photocraft_color::convert::with_cmyk_space(space.as_ref(), || self.encode_scoped(device, queue, encoder, doc, region, sink, flush))
+        evophoto_color::convert::with_cmyk_space(space.as_ref(), || self.encode_scoped(device, queue, encoder, doc, region, sink, flush))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1850,7 +1850,7 @@ impl Compositor {
         }
         let format = surface.format();
         let kind = TexKind::for_surface(key.1, format);
-        let cmyk = if format.mode == photocraft_color::ColorMode::Cmyk { self.cmyk } else { 0 };
+        let cmyk = if format.mode == evophoto_color::ColorMode::Cmyk { self.cmyk } else { 0 };
         let default_pixel = surface.default_pixel();
         let default_bits: Vec<u32> = default_pixel.iter().map(|v| v.to_bits()).collect();
         let stale = self
@@ -2012,7 +2012,7 @@ impl Compositor {
             return cached.texture.view.clone();
         }
         let (w, h) = (pat.width, pat.height);
-        let px = photocraft_compose::pattern::pattern_rgba(pat, mode);
+        let px = evophoto_compose::pattern::pattern_rgba(pat, mode);
         let bytes: Vec<u8> = px.iter().flat_map(|q| [q[0] * q[3], q[1] * q[3], q[2] * q[3], q[3]]).flat_map(f32::to_le_bytes).collect();
         let t = Tex::new(device, "pc_pattern", w, h, wgpu::TextureFormat::Rgba32Float, wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST);
         queue.write_texture(
@@ -2157,7 +2157,7 @@ impl Compositor {
 
         // Programs, and the distance fields they read (max reach per field).
         // Filled shapes stroke their outline (the effect shape); others estimate it.
-        let vector_shape = matches!(layer.content, LayerContent::Shape(_)) && photocraft_compose::effect_outline(layer).is_none();
+        let vector_shape = matches!(layer.content, LayerContent::Shape(_)) && evophoto_compose::effect_outline(layer).is_none();
         let anchor = layer.effects.reference.unwrap_or((f64::from(f.bounds.x0), f64::from(f.bounds.y0)));
         let progs: Vec<fx::MapProgram> =
             layer.effects.items.iter().filter(|e| e.enabled()).map(|e| fx::program_with(e, &doc.global_light, vector_shape, &doc.patterns, anchor)).collect();
@@ -2300,13 +2300,13 @@ impl Compositor {
     }
 }
 
-/// A start time when `PHOTOCRAFT_FX_TRACE=1` (it prints the CPU time of effect shapes and
+/// A start time when `EVOPHOTO_FX_TRACE=1` (it prints the CPU time of effect shapes and
 /// distance fields); never on wasm.
 fn web_time_now() -> Option<std::time::Instant> {
     #[cfg(not(target_arch = "wasm32"))]
     {
         static T: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        T.get_or_init(|| std::env::var_os("PHOTOCRAFT_FX_TRACE").is_some()).then(std::time::Instant::now)
+        T.get_or_init(|| std::env::var_os("EVOPHOTO_FX_TRACE").is_some()).then(std::time::Instant::now)
     }
     #[cfg(target_arch = "wasm32")]
     None
@@ -2435,7 +2435,7 @@ fn batch_runs(plan: &Plan<'_>) -> Vec<usize> {
         })
         .collect();
     let lead = |p: &plan::Pass<'_>| p.kernel == Kernel::LayerBlend && p.clip.is_none() && !p.gradient;
-    let extra = |p: &plan::Pass<'_>| lead(p) && p.mask.is_none() && p.flags & plan::F_TEXT_GAMMA == 0 && p.mode != photocraft_color::BlendMode::Dissolve;
+    let extra = |p: &plan::Pass<'_>| lead(p) && p.mask.is_none() && p.flags & plan::F_TEXT_GAMMA == 0 && p.mode != evophoto_color::BlendMode::Dissolve;
     (0..n)
         .map(|i| {
             let Some(first) = passes.get(i).filter(|p| lead(p)) else { return 1 };
@@ -2466,7 +2466,7 @@ fn run_starts(runs: &[usize]) -> Vec<bool> {
 /// The pipeline that draws `run` (passes `batch_runs` joined): `fs_layerbatch_normal` when every
 /// layer blends Normal without text gamma outside Lab documents, else `fs_layerbatch`.
 fn batch_kernel(run: &[plan::Pass<'_>]) -> Kernel {
-    let normal = |p: &plan::Pass<'_>| p.mode == photocraft_color::BlendMode::Normal && p.flags & (plan::F_TEXT_GAMMA | plan::F_LAB) == 0;
+    let normal = |p: &plan::Pass<'_>| p.mode == evophoto_color::BlendMode::Normal && p.flags & (plan::F_TEXT_GAMMA | plan::F_LAB) == 0;
     if run.iter().all(normal) { Kernel::LayerBatchNormal } else { Kernel::LayerBatch }
 }
 
@@ -2637,12 +2637,12 @@ fn convert_tiles(surface: &Surface, tiles: Vec<(TileCoord, Arc<Tile>)>, kind: Te
     // go in bands of rows, so even the one tile a dab touches spreads over the threads. Workers
     // don't inherit this thread's CMYK profile scope, so each band enters it.
     let bands = if colour_managed(&surface.format(), kind) { TILE_SIZE / MANAGED_BAND_ROWS } else { 1 };
-    let space = photocraft_color::convert::active_cmyk_space();
+    let space = evophoto_color::convert::active_cmyk_space();
     for batch in groups.chunks(CONVERT_BATCH) {
         // A tile's content is the same at every coordinate sharing it: convert it at the first.
         let jobs: Vec<_> = batch.iter().filter_map(|(t, cs)| cs.first().map(|c| (t, *c))).flat_map(|(t, c)| (0..bands).map(move |b| (t, c, b))).collect();
         let parts = fx::par_map(jobs, |(t, c, b)| {
-            photocraft_color::convert::with_cmyk_space(space.as_ref(), || {
+            evophoto_color::convert::with_cmyk_space(space.as_ref(), || {
                 if bands == 1 {
                     return convert_tile(surface, Some(t), kind, c);
                 }
@@ -2667,7 +2667,7 @@ const MANAGED_BAND_ROWS: i32 = 16;
 
 /// Whether `fmt` pixels reach `kind` texels through a per-pixel colour transform (CMYK, Lab).
 fn colour_managed(fmt: &PixelFormat, kind: TexKind) -> bool {
-    use photocraft_color::ColorMode;
+    use evophoto_color::ColorMode;
     matches!(kind, TexKind::Rgba8 | TexKind::Rgba16F) && matches!(fmt.mode, ColorMode::Cmyk | ColorMode::Lab)
 }
 
@@ -2686,7 +2686,7 @@ fn convert_tile(surface: &Surface, tile: Option<&Arc<Tile>>, kind: TexKind, c: T
 }
 
 /// [`convert_tile`]'s general path for `rect` (rows of one tile): each pixel through
-/// `photocraft_raster::to_rgba`. A run of identical pixels (the transparent or flat areas around a
+/// `evophoto_raster::to_rgba`. A run of identical pixels (the transparent or flat areas around a
 /// brush dab) is converted once: the same samples give the same texels.
 fn convert_rows(surface: &Surface, tile: Option<&Arc<Tile>>, kind: TexKind, rect: Rect) -> Vec<u8> {
     let n = rect.width() as usize * rect.height() as usize;
@@ -2706,7 +2706,7 @@ fn convert_rows(surface: &Surface, tile: Option<&Arc<Tile>>, kind: TexKind, rect
             {
                 return v;
             }
-            let v = photocraft_raster::to_rgba(&fmt, px);
+            let v = evophoto_raster::to_rgba(&fmt, px);
             last = Some((i, v));
             v
         };
@@ -2733,7 +2733,7 @@ fn convert_rows(surface: &Surface, tile: Option<&Arc<Tile>>, kind: TexKind, rect
 /// half: the same bytes as the general path at a fraction of its cost (a 50 MP 16-bit refresh
 /// converts dozens of tiles). `None` for other formats.
 fn rgb_gray16_to_f16(fmt: &PixelFormat, bytes: &[u8]) -> Option<Vec<u8>> {
-    use photocraft_color::ColorMode;
+    use evophoto_color::ColorMode;
     static HALF: std::sync::OnceLock<Box<[u16]>> = std::sync::OnceLock::new();
     if fmt.sample != SampleType::U16 {
         return None;
@@ -2767,7 +2767,7 @@ fn rgb_gray16_to_f16(fmt: &PixelFormat, bytes: &[u8]) -> Option<Vec<u8>> {
 /// pixel by pixel (a brush dab on a 32-bit layer re-uploads the tiles it touched). `None` for
 /// other formats.
 fn rgb_gray32_to_f16(fmt: &PixelFormat, bytes: &[u8]) -> Option<Vec<u8>> {
-    use photocraft_color::ColorMode;
+    use evophoto_color::ColorMode;
     if fmt.sample != SampleType::F32 {
         return None;
     }
@@ -2972,7 +2972,7 @@ mod tests {
                 for j in i + 1..i + k {
                     assert_eq!(p.passes[j].kernel, Kernel::LayerBlend);
                     assert_eq!(p.passes[j].a, Some(p.passes[j - 1].dst), "run at {i}: pass {j} doesn't read the one before");
-                    assert!(p.passes[j].mask.is_none() && p.passes[j].mode != photocraft_color::BlendMode::Dissolve, "run at {i}: pass {j}");
+                    assert!(p.passes[j].mask.is_none() && p.passes[j].mode != evophoto_color::BlendMode::Dissolve, "run at {i}: pass {j}");
                 }
             }
         }
@@ -2981,9 +2981,9 @@ mod tests {
 
     #[test]
     fn plain_layers_batch_and_runs_stop_where_a_pass_must_stand_alone() {
-        use photocraft_color::{BlendMode, Color, ColorMode, SampleType};
-        use photocraft_doc::{Document, Layer, LayerMask};
-        let mut d = Document::with_background("t", photocraft_geom::Size::new(8, 8), ColorMode::Rgb, SampleType::U8, Color::WHITE);
+        use evophoto_color::{BlendMode, Color, ColorMode, SampleType};
+        use evophoto_doc::{Document, Layer, LayerMask};
+        let mut d = Document::with_background("t", evophoto_geom::Size::new(8, 8), ColorMode::Rgb, SampleType::U8, Color::WHITE);
         for i in 0..12 {
             let mut l = Layer::raster(format!("l{i}"), d.pixel_format());
             l.surface_mut().unwrap().fill_rect(Rect::new(0, 0, 8, 8), &[0.2, 0.4, 0.6, 0.5]);
@@ -3041,7 +3041,7 @@ mod tests {
 
     #[test]
     fn runs_of_normal_layers_draw_with_normal_code_alone() {
-        use photocraft_color::BlendMode;
+        use evophoto_color::BlendMode;
         let pass = |mode: BlendMode, flags: u32| {
             let mut p = plan::Pass::new(Kernel::LayerBlend, 0);
             p.mode = mode;
@@ -3267,7 +3267,7 @@ mod tests {
             let fast = rgb_gray16_to_f16(&fmt, t.bytes()).or_else(|| rgb_gray32_to_f16(&fmt, t.bytes())).expect("fast path");
             let raw = s.read_region(r);
             let general: Vec<u8> =
-                raw.chunks_exact(fmt.channels()).flat_map(|px| photocraft_raster::to_rgba(&fmt, px).map(|x| f32_to_f16(x).to_le_bytes())).flatten().collect();
+                raw.chunks_exact(fmt.channels()).flat_map(|px| evophoto_raster::to_rgba(&fmt, px).map(|x| f32_to_f16(x).to_le_bytes())).flatten().collect();
             assert_eq!(fast, general, "{fmt:?}");
             assert_eq!(convert_tile(&s, Some(&t), TexKind::Rgba16F, TileCoord::new(0, 0)), general, "{fmt:?}");
         }
@@ -3282,9 +3282,9 @@ mod tests {
     /// the built-in CMYK profile and with a document's own (which the worker threads enter).
     #[test]
     fn colour_managed_tiles_match_the_per_pixel_conversion() {
-        use photocraft_cms::synth::{CmykParams, cmyk_profile};
-        use photocraft_color::ColorMode;
-        use photocraft_color::convert::{CmykSpace, with_cmyk_space};
+        use evophoto_cms::synth::{CmykParams, cmyk_profile};
+        use evophoto_color::ColorMode;
+        use evophoto_color::convert::{CmykSpace, with_cmyk_space};
         let icc = Arc::new(
             cmyk_profile(&CmykParams { description: "GPU test CMYK".into(), tvi: [0.26, 0.26, 0.26, 0.3], grid_a2b: 5, grid_b2a: 9, ..Default::default() })
                 .to_bytes(),
@@ -3328,7 +3328,7 @@ mod tests {
                             .read_region(c.rect())
                             .chunks_exact(ch)
                             .flat_map(|px| {
-                                let v = photocraft_raster::to_rgba(&fmt, px);
+                                let v = evophoto_raster::to_rgba(&fmt, px);
                                 match kind {
                                     TexKind::Rgba16F => v.iter().flat_map(|x| f32_to_f16(*x).to_le_bytes()).collect::<Vec<u8>>(),
                                     _ => v.map(|x| (x.clamp(0.0, 1.0) * 255.0 + 0.5) as u8).to_vec(),

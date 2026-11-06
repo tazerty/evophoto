@@ -1,5 +1,5 @@
-use photocraft_color::SampleType;
-use photocraft_engine::Session;
+use evophoto_color::SampleType;
+use evophoto_engine::Session;
 use serde_json::{Value, json};
 
 const STYLES: [&str; 10] =

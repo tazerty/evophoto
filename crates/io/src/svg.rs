@@ -12,13 +12,13 @@
 
 use std::sync::{Arc, OnceLock};
 
-use photocraft_color::blend::BlendMode;
-use photocraft_color::{Color, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::effects::GradientStyle;
-use photocraft_doc::vector::{FillRule, Knot, LineCap, LineJoin, Path, PathOp, ShapeLayer, ShapeStroke, StrokeAlign, Subpath, VectorMask};
-use photocraft_doc::{Document, Fill, Group, Layer, LayerContent, MAX_GROUP_DEPTH};
-use photocraft_geom::{Point, Rect, Size};
-use photocraft_raster::Surface;
+use evophoto_color::blend::BlendMode;
+use evophoto_color::{Color, ColorMode, PixelFormat, SampleType};
+use evophoto_doc::effects::GradientStyle;
+use evophoto_doc::vector::{FillRule, Knot, LineCap, LineJoin, Path, PathOp, ShapeLayer, ShapeStroke, StrokeAlign, Subpath, VectorMask};
+use evophoto_doc::{Document, Fill, Group, Layer, LayerContent, MAX_GROUP_DEPTH};
+use evophoto_geom::{Point, Rect, Size};
+use evophoto_raster::Surface;
 use resvg::tiny_skia;
 use resvg::usvg;
 
@@ -81,13 +81,13 @@ fn jpeg_dimensions(data: &[u8]) -> Option<(u32, u32)> {
 fn embedded_image_dimensions(mime: &str, data: &[u8]) -> Option<Option<(u32, u32)>> {
     match mime {
         "image/png" => Some(png_dimensions(data)),
-        "image/webp" | "image/gif" => Some(photocraft_codecs::probe_size(data).ok()),
+        "image/webp" | "image/gif" => Some(evophoto_codecs::probe_size(data).ok()),
         "image/jpeg" | "image/jpg" => Some(jpeg_dimensions(data)),
         "text/plain" => {
             if data.starts_with(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]) {
                 Some(png_dimensions(data))
             } else if (data.get(0..4) == Some(b"RIFF") && data.get(8..12) == Some(b"WEBP")) || data.starts_with(b"GIF8") {
-                Some(photocraft_codecs::probe_size(data).ok())
+                Some(evophoto_codecs::probe_size(data).ok())
             } else if data.starts_with(&[0xFF, 0xD8, 0xFF]) {
                 Some(jpeg_dimensions(data))
             } else {
@@ -123,13 +123,13 @@ pub fn is_svg(bytes: &[u8]) -> bool {
     (t.starts_with("<?xml") || t.starts_with("<!DOCTYPE") || t.starts_with("<!--")) && t.contains("<svg")
 }
 
-/// The fonts text runs are shaped with: the bundled craft fonts plus, on the desktop, the
+/// The fonts text runs are shaped with: the bundled evo fonts plus, on the desktop, the
 /// system's. Loaded once per process.
 fn fonts() -> Arc<usvg::fontdb::Database> {
     static DB: OnceLock<Arc<usvg::fontdb::Database>> = OnceLock::new();
     DB.get_or_init(|| {
         let mut db = usvg::fontdb::Database::new();
-        for f in photocraft_text::CRAFT_FONTS {
+        for f in evophoto_text::EVO_FONTS {
             db.load_font_data(f.bytes.to_vec());
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -141,10 +141,10 @@ fn fonts() -> Arc<usvg::fontdb::Database> {
 }
 
 /// Installed families that stand in for each generic one, best first: the metric-compatible
-/// Liberation and Croscore fonts, then common Linux defaults, then the bundled craft fonts.
-const SANS_SERIF: &[&str] = &["Liberation Sans", "Arimo", "Helvetica", "DejaVu Sans", "Noto Sans", photocraft_text::fonts::DEFAULT_FAMILY];
+/// Liberation and Croscore fonts, then common Linux defaults, then the bundled evo fonts.
+const SANS_SERIF: &[&str] = &["Liberation Sans", "Arimo", "Helvetica", "DejaVu Sans", "Noto Sans", evophoto_text::fonts::DEFAULT_FAMILY];
 const SERIF: &[&str] = &["Liberation Serif", "Tinos", "Times", "DejaVu Serif", "Noto Serif"];
-const MONOSPACE: &[&str] = &["Liberation Mono", "Cousine", "Courier", "DejaVu Sans Mono", "Noto Sans Mono", photocraft_text::fonts::MONO_FAMILY];
+const MONOSPACE: &[&str] = &["Liberation Mono", "Cousine", "Courier", "DejaVu Sans Mono", "Noto Sans Mono", evophoto_text::fonts::MONO_FAMILY];
 
 /// Points the generic families (`sans-serif`, `serif`, `monospace`, `cursive`, `fantasy`) at
 /// fonts the database holds. fontdb names Windows fonts for them (Arial, Times New Roman,
@@ -414,7 +414,7 @@ fn import_parsed_with_budget(name: &str, parsed: Parsed, max_group_depth: usize,
 
 /// The whole drawing rendered at `scale` (1 = its own size), as a straight-alpha RGBA buffer at
 /// the origin. Smart objects use it to stay sharp at any placement.
-pub fn rasterize(bytes: &[u8], scale: f32) -> Result<photocraft_compose::Buffer, IoError> {
+pub fn rasterize(bytes: &[u8], scale: f32) -> Result<evophoto_compose::Buffer, IoError> {
     let tree = parse(bytes)?.tree;
     let cv = canvas(&tree, &mut Vec::new());
     let k = cv.scale * scale.clamp(1.0 / 64.0, 64.0);
@@ -424,7 +424,7 @@ pub fn rasterize(bytes: &[u8], scale: f32) -> Result<photocraft_compose::Buffer,
     resvg::render(&tree, tiny_skia::Transform::from_scale(k, k), &mut pixmap.as_mut());
     let rect = Rect::new(0, 0, w as i32, h as i32);
     let px = pixmap.pixels().iter().map(|p| rgba(p.demultiply())).collect();
-    Ok(photocraft_compose::Buffer { rect, px })
+    Ok(evophoto_compose::Buffer { rect, px })
 }
 
 /// A transparent pixmap, or `None` past [`MAX_RASTER_PIXELS`].
@@ -444,7 +444,7 @@ fn surface(pixmap: &tiny_skia::Pixmap, rect: Rect, fmt: PixelFormat) -> Surface 
     let n = fmt.channels();
     let mut data = vec![0.0f32; pixmap.pixels().len() * n];
     for (p, out) in pixmap.pixels().iter().zip(data.chunks_exact_mut(n)) {
-        photocraft_raster::from_rgba_into(&fmt, rgba(p.demultiply()), out);
+        evophoto_raster::from_rgba_into(&fmt, rgba(p.demultiply()), out);
     }
     let mut s = Surface::new(fmt);
     if !rect.is_empty() {
@@ -713,7 +713,7 @@ impl Conv {
         .intersect(&self.canvas);
         let pixels = u64::from(area.width()) * u64::from(area.height());
         if self.can_retain_pixels(pixels) {
-            sh.cache = Some(photocraft_vector::render_shape(&sh, self.fmt, self.canvas));
+            sh.cache = Some(evophoto_vector::render_shape(&sh, self.fmt, self.canvas));
             let bytes = pixels * self.fmt.bytes_per_pixel() as u64;
             self.pixel_budget -= bytes;
             self.retained_pixel_bytes += bytes;
@@ -974,7 +974,7 @@ mod tests {
     fn transformed_text_lands_where_resvg_draws_it() {
         fn inter() -> Arc<usvg::fontdb::Database> {
             let mut db = usvg::fontdb::Database::new();
-            db.load_font_data(photocraft_text::fonts::INTER_REGULAR.to_vec());
+            db.load_font_data(evophoto_text::fonts::INTER_REGULAR.to_vec());
             Arc::new(db)
         }
         assert!(inter().faces().next().is_some(), "the bundled Inter loads");
@@ -996,7 +996,7 @@ mod tests {
             let r = import_parsed("t", parsed, MAX_GROUP_DEPTH).unwrap();
             let [layer] = r.document.layers.as_slice() else { panic!("one text layer, got {}: {c}", r.document.layers.len()) };
             assert!(matches!(layer.content, LayerContent::Group(_)), "text stays outline shapes: {c}");
-            let imported = photocraft_compose::flatten(&r.document);
+            let imported = evophoto_compose::flatten(&r.document);
             let (mut both, mut either) = (0usize, 0usize);
             let (mut a_box, mut b_box) = ([i32::MAX, i32::MAX, i32::MIN, i32::MIN], [i32::MAX, i32::MAX, i32::MIN, i32::MIN]);
             let grow = |bx: &mut [i32; 4], x: i32, y: i32| *bx = [bx[0].min(x), bx[1].min(y), bx[2].max(x), bx[3].max(y)];
@@ -1020,7 +1020,7 @@ mod tests {
         }
     }
 
-    /// #4266: a group clipped by one path (the PhotoCraft icon's rounded square) stays editable
+    /// #4266: a group clipped by one path (the EvoPhoto icon's rounded square) stays editable
     /// shapes with the clip as its vector mask, and looks as resvg draws the drawing; a clip of
     /// two shapes is still rasterised, with the warning.
     #[test]
@@ -1042,7 +1042,7 @@ mod tests {
         let (lo, hi) = (xs.iter().copied().fold(f64::MAX, f64::min), xs.iter().copied().fold(f64::MIN, f64::max));
         assert!((lo - 12.0).abs() < 1e-3 && (hi - 52.0).abs() < 1e-3, "in the group's space: {lo}..{hi}");
         // Pixel for pixel what resvg draws, but for anti-aliasing along the edges.
-        let ours = photocraft_compose::flatten(&r.document).to_rgba8().pixels;
+        let ours = evophoto_compose::flatten(&r.document).to_rgba8().pixels;
         let tree = parse(svg).unwrap().tree;
         let mut pm = tiny_skia::Pixmap::new(64, 64).unwrap();
         resvg::render(&tree, tiny_skia::Transform::default(), &mut pm.as_mut());
@@ -1056,8 +1056,8 @@ mod tests {
             .collect();
         let off = ours.chunks(4).zip(theirs.chunks(4)).filter(|(a, b)| a.iter().zip(*b).any(|(x, y)| x.abs_diff(*y) > 48)).count();
         assert!(off < 64, "{off} pixels differ");
-        // The report's file: PhotoCraft's own icon opens without the clip-path warning.
-        let icon = import_svg("photocraft.svg", include_bytes!("../../../assets/app-icon/photocraft.svg")).unwrap();
+        // The report's file: EvoPhoto's own icon opens without the clip-path warning.
+        let icon = import_svg("evophoto.svg", include_bytes!("../../../assets/app-icon/evophoto.svg")).unwrap();
         assert!(icon.warnings.iter().all(|w| !w.contains("clip-path")), "{:?}", icon.warnings);
         assert!(icon.document.layers.iter().any(|l| l.vector_mask.is_some()), "its rounded square is a vector mask");
         // Two shapes in the clip: rasterised, and said so.
@@ -1181,8 +1181,8 @@ mod tests {
     fn resolve_data_rejects_oversized_and_malformed_embedded_png_and_webp() {
         let opt = options(Arc::new(usvg::fontdb::Database::new()));
         let resolve = &opt.image_href_resolver.resolve_data;
-        let img = photocraft_codecs::Image::from_u8(2, 2, photocraft_codecs::ChannelLayout::Rgb, vec![255; 12]).unwrap();
-        let valid_png = photocraft_codecs::encode(&img, photocraft_codecs::Format::Png, &Default::default()).unwrap();
+        let img = evophoto_codecs::Image::from_u8(2, 2, evophoto_codecs::ChannelLayout::Rgb, vec![255; 12]).unwrap();
+        let valid_png = evophoto_codecs::encode(&img, evophoto_codecs::Format::Png, &Default::default()).unwrap();
         assert!(resolve("image/png", Arc::new(valid_png.clone()), &opt).is_some());
         assert!(resolve("text/plain", Arc::new(valid_png.clone()), &opt).is_some());
 

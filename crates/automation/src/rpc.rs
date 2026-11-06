@@ -1,7 +1,7 @@
 //! Headless JSON-lines server: the control protocol's envelope
 //! (`{"id","method","params"}` → `{"id","ok","result"|"error"}`) over a
 //! [`Headless`] session, so scripts and agents can keep one editing session
-//! open without MCP or the GUI. `photocraft-cli serve` runs it on stdio or a
+//! open without MCP or the GUI. `evophoto-cli serve` runs it on stdio or a
 //! loopback TCP port.
 //!
 //! Methods (camelCase params):
@@ -97,7 +97,7 @@ impl Headless {
                 Ok(match str_of(&p, "filter").map(str::to_lowercase) {
                     None => all,
                     Some(n) => {
-                        Value::Array(all.as_array().into_iter().flatten().filter(|c| photocraft_engine::commands::list_entry_matches(c, &n)).cloned().collect())
+                        Value::Array(all.as_array().into_iter().flatten().filter(|c| evophoto_engine::commands::list_entry_matches(c, &n)).cloned().collect())
                     }
                 })
             }
@@ -122,11 +122,11 @@ impl Headless {
             }
             "doc.new" => self.command_run("file.new", p),
             "doc.save" => {
-                let tga_bits = photocraft_engine::file_cmds::tga_bits_param(&p, "doc.save").map_err(|e| bad(e.to_string()))?;
+                let tga_bits = evophoto_engine::file_cmds::tga_bits_param(&p, "doc.save").map_err(|e| bad(e.to_string()))?;
                 let mut opts =
-                    photocraft_io::ExportOptions { tiff_layers: p.get("tiffLayers").and_then(Value::as_bool).unwrap_or(false), tga_bits, ..Default::default() };
-                opts.encode.dpx_bits = photocraft_engine::file_cmds::dpx_bits_param(&p, "doc.save").map_err(|e| bad(e.to_string()))?;
-                opts.encode.dds = photocraft_engine::file_cmds::dds_param(&p, "doc.save").map_err(|e| bad(e.to_string()))?.unwrap_or_default();
+                    evophoto_io::ExportOptions { tiff_layers: p.get("tiffLayers").and_then(Value::as_bool).unwrap_or(false), tga_bits, ..Default::default() };
+                opts.encode.dpx_bits = evophoto_engine::file_cmds::dpx_bits_param(&p, "doc.save").map_err(|e| bad(e.to_string()))?;
+                opts.encode.dds = evophoto_engine::file_cmds::dds_param(&p, "doc.save").map_err(|e| bad(e.to_string()))?.unwrap_or_default();
                 match p.get("quality") {
                     None | Some(Value::Null) => {}
                     Some(v) => {
@@ -547,12 +547,12 @@ mod tests {
         g.handle("doc.new", json!({"width": 40, "height": 20, "background": "black"})).unwrap();
         let b = g.handle("doc.render", json!({"maxSide": 10})).unwrap();
         let png = base64::engine::general_purpose::STANDARD.decode(b["base64"].as_str().unwrap()).unwrap();
-        let img = photocraft_codecs::decode(&png).unwrap();
+        let img = evophoto_codecs::decode(&png).unwrap();
         assert_eq!(img.dimensions(), (10, 5));
         let path = std::env::temp_dir().join(format!("pc-rpc-{}.png", std::process::id()));
         let r = g.handle("doc.render", json!({"path": path.to_string_lossy(), "maxSide": 0})).unwrap();
         assert!(r["bytes"].as_u64().unwrap() > 0);
-        assert_eq!(photocraft_codecs::decode(&std::fs::read(&path).unwrap()).unwrap().dimensions(), (40, 20));
+        assert_eq!(evophoto_codecs::decode(&std::fs::read(&path).unwrap()).unwrap().dimensions(), (40, 20));
         let _ = std::fs::remove_file(path);
     }
 
@@ -640,7 +640,7 @@ mod tests {
         let history = h.handle("doc.inspect", json!({})).unwrap()["history"].clone();
         assert_eq!(history.as_array().unwrap().last().unwrap(), "Gaussian Blur", "{history}");
         h.handle("doc.save", json!({"path": after.to_string_lossy()})).unwrap();
-        let decode = |p: &std::path::Path| photocraft_codecs::decode(&std::fs::read(p).unwrap()).unwrap().to_rgba8();
+        let decode = |p: &std::path::Path| evophoto_codecs::decode(&std::fs::read(p).unwrap()).unwrap().to_rgba8();
         assert_ne!(decode(&before), decode(&after), "the export holds the blur");
         assert_ne!(render(&mut h), unblurred, "the preview holds the blur");
         std::fs::remove_dir_all(dir).unwrap();
@@ -676,7 +676,7 @@ mod tests {
         // A smaller preview still works, and rejection leaves the source document intact.
         let rendered = h.handle("doc.render", json!({"maxSide": 32})).unwrap();
         let png = base64::engine::general_purpose::STANDARD.decode(rendered["base64"].as_str().unwrap()).unwrap();
-        assert_eq!(photocraft_codecs::decode(&png).unwrap().dimensions(), (32, 1));
+        assert_eq!(evophoto_codecs::decode(&png).unwrap().dimensions(), (32, 1));
         assert_eq!(h.session.active().unwrap().doc.size.width, 2049);
     }
 
@@ -740,8 +740,8 @@ mod tests {
         for dir in [&root, &outside] {
             std::fs::create_dir_all(dir).unwrap();
         }
-        let img = photocraft_codecs::Image::from_u8(8, 6, photocraft_codecs::ChannelLayout::Rgb, vec![42; 8 * 6 * 3]).unwrap();
-        let png = photocraft_codecs::encode(&img, photocraft_codecs::Format::Png, &Default::default()).unwrap();
+        let img = evophoto_codecs::Image::from_u8(8, 6, evophoto_codecs::ChannelLayout::Rgb, vec![42; 8 * 6 * 3]).unwrap();
+        let png = evophoto_codecs::encode(&img, evophoto_codecs::Format::Png, &Default::default()).unwrap();
         std::fs::write(root.join("logo.png"), &png).unwrap();
         std::fs::write(outside.join("logo.png"), &png).unwrap();
         let absolute = outside.join("logo.png").to_string_lossy().into_owned();
@@ -780,8 +780,8 @@ mod tests {
             std::fs::create_dir_all(dir).unwrap();
         }
         let png = |w: u32, h: u32, v: u8| {
-            let img = photocraft_codecs::Image::from_u8(w, h, photocraft_codecs::ChannelLayout::Rgb, vec![v; (w * h * 3) as usize]).unwrap();
-            photocraft_codecs::encode(&img, photocraft_codecs::Format::Png, &Default::default()).unwrap()
+            let img = evophoto_codecs::Image::from_u8(w, h, evophoto_codecs::ChannelLayout::Rgb, vec![v; (w * h * 3) as usize]).unwrap();
+            evophoto_codecs::encode(&img, evophoto_codecs::Format::Png, &Default::default()).unwrap()
         };
         std::fs::write(root.join("logo.png"), png(8, 6, 42)).unwrap();
         std::fs::write(root.join("red.png"), png(8, 6, 200)).unwrap();
@@ -799,7 +799,7 @@ mod tests {
             let name = so["smartSource"]["fileName"].as_str().unwrap_or_default().to_owned();
             let rendered = h.handle("doc.render", json!({"maxSide": 0})).unwrap();
             let png = base64::engine::general_purpose::STANDARD.decode(rendered["base64"].as_str().unwrap()).unwrap();
-            let img = photocraft_codecs::decode(&png).unwrap();
+            let img = evophoto_codecs::decode(&png).unwrap();
             let (w, ht) = img.dimensions();
             let data = img.as_u8().unwrap();
             let channels = data.len() / (w * ht) as usize;
@@ -912,7 +912,7 @@ mod tests {
         for name in names {
             assert!(name.starts_with("card_") && name.ends_with(".png"), "{name}");
             let bytes = std::fs::read(out.join(&name)).unwrap();
-            assert_eq!(photocraft_codecs::decode(&bytes).unwrap().dimensions(), (12, 8), "{name}");
+            assert_eq!(evophoto_codecs::decode(&bytes).unwrap().dimensions(), (12, 8), "{name}");
         }
         // Outside the write root nothing is created, not even the directory.
         let escaped = base.join("escaped");
@@ -974,8 +974,8 @@ mod tests {
         let base = std::env::temp_dir().join(format!("pc-doc-index-active-{}", std::process::id()));
         let root = base.join("workspace");
         std::fs::create_dir_all(&root).unwrap();
-        let img = photocraft_codecs::Image::from_u8(4, 4, photocraft_codecs::ChannelLayout::Rgb, vec![42; 4 * 4 * 3]).unwrap();
-        std::fs::write(root.join("logo.png"), photocraft_codecs::encode(&img, photocraft_codecs::Format::Png, &Default::default()).unwrap()).unwrap();
+        let img = evophoto_codecs::Image::from_u8(4, 4, evophoto_codecs::ChannelLayout::Rgb, vec![42; 4 * 4 * 3]).unwrap();
+        std::fs::write(root.join("logo.png"), evophoto_codecs::encode(&img, evophoto_codecs::Format::Png, &Default::default()).unwrap()).unwrap();
         std::fs::write(root.join("sets.csv"), "Data Set,show\none,true\ntwo,false\n").unwrap();
         let mut h = Headless::with_workspace(crate::AuthorizedWorkspace::new(Some(&root), Some(&root)).unwrap());
         h.handle("doc.new", json!({"width": 8, "height": 8, "background": "white", "name": "first"})).unwrap();
@@ -1014,9 +1014,9 @@ mod tests {
         let base = std::env::temp_dir().join(format!("pc-doc-data-set-pixels-{}", std::process::id()));
         let root = base.join("workspace");
         std::fs::create_dir_all(&root).unwrap();
-        let red = photocraft_codecs::Image::from_u8(4, 4, photocraft_codecs::ChannelLayout::Rgb, [255, 0, 0].repeat(16)).unwrap();
+        let red = evophoto_codecs::Image::from_u8(4, 4, evophoto_codecs::ChannelLayout::Rgb, [255, 0, 0].repeat(16)).unwrap();
         let photo = base.join("photo.png");
-        std::fs::write(&photo, photocraft_codecs::encode(&red, photocraft_codecs::Format::Png, &Default::default()).unwrap()).unwrap();
+        std::fs::write(&photo, evophoto_codecs::encode(&red, evophoto_codecs::Format::Png, &Default::default()).unwrap()).unwrap();
         let mut h = Headless::with_workspace(crate::AuthorizedWorkspace::new(Some(&root), Some(&root)).unwrap());
         h.handle("doc.new", json!({"width": 8, "height": 8, "background": "white", "name": "card"})).unwrap();
         let layer = h.handle("engine.execute", json!({"command": "layer.new.layer", "params": {}})).unwrap()["layer"].clone();
@@ -1046,12 +1046,12 @@ mod tests {
 
     #[test]
     fn workspace_psd_saves_embed_no_file_a_linked_smart_object_names() {
-        use photocraft_engine::doc::{LayerContent, SmartSource};
+        use evophoto_engine::doc::{LayerContent, SmartSource};
 
-        // An image PhotoCraft can open (other linked files are never embedded): an embedded copy
+        // An image EvoPhoto can open (other linked files are never embedded): an embedded copy
         // carries these exact bytes, while pixels written for the layer don't.
-        let image = photocraft_codecs::Image::from_u8(8, 8, photocraft_codecs::ChannelLayout::Rgb, (0..192u8).collect()).unwrap();
-        let marker = photocraft_codecs::encode(&image, photocraft_codecs::Format::Png, &Default::default()).unwrap();
+        let image = evophoto_codecs::Image::from_u8(8, 8, evophoto_codecs::ChannelLayout::Rgb, (0..192u8).collect()).unwrap();
+        let marker = evophoto_codecs::encode(&image, evophoto_codecs::Format::Png, &Default::default()).unwrap();
         let has_marker = |bytes: &[u8]| bytes.windows(marker.len()).any(|w| w == marker.as_slice());
         let base = std::env::temp_dir().join(format!("pc-psd-linked-embed-{}", std::process::id()));
         let root = base.join("workspace");
@@ -1059,18 +1059,18 @@ mod tests {
         let outside = base.join("outside.png");
         std::fs::write(&outside, &marker).unwrap();
         // A document whose smart object names a file outside the roots as its source.
-        let mut session = photocraft_engine::Session::new();
+        let mut session = evophoto_engine::Session::new();
         session.execute("file.new", json!({"width": 8, "height": 8, "background": "white"})).unwrap();
         session.execute("layer.smartObjects.convertToSmartObject", json!({})).unwrap();
         let state = session.active_mut().unwrap();
         let LayerContent::Smart(smart) = &mut std::sync::Arc::make_mut(&mut state.doc).layers[0].content else { panic!("smart object") };
         smart.source = SmartSource::Linked { path: outside.to_string_lossy().into_owned() };
-        std::fs::write(root.join("in.pcraft"), photocraft_engine::smart_cmds::encode_source(&state.doc).unwrap()).unwrap();
+        std::fs::write(root.join("in.evophoto"), evophoto_engine::smart_cmds::encode_source(&state.doc).unwrap()).unwrap();
         // A trusted export embeds the linked file, as before.
-        assert!(has_marker(&photocraft_io::export(&state.doc, "psd", &Default::default()).unwrap().bytes));
+        assert!(has_marker(&evophoto_io::export(&state.doc, "psd", &Default::default()).unwrap().bytes));
 
         let mut h = Headless::with_workspace(crate::AuthorizedWorkspace::new(Some(&root), Some(&root)).unwrap());
-        h.handle("doc.open", json!({"path": "in.pcraft"})).unwrap();
+        h.handle("doc.open", json!({"path": "in.evophoto"})).unwrap();
         let saved = h.handle("doc.save", json!({"path": "out.psd"})).unwrap();
         let warnings = saved["warnings"].to_string();
         assert!(warnings.contains("written as pixels"), "{warnings}");
@@ -1082,25 +1082,25 @@ mod tests {
 
     #[test]
     fn allowed_filters_do_not_rerender_a_smart_object_from_its_linked_file() {
-        use photocraft_engine::doc::{LayerContent, SmartSource};
+        use evophoto_engine::doc::{LayerContent, SmartSource};
 
         let base = std::env::temp_dir().join(format!("pc-linked-rerender-{}", std::process::id()));
         let root = base.join("workspace");
         std::fs::create_dir_all(&root).unwrap();
-        let red = photocraft_codecs::Image::from_u8(8, 8, photocraft_codecs::ChannelLayout::Rgb, [255, 0, 0].repeat(64)).unwrap();
+        let red = evophoto_codecs::Image::from_u8(8, 8, evophoto_codecs::ChannelLayout::Rgb, [255, 0, 0].repeat(64)).unwrap();
         let outside = base.join("red.png");
-        std::fs::write(&outside, photocraft_codecs::encode(&red, photocraft_codecs::Format::Png, &Default::default()).unwrap()).unwrap();
+        std::fs::write(&outside, evophoto_codecs::encode(&red, evophoto_codecs::Format::Png, &Default::default()).unwrap()).unwrap();
         // A document whose white smart object names a file outside the roots as its source.
-        let mut session = photocraft_engine::Session::new();
+        let mut session = evophoto_engine::Session::new();
         session.execute("file.new", json!({"width": 8, "height": 8, "background": "white"})).unwrap();
         session.execute("layer.smartObjects.convertToSmartObject", json!({})).unwrap();
         let state = session.active_mut().unwrap();
         let LayerContent::Smart(smart) = &mut std::sync::Arc::make_mut(&mut state.doc).layers[0].content else { panic!("smart object") };
         smart.source = SmartSource::Linked { path: outside.to_string_lossy().into_owned() };
-        std::fs::write(root.join("p.pcraft"), photocraft_engine::smart_cmds::encode_source(&state.doc).unwrap()).unwrap();
+        std::fs::write(root.join("p.evophoto"), evophoto_engine::smart_cmds::encode_source(&state.doc).unwrap()).unwrap();
 
         let mut h = Headless::with_workspace(crate::AuthorizedWorkspace::new(Some(&root), Some(&root)).unwrap());
-        h.handle("doc.open", json!({"path": "p.pcraft"})).unwrap();
+        h.handle("doc.open", json!({"path": "p.evophoto"})).unwrap();
         h.handle("engine.execute", json!({"command": "filter.blur.gaussianBlur", "params": {"radius": 0.5}})).unwrap();
         let doc = &h.session.active().unwrap().doc;
         let LayerContent::Smart(smart) = &doc.layers[0].content else { panic!("smart object") };
@@ -1113,9 +1113,9 @@ mod tests {
 
     #[test]
     fn workspace_layer_exports_keep_linked_smart_objects_as_pixels() {
-        use photocraft_engine::doc::{LayerContent, SmartSource};
+        use evophoto_engine::doc::{LayerContent, SmartSource};
 
-        const MARKER: &[u8] = b"PHOTOCRAFT-LINKED-0002";
+        const MARKER: &[u8] = b"EVOPHOTO-LINKED-0002";
         let has_marker = |bytes: &[u8]| bytes.windows(MARKER.len()).any(|w| w == MARKER);
         let base = std::env::temp_dir().join(format!("pc-export-layers-linked-{}", std::process::id()));
         let root = base.join("workspace");
@@ -1123,16 +1123,16 @@ mod tests {
         let outside = base.join("outside.txt");
         std::fs::write(&outside, MARKER).unwrap();
         // A document whose smart object names a file outside the roots as its source.
-        let mut session = photocraft_engine::Session::new();
+        let mut session = evophoto_engine::Session::new();
         session.execute("file.new", json!({"width": 8, "height": 8, "background": "white"})).unwrap();
         session.execute("layer.smartObjects.convertToSmartObject", json!({})).unwrap();
         let state = session.active_mut().unwrap();
         let LayerContent::Smart(smart) = &mut std::sync::Arc::make_mut(&mut state.doc).layers[0].content else { panic!("smart object") };
         smart.source = SmartSource::Linked { path: outside.to_string_lossy().into_owned() };
-        std::fs::write(root.join("in.pcraft"), photocraft_engine::smart_cmds::encode_source(&state.doc).unwrap()).unwrap();
+        std::fs::write(root.join("in.evophoto"), evophoto_engine::smart_cmds::encode_source(&state.doc).unwrap()).unwrap();
 
         let mut h = Headless::with_workspace(crate::AuthorizedWorkspace::new(Some(&root), Some(&root)).unwrap());
-        h.handle("doc.open", json!({"path": "in.pcraft"})).unwrap();
+        h.handle("doc.open", json!({"path": "in.evophoto"})).unwrap();
         let out = root.join("layers");
         for format in ["psd", "psb"] {
             let exported = h.handle("doc.exportLayers", json!({"dir": out.to_string_lossy(), "format": format})).unwrap();
@@ -1154,7 +1154,7 @@ mod tests {
         h.handle("doc.new", json!({"width": 2049, "height": 1})).unwrap();
         let rendered = h.handle("doc.render", json!({"maxSide": 0})).unwrap();
         let png = base64::engine::general_purpose::STANDARD.decode(rendered["base64"].as_str().unwrap()).unwrap();
-        assert_eq!(photocraft_codecs::decode(&png).unwrap().dimensions(), (2049, 1));
+        assert_eq!(evophoto_codecs::decode(&png).unwrap().dimensions(), (2049, 1));
     }
 
     #[test]

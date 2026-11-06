@@ -1,5 +1,5 @@
-use photocraft_doc::SliceOrigin;
-use photocraft_engine::Session;
+use evophoto_doc::SliceOrigin;
+use evophoto_engine::Session;
 use serde_json::{Value, json};
 
 fn sliced() -> Session {

@@ -4,7 +4,7 @@ Lumbra est basé sur PhotoCraft par l'équipe ArtCraft.
 Lumbra is based on PhotoCraft by the ArtCraft team.
 
 Source amont / upstream source : https://github.com/storytold/photocraft (MIT OR Apache-2.0).
-Fork Evora / Evora fork : https://github.com/tazerty/photocraft (branche / branch evora/<tag>).
+Fork Evora / Evora fork : https://github.com/tazerty/evophoto (branche / branch evora/<tag>).
 
 ArtCraft, son nom et ses logos sont des marques de leurs titulaires ; ils ne sont pas couverts par
 les licences du code (docs/brand/LICENSE-brand.txt de l'amont). Lumbra n'est pas un produit

@@ -1,5 +1,5 @@
 //! JPEG: decode via `zune-jpeg` (gray, YCbCr, CMYK, YCCK; arithmetic-coded and 12-bit files
-//! via [`craft_jpeg`]), encode via
+//! via [`evo_jpeg`]), encode via
 //! `jpeg-encoder` (gray, RGB, CMYK). Metadata (APP0 JFIF density, APP1
 //! EXIF/XMP, APP2 multi-segment ICC, APP13 Photoshop resources, APP14 Adobe) is
 //! parsed by our own marker scanner so behaviour does not depend on decoder internals.
@@ -191,34 +191,34 @@ fn err(e: impl std::fmt::Display) -> CodecError {
     CodecError::malformed(F, e)
 }
 
-/// Whether `craft-jpeg` (rather than `zune-jpeg`) decodes the file: arithmetic coding
+/// Whether `evo-jpeg` (rather than `zune-jpeg`) decodes the file: arithmetic coding
 /// (SOF9–SOF11) or a DCT frame whose precision isn't 8 bits (#4934, #5003). Lossless (SOF3) and
-/// 12-bit progressive Huffman (SOF2) go there too: craft-jpeg reports them unsupported, where
+/// 12-bit progressive Huffman (SOF2) go there too: evo-jpeg reports them unsupported, where
 /// zune-jpeg's failure would read as a damaged file.
-fn uses_craft_jpeg(bytes: &[u8]) -> bool {
-    match craft_jpeg::frame(bytes) {
+fn uses_evo_jpeg(bytes: &[u8]) -> bool {
+    match evo_jpeg::frame(bytes) {
         Some(f) if (0xC9..=0xCB).contains(&f.marker) || f.marker == 0xC3 => true,
         Some(f) if matches!(f.marker, 0xC0..=0xC2) => f.precision != 8,
         _ => false,
     }
 }
 
-fn craft_jpeg_error(e: craft_jpeg::Error) -> CodecError {
+fn evo_jpeg_error(e: evo_jpeg::Error) -> CodecError {
     match e {
-        craft_jpeg::Error::Malformed(m) => err(m),
-        craft_jpeg::Error::Unsupported(m) => CodecError::unsupported(F, m),
-        craft_jpeg::Error::LimitExceeded(m) => CodecError::LimitExceeded(m),
+        evo_jpeg::Error::Malformed(m) => err(m),
+        evo_jpeg::Error::Unsupported(m) => CodecError::unsupported(F, m),
+        evo_jpeg::Error::LimitExceeded(m) => CodecError::LimitExceeded(m),
         e => err(e),
     }
 }
 
-/// Decode a file [`uses_craft_jpeg`] routes away from `zune-jpeg`; `damaged` says entropy-coded
+/// Decode a file [`uses_evo_jpeg`] routes away from `zune-jpeg`; `damaged` says entropy-coded
 /// data was cut short or corrupt.
-fn decode_craft_jpeg(bytes: &[u8], limits: &Limits, adobe_transform: Option<u8>) -> Result<(Image, bool), CodecError> {
-    let mut lim = craft_jpeg::Limits::default();
+fn decode_evo_jpeg(bytes: &[u8], limits: &Limits, adobe_transform: Option<u8>) -> Result<(Image, bool), CodecError> {
+    let mut lim = evo_jpeg::Limits::default();
     lim.max_pixels = limits.max_pixels;
     lim.max_alloc = limits.max_alloc;
-    let d = craft_jpeg::decode(bytes, &lim, adobe_transform).map_err(craft_jpeg_error)?;
+    let d = evo_jpeg::decode(bytes, &lim, adobe_transform).map_err(evo_jpeg_error)?;
     let layout = match d.components {
         1 => ChannelLayout::Gray,
         3 => ChannelLayout::Rgb,
@@ -226,8 +226,8 @@ fn decode_craft_jpeg(bytes: &[u8], limits: &Limits, adobe_transform: Option<u8>)
         n => return Err(err(format!("{n} components"))),
     };
     let img = match d.samples {
-        craft_jpeg::Samples::U8(px) => Image::from_raw(d.width, d.height, layout, SampleType::U8, px)?,
-        craft_jpeg::Samples::U16(px) => Image::from_u16(d.width, d.height, layout, &px)?,
+        evo_jpeg::Samples::U8(px) => Image::from_raw(d.width, d.height, layout, SampleType::U8, px)?,
+        evo_jpeg::Samples::U16(px) => Image::from_u16(d.width, d.height, layout, &px)?,
     };
     Ok((img, d.damaged))
 }
@@ -245,8 +245,8 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Image, CodecError>
     if let Some((w, h, nc)) = meta.frame {
         limits.check_bytes(w, h, u64::from(nc.max(1)))?;
     }
-    if uses_craft_jpeg(bytes) {
-        // craft-jpeg sizes its buffers from the frame header before it reads a scan.
+    if uses_evo_jpeg(bytes) {
+        // evo-jpeg sizes its buffers from the frame header before it reads a scan.
         if scan_bytes == 0 {
             return Err(err("the file has no scan data"));
         }
@@ -256,7 +256,7 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Image, CodecError>
         {
             return Err(err("the truncated scan is too short for the frame it declares"));
         }
-        let (mut img, damaged) = decode_craft_jpeg(bytes, limits, meta.adobe_transform)?;
+        let (mut img, damaged) = decode_evo_jpeg(bytes, limits, meta.adobe_transform)?;
         img.icc = meta.icc;
         img.meta = Metadata { exif: meta.exif, xmp: meta.xmp, dpi: meta.dpi, photoshop_resources: meta.photoshop, ..Default::default() };
         if end == DataEnd::Truncated || damaged {
@@ -615,7 +615,7 @@ mod tests {
         assert_eq!(scan_metadata(&bytes).dpi, Some((96.0, 96.0)));
     }
 
-    // --- Arithmetic-coded and 12-bit files, decoded by craft-jpeg ---
+    // --- Arithmetic-coded and 12-bit files, decoded by evo-jpeg ---
 
     fn segment(out: &mut Vec<u8>, marker: u8, body: &[u8]) {
         out.extend_from_slice(&[0xFF, marker]);
@@ -666,15 +666,15 @@ mod tests {
 
     #[test]
     fn routing() {
-        assert!(!uses_craft_jpeg(&[0xFF, 0xD8, 0xFF, 0xC0, 0, 11, 8, 0, 8, 0, 8, 1, 1, 0x11, 0]));
-        assert!(!uses_craft_jpeg(&[0xFF, 0xD8, 0xFF, 0xC1, 0, 11, 8, 0, 8, 0, 8, 1, 1, 0x11, 0]));
-        assert!(uses_craft_jpeg(&[0xFF, 0xD8, 0xFF, 0xC9, 0, 11, 8, 0, 8, 0, 8, 1, 1, 0x11, 0]));
-        assert!(uses_craft_jpeg(&[0xFF, 0xD8, 0xFF, 0xC1, 0, 11, 12, 0, 8, 0, 8, 1, 1, 0x11, 0]));
-        assert!(uses_craft_jpeg(&[0xFF, 0xD8, 0xFF, 0xC0, 0, 11, 12, 0, 8, 0, 8, 1, 1, 0x11, 0]));
-        assert!(!uses_craft_jpeg(&[0xFF, 0xD8]));
-        assert!(!uses_craft_jpeg(&[0xFF, 0xD8, 0xFF, 0xC2, 0, 11, 8, 0, 8, 0, 8, 1, 1, 0x11, 0]));
-        assert!(uses_craft_jpeg(&[0xFF, 0xD8, 0xFF, 0xC2, 0, 11, 12, 0, 8, 0, 8, 1, 1, 0x11, 0]));
-        assert!(uses_craft_jpeg(&[0xFF, 0xD8, 0xFF, 0xC3, 0, 11, 8, 0, 8, 0, 8, 1, 1, 0x11, 0]));
+        assert!(!uses_evo_jpeg(&[0xFF, 0xD8, 0xFF, 0xC0, 0, 11, 8, 0, 8, 0, 8, 1, 1, 0x11, 0]));
+        assert!(!uses_evo_jpeg(&[0xFF, 0xD8, 0xFF, 0xC1, 0, 11, 8, 0, 8, 0, 8, 1, 1, 0x11, 0]));
+        assert!(uses_evo_jpeg(&[0xFF, 0xD8, 0xFF, 0xC9, 0, 11, 8, 0, 8, 0, 8, 1, 1, 0x11, 0]));
+        assert!(uses_evo_jpeg(&[0xFF, 0xD8, 0xFF, 0xC1, 0, 11, 12, 0, 8, 0, 8, 1, 1, 0x11, 0]));
+        assert!(uses_evo_jpeg(&[0xFF, 0xD8, 0xFF, 0xC0, 0, 11, 12, 0, 8, 0, 8, 1, 1, 0x11, 0]));
+        assert!(!uses_evo_jpeg(&[0xFF, 0xD8]));
+        assert!(!uses_evo_jpeg(&[0xFF, 0xD8, 0xFF, 0xC2, 0, 11, 8, 0, 8, 0, 8, 1, 1, 0x11, 0]));
+        assert!(uses_evo_jpeg(&[0xFF, 0xD8, 0xFF, 0xC2, 0, 11, 12, 0, 8, 0, 8, 1, 1, 0x11, 0]));
+        assert!(uses_evo_jpeg(&[0xFF, 0xD8, 0xFF, 0xC3, 0, 11, 8, 0, 8, 0, 8, 1, 1, 0x11, 0]));
     }
 
     #[test]
@@ -731,7 +731,7 @@ mod tests {
         let mut with = stream[..2].to_vec();
         segment(&mut with, 0xED, &app13);
         with.extend_from_slice(&stream[2..]);
-        assert!(uses_craft_jpeg(&with));
+        assert!(uses_evo_jpeg(&with));
         let img = crate::decode(&with).unwrap();
         assert_eq!(img.meta.photoshop_resources.as_deref(), Some(resources.as_slice()));
     }

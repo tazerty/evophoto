@@ -28,11 +28,11 @@
 //!
 //! Buffers are interleaved `w × h × ch` normalised floats (any model/depth); deterministic.
 
-use photocraft_geom::Rect;
+use evophoto_geom::Rect;
 
 use std::borrow::Cow;
 
-use photocraft_raster::{Cancelled, Interrupt};
+use evophoto_raster::{Cancelled, Interrupt};
 
 use crate::inpaint::{Adapt, CompleteParams, Px, complete_masked, complete_masked_owned};
 use crate::par;
@@ -210,7 +210,7 @@ fn variant(src: Src, deg: f32, scale: f32, mirror: bool, ctl: &Interrupt) -> Res
 /// nothing can be sampled.
 pub fn fill(w: usize, h: usize, ch: usize, img: &[f32], hole: &[bool], source: &[bool], opts: &FillOptions) -> Vec<f32> {
     // Never cancelled; the fallback (the input unchanged) is unreachable.
-    fill_with(w, h, ch, img, hole, source, opts, &photocraft_raster::Interrupt::NONE).unwrap_or_else(|_| img.to_vec())
+    fill_with(w, h, ch, img, hole, source, opts, &evophoto_raster::Interrupt::NONE).unwrap_or_else(|_| img.to_vec())
 }
 
 /// [`fill`] that can be cancelled (see [`crate::inpaint::complete_with`]) and reports progress.
@@ -223,8 +223,8 @@ pub fn fill_with(
     hole: &[bool],
     source: &[bool],
     opts: &FillOptions,
-    ctl: &photocraft_raster::Interrupt,
-) -> Result<Vec<f32>, photocraft_raster::Cancelled> {
+    ctl: &evophoto_raster::Interrupt,
+) -> Result<Vec<f32>, evophoto_raster::Cancelled> {
     fill_cow(w, h, ch, Cow::Borrowed(img), hole, source, opts, ctl)
 }
 
@@ -239,8 +239,8 @@ pub fn fill_owned(
     hole: &[bool],
     source: &[bool],
     opts: &FillOptions,
-    ctl: &photocraft_raster::Interrupt,
-) -> Result<Vec<f32>, photocraft_raster::Cancelled> {
+    ctl: &evophoto_raster::Interrupt,
+) -> Result<Vec<f32>, evophoto_raster::Cancelled> {
     fill_cow(w, h, ch, Cow::Owned(img), hole, source, opts, ctl)
 }
 
@@ -253,8 +253,8 @@ fn fill_cow(
     hole: &[bool],
     source: &[bool],
     opts: &FillOptions,
-    ctl: &photocraft_raster::Interrupt,
-) -> Result<Vec<f32>, photocraft_raster::Cancelled> {
+    ctl: &evophoto_raster::Interrupt,
+) -> Result<Vec<f32>, evophoto_raster::Cancelled> {
     assert_eq!(img.len(), w * h * ch);
     assert_eq!(hole.len(), w * h);
     assert_eq!(source.len(), w * h);
@@ -332,7 +332,7 @@ fn fill_cow(
     // The completion is nearly all the work.
     let cancel = || ctl.cancelled();
     let progress = |f: f32| ctl.progress(f * 0.99);
-    let inner = photocraft_raster::Interrupt::new(&cancel, &progress);
+    let inner = evophoto_raster::Interrupt::new(&cancel, &progress);
     let out = match mosaic {
         // Without variants the image itself is completed (it changes only in the hole).
         None => {
@@ -791,7 +791,7 @@ mod tests {
         let (img, hole) = stripes(w, h);
         let source = vec![true; w * h];
         let yes = || true;
-        let cancelled = photocraft_raster::Interrupt::cancel_only(&yes);
+        let cancelled = evophoto_raster::Interrupt::cancel_only(&yes);
         assert!(fill_with(w, h, 1, &img, &hole, &source, &FillOptions::default(), &cancelled).is_err());
         let last = AtomicU32::new(0);
         let no = || false;
@@ -799,7 +799,7 @@ mod tests {
             assert!(f >= f32::from_bits(last.load(Ordering::Relaxed)), "progress went backwards");
             last.store(f.to_bits(), Ordering::Relaxed);
         };
-        let out = fill_with(w, h, 1, &img, &hole, &source, &FillOptions::default(), &photocraft_raster::Interrupt::new(&no, &progress)).unwrap();
+        let out = fill_with(w, h, 1, &img, &hole, &source, &FillOptions::default(), &evophoto_raster::Interrupt::new(&no, &progress)).unwrap();
         assert_eq!(f32::from_bits(last.load(Ordering::Relaxed)), 1.0);
         assert_eq!(out, fill(w, h, 1, &img, &hole, &source, &FillOptions::default()), "same result as the plain fill");
     }

@@ -2,7 +2,7 @@
 # Empty context: plain UI text; @id: command ID; @plural: one|other source
 # with one Korean form. Other contexts disambiguate English meanings.
 # Preserve {name} placeholders, trailing ellipses and column escapes.
-# Original translations from the meaning of PhotoCraft's English labels.
+# Original translations from the meaning of EvoPhoto's English labels.
 # No proprietary translation resources were consulted or extracted.
 # Licensed MIT OR Apache-2.0. See LICENSE-translations.txt and ATTRIBUTION.md.
 # Product names and technology names retain their spelling.
@@ -1346,7 +1346,7 @@
 	Lumbra	Lumbra
 	Lumbra Manages Colors	Lumbra에서 색상 관리
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — Rust로 작성된 오픈 소스 네이티브 이미지 편집기.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	오픈 소스 소프트웨어 PhotoCraft(MIT OR Apache-2.0)를 기반으로 합니다.
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	오픈 소스 소프트웨어 EvoPhoto(MIT OR Apache-2.0)를 기반으로 합니다.
 	Pin Depth:	핀 깊이:
 	Pixel Length:	픽셀 길이:
 	Pixels/Centimeter	픽셀/센티미터
@@ -2953,7 +2953,7 @@ cameraRaw	Color	색상
 	Use tablet pressure to change pen width	태블릿 압력을 사용하여 펜 폭 변경
 
 
-# About ▸ Contributors / Models (credits, craftrules standards/contributors.md)
+# About ▸ Contributors / Models (credits, evorules standards/contributors.md)
 	About	정보
 	Contributors	기여자
 	Models	모델
@@ -3436,7 +3436,7 @@ curves	Smooth	매끄럽게
 	Sent to {printer}	{printer}(으)로 전송됨
 	set in Print Settings…	인쇄 설정에서 지정…
 	ICO is limited to 256 × 256 pixels	ICO는 256 × 256픽셀로 제한됩니다
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	업데이트 확인…
 	Lumbra Updates	Lumbra 업데이트
 	Checking for updates…	업데이트 확인 중…

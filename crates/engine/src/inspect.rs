@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use photocraft_doc::{Adjustment, Layer, LayerContent, SmartContentsId, SmartSource};
+use evophoto_doc::{Adjustment, Layer, LayerContent, SmartContentsId, SmartSource};
 use serde_json::{Value, json};
 
 use crate::{DocState, Session};
@@ -85,7 +85,7 @@ fn smart_instances(layers: &[Layer]) -> HashMap<SmartContentsId, usize> {
 }
 
 /// [`layer`] with a `selected` flag on every node (Layers panel multi-selection).
-fn layer_sel(l: &Layer, selected: &[photocraft_doc::LayerId], instances: &HashMap<SmartContentsId, usize>, meta: Option<&photocraft_doc::Metadata>) -> Value {
+fn layer_sel(l: &Layer, selected: &[evophoto_doc::LayerId], instances: &HashMap<SmartContentsId, usize>, meta: Option<&evophoto_doc::Metadata>) -> Value {
     let bounds = l.surface().map(|s| {
         let r = s.content_bounds();
         [r.x0, r.y0, r.width() as i32, r.height() as i32]
@@ -140,7 +140,7 @@ fn layer_sel(l: &Layer, selected: &[photocraft_doc::LayerId], instances: &HashMa
             // New Smart Object via Copy embeds its own copy of the file instead.
             v["smartSource"] = match &sm.source {
                 SmartSource::Embedded { file_name, .. } => json!({"kind": "embedded", "fileName": file_name}),
-                SmartSource::Linked { path } => match meta.and_then(|m| photocraft_io::linked::embedded_file_name(m, path)) {
+                SmartSource::Linked { path } => match meta.and_then(|m| evophoto_io::linked::embedded_file_name(m, path)) {
                     Some(name) => json!({"kind": "embedded", "fileName": name, "uuid": path}),
                     None => json!({"kind": "linked", "path": path}),
                 },
@@ -170,7 +170,7 @@ fn layer_sel(l: &Layer, selected: &[photocraft_doc::LayerId], instances: &HashMa
             .ranges
             .iter()
             .enumerate()
-            .filter(|(_, r)| !r.iter().all(photocraft_doc::BlendRange::is_full))
+            .filter(|(_, r)| !r.iter().all(evophoto_doc::BlendRange::is_full))
             .map(|(i, [this, under])| json!({"channel": i, "thisLayer": this.to_bytes(), "underlying": under.to_bytes()}))
             .collect();
     }
@@ -184,8 +184,8 @@ fn layer_sel(l: &Layer, selected: &[photocraft_doc::LayerId], instances: &HashMa
     // Video layer (Layer › Video Layers): the frame stack behind the displayed content.
     if let Some(vid) = &l.video {
         let source = match &vid.source {
-            photocraft_doc::VideoSource::Blank => Value::String("blank".into()),
-            photocraft_doc::VideoSource::File { path } => json!({ "file": path }),
+            evophoto_doc::VideoSource::Blank => Value::String("blank".into()),
+            evophoto_doc::VideoSource::File { path } => json!({ "file": path }),
         };
         v["video"] = json!({"frames": vid.frames.len(), "fps": vid.fps, "showAltered": vid.show_altered, "source": source});
     }
@@ -195,8 +195,8 @@ fn layer_sel(l: &Layer, selected: &[photocraft_doc::LayerId], instances: &HashMa
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_color::PixelFormat;
-    use photocraft_doc::{LayerMask, Path, VectorMask};
+    use evophoto_color::PixelFormat;
+    use evophoto_doc::{LayerMask, Path, VectorMask};
 
     #[test]
     fn an_adjustment_layer_is_reported_with_the_params_its_command_takes() {
@@ -212,12 +212,12 @@ mod tests {
             LayerContent::Adjustment(a) => a.clone(),
             c => panic!("{c:?}"),
         };
-        let back = crate::adjust_params::from_params("levels", &adj["params"], None, photocraft_color::ColorMode::Rgb).unwrap();
+        let back = crate::adjust_params::from_params("levels", &adj["params"], None, evophoto_color::ColorMode::Rgb).unwrap();
         assert_eq!(crate::adjust_params::to_params(&back), crate::adjust_params::to_params(&model));
         assert!(!adj.to_string().contains('_'), "{adj}");
     }
 
-    /// #6541: an adjustment PhotoCraft keeps but cannot render is reported as such, not as an Invert.
+    /// #6541: an adjustment EvoPhoto keeps but cannot render is reported as such, not as an Invert.
     #[test]
     fn an_unsupported_adjustment_layer_is_reported_as_kept_not_rendered() {
         let mut s = Session::new();

@@ -15,7 +15,7 @@
 # Clean-room: every entry was written from the plain meaning of the English label using ordinary
 # Vietnamese computing and image-editing vocabulary. No proprietary localisation resource, string
 # table or product UI was consulted or copied; add entries the same way. Product and technology
-# names (PhotoCraft, OpenType, RGB, CMYK, Lab, PSD, PNG, JPEG, WebP, OpenEXR, AVIF …)
+# names (EvoPhoto, OpenType, RGB, CMYK, Lab, PSD, PNG, JPEG, WebP, OpenEXR, AVIF …)
 # stay as they are; the trailing "…" of dialog commands is kept. Plural rule: one form
 # (`plural_none` in i18n/mod.rs).
 
@@ -1563,7 +1563,7 @@ cameraRaw	Shadows	Vùng tối
 	Contributors	Người đóng góp
 	Models	Mô hình
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — trình chỉnh sửa ảnh gốc mã nguồn mở viết bằng Rust.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	Dựa trên PhotoCraft, phần mềm mã nguồn mở (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Dựa trên EvoPhoto, phần mềm mã nguồn mở (MIT OR Apache-2.0).
 	Version {version}	Phiên bản {version}
 	Unsaved changes	Thay đổi chưa lưu
 	Answer the unsaved-changes prompt first	Hãy trả lời hộp thoại thay đổi chưa lưu trước
@@ -1601,7 +1601,7 @@ cameraRaw	Shadows	Vùng tối
 	Leave as is (don't color manage)	Giữ nguyên (không quản lý màu)
 	Discard the embedded profile (don't color manage)	Bỏ hồ sơ nhúng (không quản lý màu)
 	Native file drag-and-drop is unavailable	Kéo thả tệp gốc không khả dụng
-	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= photocraft`.	Kéo thả tệp gốc chưa được hỗ trợ trên Wayland. Dùng Tệp › Mở, hoặc chạy Lumbra dưới XWayland với `WAYLAND_DISPLAY= photocraft`.
+	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= evophoto`.	Kéo thả tệp gốc chưa được hỗ trợ trên Wayland. Dùng Tệp › Mở, hoặc chạy Lumbra dưới XWayland với `WAYLAND_DISPLAY= evophoto`.
 	Switched to CPU rendering	Đã chuyển sang kết xuất CPU
 	GPU acceleration could not continue. Your documents are unchanged.	Không thể tiếp tục tăng tốc GPU. Tài liệu của bạn không đổi.
 	Lumbra is using the CPU image compositor. The window may still use your graphics adapter.	Lumbra đang dùng bộ kết hợp ảnh CPU. Cửa sổ vẫn có thể dùng bộ điều hợp đồ họa của bạn.

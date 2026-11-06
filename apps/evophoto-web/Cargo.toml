@@ -1,0 +1,52 @@
+[package]
+name = "evophoto-web"
+description = "EvoPhoto in the browser (eframe web runner, WebGPU with WebGL2 fallback)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+# Open HEIC/HEIF photos (the optional evophoto-heif crate). Not default so distributors choose
+# it; official builds (CI, packaging/, release) build with `--features heif`.
+heif = ["evophoto-codecs/heif"]
+# Evora build (patch LUM-04): the smoke build of the CI only (evora/ci/smoke_ehp.mjs, scenario
+# pont-panique), never the served artifact: the host may ask the engine to panic, to prove that
+# the panic reaches it as `evora:failed {code: "panic"}`.
+evora-smoke = []
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "evophoto-web"
+path = "src/main.rs"
+
+[dependencies]
+evophoto-engine = { workspace = true }
+evophoto-io = { workspace = true }
+evophoto-codecs = { workspace = true }
+evophoto-doc = { workspace = true }
+evophoto-ui-egui = { workspace = true }
+egui = { workspace = true }
+log = { workspace = true }
+# Evora build (patch E3): the `prefs.set` command that imposes the host language. Already in
+# Cargo.lock for this crate (dev-dependency), so the lock file is unchanged.
+serde_json = { workspace = true }
+# Evora build (patch LUM-14 r2): a layer's `shmd` block, read and written back without its
+# location. Already in Cargo.lock for this crate (dev-dependency, and through evophoto-io).
+evophoto-psd = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# `wgpu` pulls egui-wgpu's defaults: WebGPU plus the WebGL2 fallback.
+eframe = { workspace = true, features = ["wgpu", "accesskit"] }
+rfd = { workspace = true }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "DomRect", "HtmlAnchorElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Storage", "Event", "EventTarget", "MouseEvent", "PointerEvent", "BeforeUnloadEvent", "AbortController", "AbortSignal", "DomException", "Response", "IdbFactory", "IdbOpenDbRequest", "IdbDatabase", "IdbRequest", "IdbTransaction", "IdbTransactionMode", "IdbObjectStore", "IdbCursor", "IdbCursorWithValue", "RequestInit", "RequestMode", "Navigator", "MessageEvent", "KeyboardEvent"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+evophoto-paint = { workspace = true }
+evophoto-psd = { workspace = true }

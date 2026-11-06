@@ -344,7 +344,7 @@ fn hole_bounds(w: usize, h: usize, px: &[Px]) -> Option<Bounds> {
 
 /// Valid source centres: the whole `2r+1` patch inside the grid and copyable. Found per row
 /// (each pixel's horizontal run), then per column of runs. `None` when cancelled.
-fn valid_sources(w: usize, h: usize, r: usize, px: &[Px], ctl: &photocraft_raster::Interrupt) -> Option<Vec<bool>> {
+fn valid_sources(w: usize, h: usize, r: usize, px: &[Px], ctl: &evophoto_raster::Interrupt) -> Option<Vec<bool>> {
     const BAND: usize = 64;
     let side = 2 * r + 1;
     let par = w * h >= PAR_MIN;
@@ -548,7 +548,7 @@ struct Solver<'a> {
     smom: Vec<[f32; 2]>,
     adapt: Adapt,
     /// Cancellation: checked per row band; a cancelled solve's output is discarded.
-    ctl: photocraft_raster::Interrupt<'a>,
+    ctl: evophoto_raster::Interrupt<'a>,
 }
 
 /// A channel deviation under which a patch counts as flat for [`fit`] (about 5 levels of 255).
@@ -1037,7 +1037,7 @@ impl Solver<'_> {
 
     /// Recompute every target's match cost (hole pixels change between iterations), and with
     /// colour adaptation the full target patches' own moments.
-    fn costs(&mut self, nnf: &[(i32, i32)], cost: &mut [f32]) -> Result<(), photocraft_raster::Cancelled> {
+    fn costs(&mut self, nnf: &[(i32, i32)], cost: &mut [f32]) -> Result<(), evophoto_raster::Cancelled> {
         let (w, ch, r, tb) = (self.w, self.ch, self.r as usize, self.tbox);
         let par = tb.area() >= PAR_MIN_PATCHES;
         self.ctl.check()?;
@@ -1400,8 +1400,8 @@ fn onion_peel(
     px: &[Px],
     hb: Bounds,
     sources: &[(i32, i32)],
-    ctl: &photocraft_raster::Interrupt,
-) -> Result<(), photocraft_raster::Cancelled> {
+    ctl: &evophoto_raster::Interrupt,
+) -> Result<(), evophoto_raster::Cancelled> {
     const NONE: u32 = u32::MAX;
     let mut known: Vec<bool> = px.iter().map(|k| matches!(k, Px::Known | Px::Source)).collect();
     // Each source centre's place in `sources`, and the source each filled pixel took.
@@ -1551,7 +1551,7 @@ fn onion_peel(
 /// [`membrane_fill`]).
 pub fn complete(w: usize, h: usize, ch: usize, img: &[f32], hole: &[bool], p: &CompleteParams) -> Option<Vec<f32>> {
     // Never cancelled, so never `Err`.
-    complete_with(w, h, ch, img, hole, p, &photocraft_raster::Interrupt::NONE).unwrap_or(None)
+    complete_with(w, h, ch, img, hole, p, &evophoto_raster::Interrupt::NONE).unwrap_or(None)
 }
 
 /// [`complete`] that can be cancelled (checked per EM iteration, PatchMatch pass and row band)
@@ -1563,8 +1563,8 @@ pub fn complete_with(
     img: &[f32],
     hole: &[bool],
     p: &CompleteParams,
-    ctl: &photocraft_raster::Interrupt,
-) -> Result<Option<Vec<f32>>, photocraft_raster::Cancelled> {
+    ctl: &evophoto_raster::Interrupt,
+) -> Result<Option<Vec<f32>>, evophoto_raster::Cancelled> {
     assert_eq!(hole.len(), w * h);
     let px: Vec<Px> = hole.iter().map(|h| if *h { Px::Hole } else { Px::Source }).collect();
     complete_masked(w, h, ch, img, &px, p, ctl)
@@ -1579,8 +1579,8 @@ pub fn complete_masked(
     img: &[f32],
     px: &[Px],
     p: &CompleteParams,
-    ctl: &photocraft_raster::Interrupt,
-) -> Result<Option<Vec<f32>>, photocraft_raster::Cancelled> {
+    ctl: &evophoto_raster::Interrupt,
+) -> Result<Option<Vec<f32>>, evophoto_raster::Cancelled> {
     Ok(complete_cow(w, h, ch, Cow::Borrowed(img), px, p, ctl)?.ok())
 }
 
@@ -1593,8 +1593,8 @@ pub fn complete_masked_owned(
     img: Vec<f32>,
     px: &[Px],
     p: &CompleteParams,
-    ctl: &photocraft_raster::Interrupt,
-) -> Result<Result<Vec<f32>, Vec<f32>>, photocraft_raster::Cancelled> {
+    ctl: &evophoto_raster::Interrupt,
+) -> Result<Result<Vec<f32>, Vec<f32>>, evophoto_raster::Cancelled> {
     Ok(complete_cow(w, h, ch, Cow::Owned(img), px, p, ctl)?.map_err(Cow::into_owned))
 }
 
@@ -1607,8 +1607,8 @@ fn complete_cow<'a>(
     img: Cow<'a, [f32]>,
     px: &'a [Px],
     p: &CompleteParams,
-    ctl: &photocraft_raster::Interrupt,
-) -> Result<Result<Vec<f32>, Cow<'a, [f32]>>, photocraft_raster::Cancelled> {
+    ctl: &evophoto_raster::Interrupt,
+) -> Result<Result<Vec<f32>, Cow<'a, [f32]>>, evophoto_raster::Cancelled> {
     assert_eq!(img.len(), w * h * ch);
     assert_eq!(px.len(), w * h);
     let Some(hb0) = hole_bounds(w, h, px) else { return Ok(Ok(img.into_owned())) };
@@ -1651,7 +1651,7 @@ fn complete_cow<'a>(
         let Level { w: lw, h: lh, img: limg, px: lpx } = std::mem::replace(&mut levels[li], Level::EMPTY);
         let hb = boxes[li];
         let tb = hb.grow(r, lw, lh);
-        let valid = valid_sources(lw, lh, r, &lpx, ctl).ok_or(photocraft_raster::Cancelled)?;
+        let valid = valid_sources(lw, lh, r, &lpx, ctl).ok_or(evophoto_raster::Cancelled)?;
         let sources = Sources::new(&valid, lw);
         // Nothing to copy from at the finest level: the caller falls back (and gets its pixels
         // back as they were).
@@ -2212,7 +2212,7 @@ mod tests {
         let px = roles(w, h, &hole);
         let run = |threads: usize| {
             let pool = rayon::ThreadPoolBuilder::new().num_threads(threads).build().unwrap();
-            pool.install(|| complete_masked(w, h, 3, &img, &px, &CompleteParams::default(), &photocraft_raster::Interrupt::NONE)).unwrap().unwrap()
+            pool.install(|| complete_masked(w, h, 3, &img, &px, &CompleteParams::default(), &evophoto_raster::Interrupt::NONE)).unwrap().unwrap()
         };
         let one = run(1);
         assert_eq!(bits(&one), bits(&run(7)));
@@ -2233,7 +2233,7 @@ mod tests {
             let p = CompleteParams { adapt, ..Default::default() };
             let run = |threads: usize| {
                 let pool = rayon::ThreadPoolBuilder::new().num_threads(threads).build().unwrap();
-                bits(&pool.install(|| complete_masked(w, h, ch, &img, &px, &p, &photocraft_raster::Interrupt::NONE)).unwrap().unwrap())
+                bits(&pool.install(|| complete_masked(w, h, ch, &img, &px, &p, &evophoto_raster::Interrupt::NONE)).unwrap().unwrap())
             };
             let one = run(1);
             assert_eq!(one, run(3), "{ch} channels, 3 threads");
@@ -2310,7 +2310,7 @@ mod tests {
                 }
             }
         }
-        let none = photocraft_raster::Interrupt::NONE;
+        let none = evophoto_raster::Interrupt::NONE;
         for hole in [disc(w, h, 20.0, 18.0, 7.5), disc(w, h, 34.0, 22.0, 5.0)] {
             let px: Vec<Px> = hole.iter().map(|h| if *h { Px::Hole } else { Px::Source }).collect();
             let near = integral(w, h, &hole);
@@ -2328,7 +2328,7 @@ mod tests {
 
     #[test]
     fn onion_peel_takes_the_plain_scans_sources() {
-        let none = photocraft_raster::Interrupt::NONE;
+        let none = evophoto_raster::Interrupt::NONE;
         for (w, h, ch, seed) in [(44, 36, 1, 1), (50, 40, 3, 2), (40, 40, 4, 3)] {
             let mut img = busy(w, h, ch, seed);
             // Also an image of a few exact values, where many sources tie.
@@ -2378,7 +2378,7 @@ mod tests {
                 _ => Px::Source,
             })
             .collect();
-        let valid = valid_sources(w, h, r, &px, &photocraft_raster::Interrupt::NONE).unwrap();
+        let valid = valid_sources(w, h, r, &px, &evophoto_raster::Interrupt::NONE).unwrap();
         let source: Vec<bool> = px.iter().map(|k| *k == Px::Source).collect();
         let ss = integral(w, h, &source);
         let (ri, full) = (r as i32, ((2 * r + 1) * (2 * r + 1)) as u32);
@@ -2412,7 +2412,7 @@ mod tests {
         let mut img = busy(w, h, ch, 4);
         let hole = disc(w, h, 20.0, 18.0, 6.0);
         let px = roles(w, h, &hole);
-        let none = photocraft_raster::Interrupt::NONE;
+        let none = evophoto_raster::Interrupt::NONE;
         let hb = hole_bounds(w, h, &px).unwrap();
         let tb = hb.grow(r, w, h);
         let valid = valid_sources(w, h, r, &px, &none).unwrap();
@@ -2477,7 +2477,7 @@ mod tests {
         let img = busy(w, h, ch, 6);
         let hole = disc(w, h, 30.0, 26.0, 8.0);
         let px = roles(w, h, &hole);
-        let (p, none) = (CompleteParams::default(), photocraft_raster::Interrupt::NONE);
+        let (p, none) = (CompleteParams::default(), evophoto_raster::Interrupt::NONE);
         let borrowed = complete_masked(w, h, ch, &img, &px, &p, &none).unwrap().unwrap();
         let owned = complete_masked_owned(w, h, ch, img.clone(), &px, &p, &none).unwrap().unwrap();
         assert_eq!(bits(&owned), bits(&borrowed));
@@ -2488,7 +2488,7 @@ mod tests {
         assert_eq!(bits(&back), bits(&img));
         // Cancelled, it stops.
         let yes = || true;
-        assert!(complete_masked_owned(w, h, ch, img, &px, &p, &photocraft_raster::Interrupt::cancel_only(&yes)).is_err());
+        assert!(complete_masked_owned(w, h, ch, img, &px, &p, &evophoto_raster::Interrupt::cancel_only(&yes)).is_err());
     }
 
     #[test]

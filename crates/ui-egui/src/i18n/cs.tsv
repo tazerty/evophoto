@@ -16,7 +16,7 @@
 # particular not the Czech localisation of Adobe Photoshop. Add entries the same way.
 # Conventions: menus are nouns (Soubor, Úpravy, Obraz ...), commands are infinitives (Otevřít…,
 # Uložit jako…), sentence case as in the English source. Product and technology names
-# (PhotoCraft, OpenType, CMYK, Lab ...) stay in Latin letters; the trailing "…" of
+# (EvoPhoto, OpenType, CMYK, Lab ...) stay in Latin letters; the trailing "…" of
 # dialog commands is kept.
 
 # Layer Mask Display Options (the layer mask rubylith's colour and opacity)
@@ -1366,7 +1366,7 @@
 	Lumbra	Lumbra
 	Lumbra Manages Colors	Barvy spravuje Lumbra
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — nativní editor obrázků s otevřeným zdrojovým kódem napsaný v jazyce Rust.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	Založeno na PhotoCraft, softwaru s otevřeným zdrojovým kódem (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Založeno na EvoPhoto, softwaru s otevřeným zdrojovým kódem (MIT OR Apache-2.0).
 	Pin Depth:	Hloubka špendlíku:
 	Pixel Length:	Délka v pixelech:
 	Pixels/Centimeter	Pixely/centimetr
@@ -2341,7 +2341,7 @@ cameraRaw	Color	Barvy
 	Use tablet pressure to change pen width	Měnit šířku pera přítlakem tabletu
 
 
-# About ▸ Contributors / Models (credits, craftrules standards/contributors.md)
+# About ▸ Contributors / Models (credits, evorules standards/contributors.md)
 	About	O aplikaci
 	Contributors	Přispěvatelé
 	Models	Modely
@@ -3846,7 +3846,7 @@ navigator	Zoom	Zvětšení
 	Sent to {printer}	Odesláno do {printer}
 	set in Print Settings…	nastavuje se v nastavení tisku…
 	ICO is limited to 256 × 256 pixels	ICO je omezen na 256 × 256 pixelů
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	Zkontrolovat aktualizace…
 	Lumbra Updates	Aktualizace Lumbra
 	Checking for updates…	Kontrola aktualizací…

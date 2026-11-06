@@ -10,15 +10,15 @@
 //!   `artboardBackgroundType` (1 white, 2 black, 3 transparent, 4 other).
 //!
 //! Both are re-emitted verbatim while they still decode to the document's state, and are
-//! regenerated otherwise (comp appearance is not written to PSD; `.pcraft` keeps it).
+//! regenerated otherwise (comp appearance is not written to PSD; `.evophoto` keeps it).
 
 use std::collections::HashMap;
 
-use photocraft_doc::comps::layer_position;
-use photocraft_doc::{Artboard, ArtboardBackground, CompLayerState, Document, Guides, Layer, LayerComp};
-use photocraft_geom::Rect;
-use photocraft_psd::descriptor::{Descriptor, UnicodeString, Value, VersionedDescriptor};
-use photocraft_psd::metadata::{MetadataItem, parse_shmd, write_shmd};
+use evophoto_doc::comps::layer_position;
+use evophoto_doc::{Artboard, ArtboardBackground, CompLayerState, Document, Guides, Layer, LayerComp};
+use evophoto_geom::Rect;
+use evophoto_psd::descriptor::{Descriptor, UnicodeString, Value, VersionedDescriptor};
+use evophoto_psd::metadata::{MetadataItem, parse_shmd, write_shmd};
 
 use crate::blocks::{color_from_desc, color_to_desc, num};
 
@@ -78,7 +78,7 @@ pub fn parse_artboard(data: &[u8]) -> Option<Artboard> {
     let background = match int(d, "artboardBackgroundType").unwrap_or(1) {
         2 => ArtboardBackground::Black,
         3 => ArtboardBackground::Transparent,
-        4 => ArtboardBackground::Custom(desc(d, "Clr ").and_then(color_from_desc).unwrap_or(photocraft_doc::Color::WHITE)),
+        4 => ArtboardBackground::Custom(desc(d, "Clr ").and_then(color_from_desc).unwrap_or(evophoto_doc::Color::WHITE)),
         _ => ArtboardBackground::White,
     };
     let preset = text(d, "artboardPresetName").unwrap_or_default();
@@ -92,8 +92,8 @@ pub fn write_artboard(a: &Artboard, guides: &[i32]) -> Vec<u8> {
     let rect = Descriptor::new("classFloatRect").with("Top ", f(a.rect.y0)).with("Left", f(a.rect.x0)).with("Btom", f(a.rect.y1)).with("Rght", f(a.rect.x1));
     let color = match a.background {
         ArtboardBackground::Custom(c) => c,
-        ArtboardBackground::Black => photocraft_doc::Color::BLACK,
-        _ => photocraft_doc::Color::WHITE,
+        ArtboardBackground::Black => evophoto_doc::Color::BLACK,
+        _ => evophoto_doc::Color::WHITE,
     };
     let d = Descriptor::new("artboard")
         .with("artboardRect", Value::Descriptor(rect))
@@ -207,7 +207,7 @@ pub(crate) fn decode_comps(resource: Option<&[u8]>, doc: &Document) -> (Vec<Laye
     let last_applied = int(d, "lastAppliedComp").map(|v| v as u32).filter(|id| comps.iter().any(|c| c.id == *id));
     // Index each comp ID to its first occurrence once. Both the comp list and the
     // per-layer setting ID lists are file-controlled, so matching settings against comps
-    // with iter_mut().find() per ID is O(n*m) and lets a crafted document stall import.
+    // with iter_mut().find() per ID is O(n*m) and lets a built document stall import.
     // or_insert preserves first-match behavior for duplicate comp IDs.
     let mut id_to_index: HashMap<u32, usize> = HashMap::with_capacity(comps.len());
     for (i, c) in comps.iter().enumerate() {
@@ -292,7 +292,7 @@ fn setting_value(ids: &[u32], st: Option<&CompLayerState>, here: Option<(i32, i3
         if let Some(v) = st.visible {
             s = s.with("enab", Value::Boolean(v));
         }
-        // A position whose offset from the layer does not fit an `i32` (e.g. from a `.pcraft`
+        // A position whose offset from the layer does not fit an `i32` (e.g. from a `.evophoto`
         // file) is left out rather than wrapped: the comp then records no position (#1017).
         if let (Some((x, y)), Some((hx, hy))) = (st.position, here)
             && let (Some(dx), Some(dy)) = (x.checked_sub(hx), y.checked_sub(hy))
@@ -353,7 +353,7 @@ pub(crate) fn set_cmls(raw: &mut Vec<([u8; 4], Vec<u8>)>, cmls: Option<Vec<u8>>)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_doc::{Color, ColorMode, LayerContent, PixelFormat, SampleType, Size};
+    use evophoto_doc::{Color, ColorMode, LayerContent, PixelFormat, SampleType, Size};
 
     #[test]
     fn artboard_roundtrip() {
@@ -488,7 +488,7 @@ mod tests {
 
     /// A layer at origin (4, 4) whose `shmd` carries a `cmls` item with one `layerSettings`
     /// entry for comp 1: visible, offset by `ofst`.
-    fn doc_with_cmls_offset(ofst: (Value, Value)) -> (Document, photocraft_doc::LayerId, Vec<u8>) {
+    fn doc_with_cmls_offset(ofst: (Value, Value)) -> (Document, evophoto_doc::LayerId, Vec<u8>) {
         let mut d = Document::with_background("t", Size::new(32, 32), ColorMode::Rgb, SampleType::U8, Color::WHITE);
         let mut l = Layer::raster("A", PixelFormat::RGBA8);
         l.surface_mut().unwrap().fill_rect(Rect::new(4, 4, 8, 8), &[1.0, 0.0, 0.0, 1.0]);

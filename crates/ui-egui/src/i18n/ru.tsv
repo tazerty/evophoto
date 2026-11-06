@@ -13,7 +13,7 @@
 # graphics-editor vocabulary (Слой, Каналы, Маска, Выделение, Кривые ...), matching Photoshop's
 # Russian menu tradition where it is unambiguous. No proprietary localisation resource was
 # consulted or copied; entries are added the same way.
-# Product and technology names (PhotoCraft, OpenType, CMYK, Lab ...) stay in Latin
+# Product and technology names (EvoPhoto, OpenType, CMYK, Lab ...) stay in Latin
 # letters; the trailing "…" of dialog commands is kept; the colon of a label ("Width:") becomes
 # the Russian typographic equivalent, with the space the source carries.
 
@@ -2195,7 +2195,7 @@
 	Pattern Size	Размер паттерна
 	Lumbra	Lumbra
 	Lumbra — an open-source, native image editor written in Rust.	Lumbra — открытый нативный графический редактор на Rust.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	Основано на PhotoCraft — программе с открытым исходным кодом (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Основано на EvoPhoto — программе с открытым исходным кодом (MIT OR Apache-2.0).
 	Position and Size	Положение и размер
 	Preserve Details	Сохранять детали
 	Preserve Luminosity	Сохранять светлоту
@@ -2616,7 +2616,7 @@ cameraRaw	Roughness	Неровность
 	Use tablet pressure to change pen width	Использовать нажим планшета для изменения ширины пера
 
 
-# About ▸ Contributors / Models (credits, craftrules standards/contributors.md)
+# About ▸ Contributors / Models (credits, evorules standards/contributors.md)
 	About	О программе
 	Contributors	Участники
 	Models	Модели
@@ -3217,7 +3217,7 @@ curves	Smooth	Сгладить
 	Shadow Mode	Режим теней
 	Shadow Color	Цвет теней
 	Shadow Opacity	Непрозрачность теней
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	Проверить обновления…
 	Lumbra Updates	Обновления Lumbra
 	Checking for updates…	Проверка обновлений…
@@ -4024,7 +4024,7 @@ curves	Smooth	Сгладить
 	Multiple Flames Path Directions	Несколько языков пламени по направлениям контура
 	Multiple Flames Various Length	Несколько языков пламени разной длины
 	My Brushes	Мои кисти
-	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run PhotoCraft under XWayland with `WAYLAND_DISPLAY= photocraft`.	Перетаскивание файлов ещё не поддерживается в Wayland. Используйте «Файл › Открыть» или запустите PhotoCraft под XWayland с `WAYLAND_DISPLAY= photocraft`.
+	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run EvoPhoto under XWayland with `WAYLAND_DISPLAY= evophoto`.	Перетаскивание файлов ещё не поддерживается в Wayland. Используйте «Файл › Открыть» или запустите EvoPhoto под XWayland с `WAYLAND_DISPLAY= evophoto`.
 	Nearest	Ближайший
 	Neon Glow	Неоновое свечение
 	Neutralize	Нейтрализовать
@@ -4168,7 +4168,7 @@ curves	Smooth	Сгладить
 	Pyramids	Пирамиды
 	Quick Actions	Быстрые действия
 	Quit	Выход
-	Quit PhotoCraft	Выйти из PhotoCraft
+	Quit EvoPhoto	Выйти из EvoPhoto
 	Quit {app}	Выйти из {app}
 	R G B	R G B
 	R g b	R g b

@@ -1,6 +1,6 @@
 [package]
-name = "photocraft-io"
-description = "Import/export between photocraft documents and PSD/PSB and flat raster formats"
+name = "evophoto-io"
+description = "Import/export between evophoto documents and PSD/PSB and flat raster formats"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -12,26 +12,26 @@ workspace = true
 [features]
 # Real-file corpus tests (opt-in; `cargo xtask test-corpus`). Fail when the corpus is missing.
 corpus = []
-# HEIC/HEIF decode (forwarded to photocraft-codecs; see its `heif` feature).
-heif = ["photocraft-codecs/heif"]
+# HEIC/HEIF decode (forwarded to evophoto-codecs; see its `heif` feature).
+heif = ["evophoto-codecs/heif"]
 
 [dependencies]
-photocraft-geom = { workspace = true }
-photocraft-color = { workspace = true }
-photocraft-cms = { workspace = true }
-photocraft-raster = { workspace = true }
-photocraft-doc = { workspace = true }
-photocraft-compose = { workspace = true }
-photocraft-algo = { workspace = true }
-photocraft-psd = { workspace = true }
-photocraft-codecs = { workspace = true }
-photocraft-raw = { workspace = true }
-photocraft-affinity = { workspace = true }
-photocraft-text = { workspace = true }
-photocraft-paint = { workspace = true }
-photocraft-vector = { workspace = true }
-photocraft-format = { path = "../format" }
-craft-docpath = { workspace = true }
+evophoto-geom = { workspace = true }
+evophoto-color = { workspace = true }
+evophoto-cms = { workspace = true }
+evophoto-raster = { workspace = true }
+evophoto-doc = { workspace = true }
+evophoto-compose = { workspace = true }
+evophoto-algo = { workspace = true }
+evophoto-psd = { workspace = true }
+evophoto-codecs = { workspace = true }
+evophoto-raw = { workspace = true }
+evophoto-affinity = { workspace = true }
+evophoto-text = { workspace = true }
+evophoto-paint = { workspace = true }
+evophoto-vector = { workspace = true }
+evophoto-format = { path = "../format" }
+evo-docpath = { workspace = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true }
 blake3 = { version = "1.8", default-features = false, features = ["pure"] }
@@ -50,9 +50,9 @@ resvg = { version = "0.45", default-features = false, features = ["text", "raste
 
 [dev-dependencies]
 crc32fast = "1.5"
-photocraft-affinity = { workspace = true, features = ["synth"] }
+evophoto-affinity = { workspace = true, features = ["synth"] }
 flate2 = { workspace = true }
-photocraft-psd = { workspace = true, features = ["testgen"] }
-photocraft-raw = { workspace = true, features = ["testgen"] }
-photocraft-testkit = { workspace = true }
+evophoto-psd = { workspace = true, features = ["testgen"] }
+evophoto-raw = { workspace = true, features = ["testgen"] }
+evophoto-testkit = { workspace = true }
 proptest = { workspace = true }

@@ -1,7 +1,7 @@
 //! #7671: exported Stroke widths must have the same effect as command execution.
-use photocraft_engine::actions_cmds::Action;
-use photocraft_engine::{Session, atn_cmds};
-use photocraft_psd::{atn, descriptor::Value as D};
+use evophoto_engine::actions_cmds::Action;
+use evophoto_engine::{Session, atn_cmds};
+use evophoto_psd::{atn, descriptor::Value as D};
 use serde_json::{Value, json};
 
 /// Synthetic colours and partial transparency make lost edge pixels observable at every depth.
@@ -12,8 +12,8 @@ fn fixture(depth: u32) -> Session {
         let surface = doc.layer_mut(active.unwrap()).unwrap().surface_mut().unwrap();
         let format = surface.format();
         let bytes: Vec<_> =
-            (0..432).flat_map(|i| photocraft_raster::from_rgba(&format, [(i % 11) as f32 / 10.0, (i % 7) as f32 / 6.0, (i % 5) as f32 / 4.0, 0.6])).collect();
-        surface.write_region(photocraft_doc::Rect::from_xywh(0, 0, 24, 18), &bytes);
+            (0..432).flat_map(|i| evophoto_raster::from_rgba(&format, [(i % 11) as f32 / 10.0, (i % 7) as f32 / 6.0, (i % 5) as f32 / 4.0, 0.6])).collect();
+        surface.write_region(evophoto_doc::Rect::from_xywh(0, 0, 24, 18), &bytes);
         Ok(())
     })
     .unwrap();
@@ -23,7 +23,7 @@ fn fixture(depth: u32) -> Session {
 
 /// Compare the flattened document, including alpha, rather than only imported JSON.
 fn pixels(s: &Session) -> Vec<[f32; 4]> {
-    photocraft_compose::flatten(&s.active().unwrap().doc).px
+    evophoto_compose::flatten(&s.active().unwrap().doc).px
 }
 
 /// Direct execution, native playback and strict binary ATN playback must agree exactly.

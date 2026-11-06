@@ -5,7 +5,7 @@ use egui::accesskit::Role;
 use egui::{Key, Modifiers, Rect, vec2};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use photocraft_engine::prefs::FontPreview;
+use evophoto_engine::prefs::FontPreview;
 
 struct State {
     current: String,
@@ -96,7 +96,7 @@ fn hovering_a_font_row_moves_no_other_row() {
     let mut h = harness();
     // The app's theme: its hovered and selected buttons draw a stroke (egui's default style
     // would hide the jump).
-    crate::PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+    crate::EvoPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
     h.run();
     open(&mut h);
     let rows = |h: &Harness<'static, State>| -> Vec<Rect> { (0..8).map(|i| h.get_by_label(&format!("Family {i:02}")).rect()).collect() };
@@ -242,14 +242,14 @@ fn opening_click_release_returns_focus_to_search_before_typing() {
 
 #[test]
 fn first_options_bar_open_searches_without_changing_the_tool_or_edited_text() {
-    use crate::{PhotocraftApp, Services};
-    use photocraft_doc::LayerContent;
+    use crate::{EvoPhotoApp, Services};
+    use evophoto_doc::LayerContent;
     use serde_json::json;
 
     for editing in [false, true] {
         let mut h = Harness::builder().with_size(vec2(1600.0, 1000.0)).with_max_steps(64).build_eframe(move |cc| {
-            PhotocraftApp::setup_context(&cc.egui_ctx, Default::default());
-            let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Services::default());
+            EvoPhotoApp::setup_context(&cc.egui_ctx, Default::default());
+            let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Services::default());
             app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
             app.run("type.create", json!({"text": "Sample", "font": "Inter", "size": 18})).unwrap();
             app.ui.tool = crate::state::Tool::Type;
@@ -430,9 +430,9 @@ fn empty_font_list_ignores_navigation() {
 
 #[test]
 fn font_cycle_in_options_bar_edits_the_layer_and_can_be_undone() {
-    use crate::{PhotocraftApp, Services};
+    use crate::{EvoPhotoApp, Services};
     use serde_json::json;
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Services::default());
+    let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Services::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     app.run("type.create", json!({"text": "Sample", "font": "Inter", "size": 18})).unwrap();
     let mut h = Harness::builder().with_size(vec2(900.0, 700.0)).build_ui_state(
@@ -443,17 +443,17 @@ fn font_cycle_in_options_bar_edits_the_layer_and_can_be_undone() {
         },
         app,
     );
-    crate::PhotocraftApp::setup_context(&h.ctx, Default::default());
+    crate::EvoPhotoApp::setup_context(&h.ctx, Default::default());
     h.run_steps(4);
     h.query_all_by_role(Role::ComboBox).next().unwrap().click();
     h.run();
     h.get_by_role(Role::TextInput).type_text("JetBrains");
     h.key_press(Key::ArrowDown);
     h.run();
-    let font = |app: &PhotocraftApp| {
+    let font = |app: &EvoPhotoApp| {
         let doc = &app.session.active().unwrap().doc;
         match &doc.layer(app.session.active().unwrap().active_layer.unwrap()).unwrap().content {
-            photocraft_doc::LayerContent::Text(t) => t.font_family.clone(),
+            evophoto_doc::LayerContent::Text(t) => t.font_family.clone(),
             _ => panic!("type layer"),
         }
     };
@@ -468,10 +468,10 @@ fn font_cycle_in_options_bar_edits_the_layer_and_can_be_undone() {
 
 #[test]
 fn hovering_a_font_does_not_pollute_history_and_clears_on_close() {
-    use crate::{PhotocraftApp, Services};
+    use crate::{EvoPhotoApp, Services};
     use serde_json::json;
 
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Services::default());
+    let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Services::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     app.run("type.create", json!({"text": "Sample", "font": "Inter", "size": 18})).unwrap();
 
@@ -495,7 +495,7 @@ fn hovering_a_font_does_not_pollute_history_and_clears_on_close() {
 
     // Verify the actual document layer still has the original font
     let original_font = match &app.session.active().unwrap().doc.layer(layer_id).unwrap().content {
-        photocraft_doc::LayerContent::Text(t) => t.font_family.clone(),
+        evophoto_doc::LayerContent::Text(t) => t.font_family.clone(),
         _ => panic!("type layer"),
     };
     assert_eq!(original_font, "Inter", "Hovering does not commit the font to the document");
@@ -511,12 +511,12 @@ fn hovering_a_font_does_not_pollute_history_and_clears_on_close() {
 
 #[test]
 fn options_bar_hover_previews_on_canvas_without_committing() {
-    use crate::{PhotocraftApp, Services};
-    use photocraft_doc::LayerContent;
+    use crate::{EvoPhotoApp, Services};
+    use evophoto_doc::LayerContent;
     use serde_json::json;
 
     struct PreviewApp {
-        app: PhotocraftApp,
+        app: EvoPhotoApp,
     }
 
     impl eframe::App for PreviewApp {
@@ -530,8 +530,8 @@ fn options_bar_hover_previews_on_canvas_without_committing() {
     }
 
     let mut h = Harness::builder().with_size(vec2(900.0, 700.0)).build_eframe(|cc| {
-        PhotocraftApp::setup_context(&cc.egui_ctx, crate::theme::ThemeKind::ALL[0]);
-        PreviewApp { app: PhotocraftApp::new(photocraft_engine::Session::new(), Services::default()) }
+        EvoPhotoApp::setup_context(&cc.egui_ctx, crate::theme::ThemeKind::ALL[0]);
+        PreviewApp { app: EvoPhotoApp::new(evophoto_engine::Session::new(), Services::default()) }
     });
     h.state_mut().app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     h.state_mut().app.run("type.create", json!({"text": "Sample", "font": "Inter", "size": 18})).unwrap();
@@ -576,7 +576,7 @@ fn options_bar_hover_previews_on_canvas_without_committing() {
     assert_eq!(committed_text.char_runs()[0].style.font_family, "JetBrains Mono");
     assert_eq!(key, 0, "selection replaces the preview with committed content");
     assert_eq!(h.state().app.session.active().unwrap().history.entries().len(), 3, "selection adds one history step");
-    let committed_font = |app: &PhotocraftApp| {
+    let committed_font = |app: &EvoPhotoApp| {
         let LayerContent::Text(text) = &app.session.active().unwrap().doc.layer(layer).unwrap().content else {
             panic!("type layer");
         };
@@ -590,10 +590,10 @@ fn options_bar_hover_previews_on_canvas_without_committing() {
 
 #[test]
 fn hovering_a_font_previews_only_the_selected_characters() {
-    use crate::{PhotocraftApp, Services};
+    use crate::{EvoPhotoApp, Services};
     use serde_json::json;
 
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Services::default());
+    let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Services::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     app.run("type.create", json!({"text": "abcdef", "font": "Inter", "size": 18})).unwrap();
     let layer = app.session.active().unwrap().active_layer.unwrap();
@@ -613,8 +613,8 @@ fn hovering_a_font_previews_only_the_selected_characters() {
 
     crate::type_font_preview::set(&mut app, "Inter".into());
     let (preview, _) = crate::type_font_preview::display_doc(&mut app, 0).expect("preview document");
-    let fonts = |doc: &photocraft_doc::Document| {
-        let photocraft_doc::LayerContent::Text(text) = &doc.layer(layer).unwrap().content else {
+    let fonts = |doc: &evophoto_doc::Document| {
+        let evophoto_doc::LayerContent::Text(text) = &doc.layer(layer).unwrap().content else {
             panic!("type layer");
         };
         text.char_runs().into_iter().flat_map(|run| std::iter::repeat_n(run.style.font_family, run.len)).collect::<Vec<_>>()
@@ -794,9 +794,9 @@ fn open_menu_on_a_recent_font_steps_through_the_alphabet() {
 /// The same through the real options bar, where the pick itself records the recent family.
 #[test]
 fn options_bar_menu_arrows_walk_on_while_recording_recent_fonts() {
-    use crate::{PhotocraftApp, Services};
+    use crate::{EvoPhotoApp, Services};
     use serde_json::json;
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Services::default());
+    let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Services::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     app.run("type.create", json!({"text": "Sample", "font": "Inter", "size": 18})).unwrap();
     let mut h = Harness::builder().with_size(vec2(900.0, 700.0)).build_ui_state(
@@ -807,7 +807,7 @@ fn options_bar_menu_arrows_walk_on_while_recording_recent_fonts() {
         },
         app,
     );
-    crate::PhotocraftApp::setup_context(&h.ctx, Default::default());
+    crate::EvoPhotoApp::setup_context(&h.ctx, Default::default());
     h.run_steps(4);
     h.query_all_by_role(Role::ComboBox).next().unwrap().click();
     h.run();
@@ -879,14 +879,14 @@ fn wheel_family_index_clamps_to_the_ends() {
 /// after the options bar; hovering a font in the options bar still previews it on the canvas.
 #[test]
 fn options_bar_hover_previews_with_the_character_picker_also_shown() {
-    use crate::{PhotocraftApp, Services};
-    use photocraft_doc::LayerContent;
+    use crate::{EvoPhotoApp, Services};
+    use evophoto_doc::LayerContent;
     use serde_json::json;
 
     let theme = crate::theme::ThemeKind::Pro;
     let mut h = Harness::builder().with_size(vec2(1600.0, 1000.0)).with_max_steps(64).build_eframe(move |cc| {
-        PhotocraftApp::setup_context(&cc.egui_ctx, theme);
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Services::default());
+        EvoPhotoApp::setup_context(&cc.egui_ctx, theme);
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), Services::default());
         app.ui.theme = theme;
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         app.run("type.create", json!({"text": "Sample", "font": "Inter", "size": 18})).unwrap();
@@ -896,7 +896,7 @@ fn options_bar_hover_previews_with_the_character_picker_also_shown() {
     });
     h.run_steps(8);
     let layer = h.state().session.active().unwrap().active_layer.unwrap();
-    let font = |h: &mut Harness<'static, PhotocraftApp>| {
+    let font = |h: &mut Harness<'static, EvoPhotoApp>| {
         let (shown, _) = crate::canvas::display_doc(h.state_mut(), 0);
         let LayerContent::Text(t) = &shown.layer(layer).unwrap().content else { panic!("type layer") };
         t.char_runs()[0].style.font_family.clone()

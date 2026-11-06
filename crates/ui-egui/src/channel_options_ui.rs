@@ -7,10 +7,10 @@
 //! it is Photoshop's Layer Mask Display Options: just the rubylith's colour and opacity.
 
 use egui::{Align2, Sense, pos2, vec2};
-use photocraft_doc::ColorIndicates;
+use evophoto_doc::ColorIndicates;
 use serde_json::{Map, Value, json};
 
-use crate::PhotocraftApp;
+use crate::EvoPhotoApp;
 use crate::theme::Tokens;
 
 pub const COMMAND: &str = "channel.options";
@@ -31,7 +31,7 @@ fn layer_mask(f: &Map<String, Value>) -> bool {
 
 /// The dialog's fields for `channel` (an alpha/spot channel index, `"quickMask"`, or `"mask"` for
 /// Layer Mask Display Options), or `None` when there's no document or no such channel.
-pub fn fields(app: &PhotocraftApp, channel: &Value) -> Option<Map<String, Value>> {
+pub fn fields(app: &EvoPhotoApp, channel: &Value) -> Option<Map<String, Value>> {
     let doc = &app.session.active()?.doc;
     let kind = |i: ColorIndicates| if i == ColorIndicates::SelectedAreas { "selected" } else { "masked" };
     if channel.as_str() == Some("mask") {
@@ -70,7 +70,7 @@ pub fn fields(app: &PhotocraftApp, channel: &Value) -> Option<Map<String, Value>
 }
 
 /// Opens Channel Options on `channel`, or `None` if it doesn't exist.
-pub fn open(app: &mut PhotocraftApp, channel: &Value) -> Option<u64> {
+pub fn open(app: &mut EvoPhotoApp, channel: &Value) -> Option<u64> {
     let f = fields(app, channel)?;
     Some(app.ui.open_dialog(crate::state::DialogKind::Command, f))
 }
@@ -91,7 +91,7 @@ pub fn params(f: &Map<String, Value>) -> Value {
     Value::Object(p)
 }
 
-pub fn confirm(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Value, String> {
+pub fn confirm(app: &mut EvoPhotoApp, f: &Map<String, Value>) -> Result<Value, String> {
     app.run(COMMAND, params(f))
 }
 
@@ -182,7 +182,7 @@ pub fn owns_new_spot(fields: &Map<String, Value>) -> bool {
 
 /// The New Spot Channel fields: the next "Spot Color N" name and the last ink and solidity
 /// (red and 0% at first), or `None` without a document.
-pub fn new_spot_fields(app: &PhotocraftApp) -> Option<Map<String, Value>> {
+pub fn new_spot_fields(app: &EvoPhotoApp) -> Option<Map<String, Value>> {
     let doc = &app.session.active()?.doc;
     let saved = app.session.prefs().dialogs.get(NEW_SPOT).cloned().unwrap_or_default();
     let color = saved.get("color").and_then(Value::as_str).filter(|h| crate::color_picker_ui::parse_hex(h).is_some()).unwrap_or("#ff0000");
@@ -191,14 +191,14 @@ pub fn new_spot_fields(app: &PhotocraftApp) -> Option<Map<String, Value>> {
     f.insert(NEW_SPOT_MARK.into(), json!(true));
     f.insert("__command".into(), json!(NEW_SPOT));
     f.insert("__label".into(), json!("New Spot Channel…"));
-    f.insert("name".into(), json!(photocraft_engine::channel_cmds::next_alpha_name(doc, "Spot Color")));
+    f.insert("name".into(), json!(evophoto_engine::channel_cmds::next_alpha_name(doc, "Spot Color")));
     f.insert("color".into(), json!(color));
     f.insert("solidity".into(), json!(solidity));
     Some(f)
 }
 
 /// Opens New Spot Channel, or `None` without a document.
-pub fn open_new_spot(app: &mut PhotocraftApp) -> Option<u64> {
+pub fn open_new_spot(app: &mut EvoPhotoApp) -> Option<u64> {
     let f = new_spot_fields(app)?;
     Some(app.ui.open_dialog(crate::state::DialogKind::Command, f))
 }
@@ -213,7 +213,7 @@ pub fn new_spot_params(f: &Map<String, Value>) -> Value {
     Value::Object(p)
 }
 
-pub fn confirm_new_spot(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Value, String> {
+pub fn confirm_new_spot(app: &mut EvoPhotoApp, f: &Map<String, Value>) -> Result<Value, String> {
     let p = new_spot_params(f);
     let result = app.run(NEW_SPOT, p.clone());
     if result.is_ok() {

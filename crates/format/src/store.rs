@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
 use std::time::SystemTime;
 
-use photocraft_color::{PixelFormat, SampleType};
-use photocraft_doc::Document;
-use photocraft_raster::{Rgba8Image, Tile};
+use evophoto_color::{PixelFormat, SampleType};
+use evophoto_doc::Document;
+use evophoto_raster::{Rgba8Image, Tile};
 
 use crate::convert::{self, Fetch, Loader, Sink, is_valid_hash, swap_to_le};
 use crate::manifest::{ContentM, FORMAT_VERSION, Hash, LayerM, Manifest};
@@ -59,9 +59,9 @@ fn hash_bytes(b: &[u8]) -> Hash {
 }
 
 fn png(img: &Rgba8Image) -> Result<Vec<u8>> {
-    let image = photocraft_codecs::Image::from_u8(img.width, img.height, photocraft_codecs::ChannelLayout::Rgba, img.pixels.clone())
+    let image = evophoto_codecs::Image::from_u8(img.width, img.height, evophoto_codecs::ChannelLayout::Rgba, img.pixels.clone())
         .map_err(|e| FormatError::Unsupported(format!("preview: {e}")))?;
-    photocraft_codecs::encode(&image, photocraft_codecs::Format::Png, &Default::default()).map_err(|e| FormatError::Unsupported(format!("preview: {e}")))
+    evophoto_codecs::encode(&image, evophoto_codecs::Format::Png, &Default::default()).map_err(|e| FormatError::Unsupported(format!("preview: {e}")))
 }
 
 // ---------------------------------------------------------------------------
@@ -258,7 +258,7 @@ impl Fetch for LoadFetch<'_> {
 }
 
 /// Refuses a declared canvas outside `opts`' budget before anything is decoded for it (#2935).
-fn admit_canvas(size: photocraft_geom::Size, opts: &LoadOptions) -> Result<()> {
+fn admit_canvas(size: evophoto_geom::Size, opts: &LoadOptions) -> Result<()> {
     let (w, h) = (size.width, size.height);
     if w == 0 || h == 0 {
         return Err(FormatError::corrupt(format!("canvas size {w}x{h} is empty")));
@@ -369,11 +369,11 @@ fn tile_le(t: &Tile, sample: SampleType) -> std::borrow::Cow<'_, [u8]> {
     }
 }
 
-/// Default for [`PcraftWriter::set_reverify_budget`]: compressed bytes of already-verified
+/// Default for [`EvoPhotoWriter::set_reverify_budget`]: compressed bytes of already-verified
 /// objects re-read per directory save.
 pub const DEFAULT_REVERIFY_BUDGET: u64 = 16 * 1024 * 1024;
 
-/// Incremental `.pcraft` writer. Keep one per open document: it remembers
+/// Incremental `.evophoto` writer. Keep one per open document: it remembers
 /// tile hashes (by `Arc` identity), compressed objects, and objects it has
 /// verified in the current directory, so repeated saves stay cheap.
 ///
@@ -386,7 +386,7 @@ pub const DEFAULT_REVERIFY_BUDGET: u64 = 16 * 1024 * 1024;
 /// the cached objects, oldest-checked first, up to [`DEFAULT_REVERIFY_BUDGET`] bytes (see
 /// [`Self::set_reverify_budget`]). Over enough saves every object is read again, and a damaged
 /// one is rewritten.
-pub struct PcraftWriter {
+pub struct EvoPhotoWriter {
     hash_cache: TileHashCache,
     blob_hash_cache: BlobHashCache,
     /// Compressed objects by bundle path (ZIP mode).
@@ -398,7 +398,7 @@ pub struct PcraftWriter {
     lock_wait: std::time::Duration,
 }
 
-impl Default for PcraftWriter {
+impl Default for EvoPhotoWriter {
     fn default() -> Self {
         Self {
             hash_cache: HashMap::new(),
@@ -838,7 +838,7 @@ fn par_compress<'a>(objects: &[(&'a String, &'a Object)]) -> Result<Vec<Compress
     })
 }
 
-impl PcraftWriter {
+impl EvoPhotoWriter {
     pub fn new() -> Self {
         Self::default()
     }
@@ -878,7 +878,7 @@ impl PcraftWriter {
         }
         let manifest = Manifest {
             format_version: FORMAT_VERSION,
-            generator: format!("photocraft-format {}", env!("CARGO_PKG_VERSION")),
+            generator: format!("evophoto-format {}", env!("CARGO_PKG_VERSION")),
             document,
             thumbnail: opts.thumbnail.as_ref().map(|_| THUMB.to_owned()),
             composite: opts.composite.as_ref().map(|_| COMPOSITE.to_owned()),
@@ -1110,12 +1110,12 @@ impl PcraftWriter {
 #[test]
 fn tile_hash_cache_keeps_sample_byte_order_in_its_identity() {
     let mut cache = HashMap::new();
-    let mut surface = photocraft_raster::Surface::new(PixelFormat::RGBA8);
+    let mut surface = evophoto_raster::Surface::new(PixelFormat::RGBA8);
     surface.write_pixel(0, 0, &[0.1, 0.2, 0.3, 1.0]);
-    let tile = surface.tile(photocraft_geom::TileCoord::new(0, 0)).unwrap();
+    let tile = surface.tile(evophoto_geom::TileCoord::new(0, 0)).unwrap();
     let mut collect = Collect { hash_cache: Some(&mut cache), ..Default::default() };
     for sample in [SampleType::U8, SampleType::U16] {
-        let format = if sample == SampleType::U8 { PixelFormat::RGBA8 } else { PixelFormat::new(photocraft_color::ColorMode::Grayscale, sample, true) };
+        let format = if sample == SampleType::U8 { PixelFormat::RGBA8 } else { PixelFormat::new(evophoto_color::ColorMode::Grayscale, sample, true) };
         assert_eq!(collect.tile(format, tile), hash_bytes(&tile_le(tile, sample)));
     }
     drop(collect);
@@ -1144,16 +1144,16 @@ fn blob_hash_cache_tracks_arc_identity_without_retaining_payloads() {
 #[cfg(test)]
 #[test]
 fn compressed_cache_budget_limits_retained_capacity_without_changing_bytes() {
-    use photocraft_doc::{Layer, LayerContent};
-    use photocraft_geom::Size;
-    use photocraft_raster::Surface;
+    use evophoto_doc::{Layer, LayerContent};
+    use evophoto_geom::Size;
+    use evophoto_raster::Surface;
 
-    let mut doc = Document::new("cache", Size::new(257, 1), photocraft_color::ColorMode::Rgb, SampleType::U8);
+    let mut doc = Document::new("cache", Size::new(257, 1), evophoto_color::ColorMode::Rgb, SampleType::U8);
     let mut surface = Surface::new(doc.pixel_format());
     surface.write_pixel(0, 0, &[0.2, 0.4, 0.6, 1.0]);
     surface.write_pixel(256, 0, &[0.6, 0.4, 0.2, 1.0]);
     doc.layers.push(Layer::new("pixels", LayerContent::Raster(surface)));
-    let mut writer = PcraftWriter::new();
+    let mut writer = EvoPhotoWriter::new();
     let (expected, _) = writer.save_zip(&doc, &SaveOptions::default()).unwrap();
     let key = writer.compressed.keys().next().unwrap().clone();
     let key_allocation = writer.compressed.get_key_value(&key).unwrap().0.as_ptr();
@@ -1184,8 +1184,8 @@ fn gc_pinned_directory_handles_resist_subdirectory_swap() {
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static NEXT: AtomicU64 = AtomicU64::new(0);
-    let root = std::env::temp_dir().join(format!("pcraft-gc-swap-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
-    let bundle = root.join("project.pcraft");
+    let root = std::env::temp_dir().join(format!("evophoto-gc-swap-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+    let bundle = root.join("project.evophoto");
     let outside = root.join("outside");
     for sub in ["tiles", "blobs", "composite"] {
         std::fs::create_dir_all(bundle.join(sub)).unwrap();
@@ -1215,16 +1215,16 @@ fn a_failed_manifest_flush_keeps_the_previous_objects() {
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static NEXT: AtomicU64 = AtomicU64::new(0);
-    let dir = std::env::temp_dir().join(format!("pcraft-flush-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+    let dir = std::env::temp_dir().join(format!("evophoto-flush-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
     std::fs::create_dir_all(&dir).unwrap();
     let dir = std::fs::canonicalize(dir).unwrap();
-    let mut doc = Document::new("flush", photocraft_doc::Size::new(64, 64), photocraft_color::ColorMode::Rgb, SampleType::U8);
-    let id = doc.insert_above(None, photocraft_doc::Layer::raster("paint", doc.pixel_format()));
+    let mut doc = Document::new("flush", evophoto_doc::Size::new(64, 64), evophoto_color::ColorMode::Rgb, SampleType::U8);
+    let id = doc.insert_above(None, evophoto_doc::Layer::raster("paint", doc.pixel_format()));
     let paint = |doc: &mut Document, red: f32| {
-        doc.layer_mut(id).unwrap().surface_mut().unwrap().fill_rect(photocraft_geom::Rect::new(0, 0, 64, 64), &[red, 0.5, 0.25, 1.0]);
+        doc.layer_mut(id).unwrap().surface_mut().unwrap().fill_rect(evophoto_geom::Rect::new(0, 0, 64, 64), &[red, 0.5, 0.25, 1.0]);
     };
     paint(&mut doc, 1.0);
-    let mut w = PcraftWriter::new();
+    let mut w = EvoPhotoWriter::new();
     w.save_dir(&doc, &dir, &SaveOptions::default()).unwrap();
     let old = list_objects(&dir).unwrap();
     paint(&mut doc, 0.0);
@@ -1248,14 +1248,14 @@ fn a_retried_save_flushes_the_folder_of_a_reused_object() {
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static NEXT: AtomicU64 = AtomicU64::new(0);
-    let dir = std::env::temp_dir().join(format!("pcraft-retry-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+    let dir = std::env::temp_dir().join(format!("evophoto-retry-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
     std::fs::create_dir_all(&dir).unwrap();
     let dir = std::fs::canonicalize(dir).unwrap();
     // One layer of one tile: the retry finds its only object already written.
-    let mut doc = Document::new("retry", photocraft_doc::Size::new(16, 16), photocraft_color::ColorMode::Rgb, SampleType::U8);
-    let id = doc.insert_above(None, photocraft_doc::Layer::raster("paint", doc.pixel_format()));
-    doc.layer_mut(id).unwrap().surface_mut().unwrap().fill_rect(photocraft_geom::Rect::new(0, 0, 16, 16), &[1.0, 0.5, 0.25, 1.0]);
-    let mut w = PcraftWriter::new();
+    let mut doc = Document::new("retry", evophoto_doc::Size::new(16, 16), evophoto_color::ColorMode::Rgb, SampleType::U8);
+    let id = doc.insert_above(None, evophoto_doc::Layer::raster("paint", doc.pixel_format()));
+    doc.layer_mut(id).unwrap().surface_mut().unwrap().fill_rect(evophoto_geom::Rect::new(0, 0, 16, 16), &[1.0, 0.5, 0.25, 1.0]);
+    let mut w = EvoPhotoWriter::new();
     FAIL_DIR_FLUSH.with(|f| f.set(Some("tiles")));
     let e = w.save_dir(&doc, &dir, &SaveOptions::default()).unwrap_err();
     assert!(e.to_string().contains("could not be flushed"), "{e}");

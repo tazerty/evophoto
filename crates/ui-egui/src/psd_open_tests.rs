@@ -5,21 +5,21 @@
 #[path = "../../io/tests/support/recovery_psd.rs"]
 mod recovery_psd;
 
-use crate::{PhotocraftApp, Services, control};
-use photocraft_engine::Session;
+use crate::{EvoPhotoApp, Services, control};
+use evophoto_engine::Session;
 use serde_json::{Value, json};
 use std::{cell::RefCell, rc::Rc};
 
 /// Creates a minimal UI application with in-memory import/export services for PSD tests.
-fn app() -> PhotocraftApp {
-    let mut app = PhotocraftApp::new(
+fn app() -> EvoPhotoApp {
+    let mut app = EvoPhotoApp::new(
         Session::new(),
         Services {
             import: Some(Box::new(|name, bytes, opts| {
-                photocraft_io::import_with_options(name, bytes, opts).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string())
+                evophoto_io::import_with_options(name, bytes, opts).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string())
             })),
             export: Some(Box::new(|doc, path, _| {
-                photocraft_io::export(doc, path, &Default::default()).map(|r| (r.bytes, r.warnings)).map_err(|e| e.to_string())
+                evophoto_io::export(doc, path, &Default::default()).map(|r| (r.bytes, r.warnings)).map_err(|e| e.to_string())
             })),
             write: Some(Box::new(|_, _| Ok(()))),
             automation_write: Some(Box::new(|_, _| Ok(()))),
@@ -31,7 +31,7 @@ fn app() -> PhotocraftApp {
 }
 
 /// Runs an agent-facing control command synchronously and returns its JSON result.
-fn call(app: &mut PhotocraftApp, method: &str, params: Value) -> Value {
+fn call(app: &mut EvoPhotoApp, method: &str, params: Value) -> Value {
     let (req, _rx) = control::ControlRequest::new(method, params);
     match control::handle(app, &egui::Context::default(), &req) {
         control::Outcome::Done(v) => v,
@@ -40,7 +40,7 @@ fn call(app: &mut PhotocraftApp, method: &str, params: Value) -> Value {
 }
 
 /// Inspects the active damage prompt and returns its agent-visible dialog ID.
-fn damage_dialog(app: &mut PhotocraftApp) -> u64 {
+fn damage_dialog(app: &mut EvoPhotoApp) -> u64 {
     let inspected = call(app, "ui.inspect", json!({}));
     assert_eq!(inspected["ok"], true);
     let dialogs = inspected["result"]["dialogs"].as_array().unwrap();
@@ -105,7 +105,7 @@ fn accepted_psd_keeps_its_source_path_and_uses_the_normal_save_writer() {
         crate::menus::invoke(&mut app, &egui::Context::default(), "file.save", json!({})).unwrap();
         assert_eq!(app.session.active().unwrap().path.as_deref(), Some(path));
         assert!(!app.session.active().unwrap().is_dirty());
-        assert!(photocraft_io::import(path, &stored.borrow()).is_ok());
+        assert!(evophoto_io::import(path, &stored.borrow()).is_ok());
     }
     assert_ne!(*stored.borrow(), original, "ordinary Save can replace the source after consent");
     assert!(app.save_automation(Some("automated-copy.psd".into())).is_ok());
@@ -161,10 +161,10 @@ fn cancelling_one_damaged_open_does_not_open_the_next_damaged_file_without_conse
 fn damage_confirmation_precedes_the_profile_question() {
     let mut app = app();
     app.run("edit.colorSettings", json!({"askOnMismatch": true, "policyRgb": "preserve"})).unwrap();
-    let (mut file, _) = photocraft_psd::PsdFile::from_bytes_and_merged(&recovery_psd::make_psd(true), |_| false).unwrap();
-    file.resources.push(photocraft_psd::ImageResource::new(
-        photocraft_psd::resources::ids::ICC_PROFILE,
-        photocraft_cms::Builtin::from_id("adobe-rgb-compat").unwrap().profile().to_bytes().to_vec(),
+    let (mut file, _) = evophoto_psd::PsdFile::from_bytes_and_merged(&recovery_psd::make_psd(true), |_| false).unwrap();
+    file.resources.push(evophoto_psd::ImageResource::new(
+        evophoto_psd::resources::ids::ICC_PROFILE,
+        evophoto_cms::Builtin::from_id("adobe-rgb-compat").unwrap().profile().to_bytes().to_vec(),
     ));
     app.open_bytes("profile.psd", &file.to_bytes().unwrap()).unwrap();
     let id = damage_dialog(&mut app);

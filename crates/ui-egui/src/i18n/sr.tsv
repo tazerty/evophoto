@@ -18,7 +18,7 @@
 # (Datoteka, Uređivanje, Slika ...), commands are imperatives (Otvori…, Sačuvaj kao…), tools read
 # "Alatka …" (Alatka četkica, Alatka za pomeranje), presets are "šabloni", patterns "šare" and
 # swatches "uzorci boja". Serbian quotation marks „…“ around names. Product and technology names
-# (PhotoCraft, Camera Raw, OpenType, Lab ...) stay as they are; RGB/CMYK stay as they
+# (EvoPhoto, Camera Raw, OpenType, Lab ...) stay as they are; RGB/CMYK stay as they
 # are; the trailing "…" of dialog commands is kept. A count that is not an @plural entry is kept
 # out of noun agreement ("Broj: {n}", "slojeva: {n}") so every number reads correctly.
 
@@ -2739,7 +2739,7 @@ cameraRaw	Blending	Stapanje
 	Frequency	Frekvencija
 	Use tablet pressure to change pen width	Koristi pritisak na tabletu za promenu širine pera
 
-# About ▸ Contributors / Models (credits, craftrules standards/contributors.md)
+# About ▸ Contributors / Models (credits, evorules standards/contributors.md)
 	About	O programu
 	Contributors	Saradnici
 	Models	Modeli
@@ -3819,7 +3819,7 @@ layerLabel	No Color	Bez boje
 	Mezzotint	Mecotinta
 	Mosaic	Mozaik
 	Motion Blur	Zamućenje pokreta
-	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= photocraft`.	Izvorno prevlačenje i otpuštanje datoteka još nije podržano na Wayland-u. Koristite Datoteka › Otvori ili pokrenite program Lumbra pod XWayland-om pomoću `WAYLAND_DISPLAY= photocraft`.
+	Native file drag-and-drop is not supported on Wayland yet. Use File › Open, or run Lumbra under XWayland with `WAYLAND_DISPLAY= evophoto`.	Izvorno prevlačenje i otpuštanje datoteka još nije podržano na Wayland-u. Koristite Datoteka › Otvori ili pokrenite program Lumbra pod XWayland-om pomoću `WAYLAND_DISPLAY= evophoto`.
 	Neon Glow	Neonski sjaj
 	New Guide Layout	Novi raspored vodilja
 	New Video Layer from File	Novi video sloj iz datoteke
@@ -4391,7 +4391,7 @@ shape	Appearance	Izgled
 	Replace it with this document, or cancel and use File › Save As to keep both.	Zameni je ovim dokumentom ili otkaži i koristi Datoteka › Sačuvaj kao da zadržiš obe.
 
 # Evora build (patches E1 and E2, EVORA-LUM-47): entries the other catalogues gained with E1 and E2.
-	Based on PhotoCraft, open-source software (MIT OR Apache-2.0).	Zasnovano na programu PhotoCraft, softveru otvorenog koda (MIT OR Apache-2.0).
+	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Zasnovano na programu EvoPhoto, softveru otvorenog koda (MIT OR Apache-2.0).
 	Evora Theme	Evora tema
 	Evora Light Theme	Evora svetla tema
 	Evora (Dark)	Evora (tamna)
@@ -4460,7 +4460,7 @@ shape	Appearance	Izgled
 	Not rendered: this adjustment ({key}) is kept as imported.	Није приказано: ово прилагођавање ({key}) је задржано онако како је увезено.
 # Print preview image (#8236)
 	Print preview image	Print preview image
-# PhotoCraft release checks.
+# EvoPhoto release checks.
 	Check for Updates…	Proveri ažuriranja…
 	Lumbra Updates	Ažuriranja za Lumbra
 	Checking for updates…	Provera ažuriranja…

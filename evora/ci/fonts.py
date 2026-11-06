@@ -1,10 +1,10 @@
 """Polices servies à part (Evora, patch E6) pour le build web de Lumbra.
 
-Usage : python3 -I evora/ci/fonts.py <copie de craft-fonts> <dossier de sortie>
+Usage : python3 -I evora/ci/fonts.py <copie de evo-fonts> <dossier de sortie>
 
-Lit fonts/manifest.txt de craft-fonts (format « family | style | file | scripts | licence |
+Lit fonts/manifest.txt de evo-fonts (format « family | style | file | scripts | licence |
 licence file | sha256 | source »), vérifie que chaque chemin reste dans le dépôt, que l'empreinte
-SHA-256 de chaque police correspond au manifeste (la révision de craft-fonts est épinglée par la
+SHA-256 de chaque police correspond au manifeste (la révision de evo-fonts est épinglée par la
 CI), puis copie le manifeste, les polices et leurs licences dans <sortie>/fonts/, aux mêmes chemins
 relatifs à la racine du site (packaging/web/README.md › Fonts). Les polices restent hors du wasm :
 le moteur les télécharge à la demande (fetch avec intégrité SRI). Sort en erreur au moindre écart.

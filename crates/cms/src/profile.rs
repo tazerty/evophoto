@@ -213,7 +213,7 @@ impl Profile {
     }
 
     /// Hash of the profile's ICC bytes (stable within a process; used as a cache key). It is a
-    /// fixed-key 64-bit hash, so a crafted profile can share another's: equal hashes only narrow
+    /// fixed-key 64-bit hash, so a built profile can share another's: equal hashes only narrow
     /// the search, [`Profile::same_bytes`] decides.
     pub fn content_hash(&self) -> u64 {
         *self.hash.get_or_init(|| {
@@ -938,7 +938,7 @@ mod tests {
     }
 
     /// `p` with the content hash of `other`: the hash is a fixed-key 64-bit SipHash, so a
-    /// crafted profile can have another's (#8613). Setting it stands in for finding one.
+    /// built profile can have another's (#8613). Setting it stands in for finding one.
     fn with_hash_of(p: &Profile, other: &Profile) -> Profile {
         let p = Profile { hash: std::sync::OnceLock::from(other.content_hash()), ..p.clone() };
         assert_eq!(p.content_hash(), other.content_hash());

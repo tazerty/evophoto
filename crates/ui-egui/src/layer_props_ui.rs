@@ -3,12 +3,12 @@
 //! `edit.transform`, `layer.translate`, `layer.align.*` and selection commands.
 
 use egui::{Rect, Sense, Stroke, pos2, vec2};
-use photocraft_doc::{Layer, LayerContent};
+use evophoto_doc::{Layer, LayerContent};
 use serde_json::{Value, json};
 
 use crate::props_layout::{LABEL_GAP, LABEL_W, quick_actions_ui, section, stacked_label};
 use crate::theme::{ROW_GAP, Tokens};
-use crate::{PhotocraftApp, widgets};
+use crate::{EvoPhotoApp, widgets};
 
 /// `edit.transform` params that scale the content box `b` = [x0, y0, x1, y1] to `w` x `h`, keeping
 /// the top-left corner (Photoshop's Properties W/H fields), or `layer.translate` params for X/Y.
@@ -56,13 +56,13 @@ fn field(ui: &mut egui::Ui, id: &str, label: (&str, &str), current: f32, width: 
 /// rulers are in centimeters): document px ↔ that unit at the document's resolution.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct LenUnit {
-    pub unit: photocraft_engine::prefs::Unit,
+    pub unit: evophoto_engine::prefs::Unit,
     pub dpi: f64,
     pub ppi: f64,
 }
 
 impl LenUnit {
-    pub(crate) fn of(app: &PhotocraftApp) -> Self {
+    pub(crate) fn of(app: &EvoPhotoApp) -> Self {
         let ur = &app.session.prefs().units_and_rulers;
         let dpi = app.session.active().map_or(72.0, |s| f64::from(s.doc.resolution_dpi));
         LenUnit { unit: ur.rulers, dpi, ppi: ur.point_size.per_inch() }
@@ -122,7 +122,7 @@ const LINK_W: f32 = 20.0;
 /// Pro Properties body for a non-adjustment layer: Transform, Align and Distribute, the kind's own
 /// sections (Character/Paragraph/Type Options for type, Appearance/Shape for shapes), then Quick
 /// Actions, all with the same collapsible headers (#155).
-pub fn properties(app: &mut PhotocraftApp, ui: &mut egui::Ui, layer: &Layer) {
+pub fn properties(app: &mut EvoPhotoApp, ui: &mut egui::Ui, layer: &Layer) {
     let mut run: Vec<(String, Value)> = Vec::new();
     if let Some(s) = layer.surface() {
         let b = app.layer_frame_bounds(layer, s);
@@ -161,7 +161,7 @@ pub fn properties(app: &mut PhotocraftApp, ui: &mut egui::Ui, layer: &Layer) {
         }
     }
     // Gradient fills: their gradient first, as in Photoshop's Properties panel.
-    let gradient = matches!(layer.content, LayerContent::Fill(photocraft_doc::Fill::Gradient { .. }));
+    let gradient = matches!(layer.content, LayerContent::Fill(evophoto_doc::Fill::Gradient { .. }));
     if gradient {
         crate::gradient_ui::properties(app, ui, layer);
     }
@@ -195,7 +195,7 @@ pub fn properties(app: &mut PhotocraftApp, ui: &mut egui::Ui, layer: &Layer) {
 
 /// The Align and Distribute section: its buttons run `layer.align.*` and `layer.distribute.*` on
 /// the selected layers (pushed onto `run`), greyed where the engine says they can't.
-fn align_and_distribute(app: &PhotocraftApp, ui: &mut egui::Ui, run: &mut Vec<(String, Value)>) {
+fn align_and_distribute(app: &EvoPhotoApp, ui: &mut egui::Ui, run: &mut Vec<(String, Value)>) {
     let t = Tokens::get(ui.ctx());
     if !section(ui, "align", tl!("Align and Distribute")) {
         return;
@@ -208,7 +208,7 @@ fn align_and_distribute(app: &PhotocraftApp, ui: &mut egui::Ui, run: &mut Vec<(S
             }
             let id = format!("layer.align.{kind}");
             let on = app.session.is_enabled(&id);
-            let label = photocraft_engine::commands::find(&id).map_or(kind, |c| c.label);
+            let label = evophoto_engine::commands::find(&id).map_or(kind, |c| c.label);
             let (r, resp) = ui.allocate_exact_size(vec2(24.0, 24.0), if on { Sense::click() } else { Sense::hover() });
             if resp.hovered() && on {
                 ui.painter().rect_filled(r, t.radius_sm, t.hover);
@@ -237,7 +237,7 @@ fn align_and_distribute(app: &PhotocraftApp, ui: &mut egui::Ui, run: &mut Vec<(S
 
 /// Several layers selected with the Background active: Photoshop's Properties keeps Align and
 /// Distribute for the selection there, above the Document properties (#4608).
-pub fn selection_align(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn selection_align(app: &mut EvoPhotoApp, ui: &mut egui::Ui) {
     let mut run = Vec::new();
     align_and_distribute(app, ui, &mut run);
     for (id, p) in run {
@@ -254,12 +254,12 @@ mod tests {
 
     #[test]
     fn switching_between_gradient_and_raster_keeps_alignment_on_raster_only() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 200, "height": 120})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(vec2(280.0, 900.0)).build_ui_state(
-            |ui, app: &mut PhotocraftApp| {
+            |ui, app: &mut EvoPhotoApp| {
                 if ui.ctx().cumulative_pass_nr() == 0 {
-                    PhotocraftApp::setup_context(ui.ctx(), crate::theme::ThemeKind::ProMedium);
+                    EvoPhotoApp::setup_context(ui.ctx(), crate::theme::ThemeKind::ProMedium);
                     return;
                 }
                 let state = app.session.active().unwrap();
@@ -286,15 +286,15 @@ mod tests {
     /// #7314: in the Transform section W sits over X and H over Y, and each pair shares a centre.
     #[test]
     fn transform_labels_are_centred_on_each_other() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = EvoPhotoApp::new(evophoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 200, "height": 120})).unwrap();
         app.run("layer.new.layer", json!({})).unwrap();
         app.run("select.rect", json!({"x": 10, "y": 10, "width": 100, "height": 60})).unwrap();
         app.run("edit.fill", json!({"contents": "color", "color": "#336699"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(vec2(280.0, 900.0)).build_ui_state(
-            |ui, app: &mut PhotocraftApp| {
+            |ui, app: &mut EvoPhotoApp| {
                 if ui.ctx().cumulative_pass_nr() == 0 {
-                    PhotocraftApp::setup_context(ui.ctx(), crate::theme::ThemeKind::ProMedium);
+                    EvoPhotoApp::setup_context(ui.ctx(), crate::theme::ThemeKind::ProMedium);
                     return;
                 }
                 let state = app.session.active().unwrap();
@@ -319,7 +319,7 @@ mod tests {
 
     #[test]
     fn transform_fields_show_and_take_the_ruler_unit() {
-        use photocraft_engine::prefs::Unit;
+        use evophoto_engine::prefs::Unit;
         // 72 dpi: 1644 px = 58 cm; typing 60 cm sets 1700.8 px
         let u = LenUnit { unit: Unit::Centimeters, dpi: 72.0, ppi: 72.0 };
         assert!((u.shown(1644.0, 1.0) - 58.0).abs() < 0.01);
@@ -344,7 +344,7 @@ mod tests {
 
     #[test]
     fn transform_params_resize_a_layer_in_the_engine() {
-        let mut s = photocraft_engine::Session::new();
+        let mut s = evophoto_engine::Session::new();
         s.execute("file.new", json!({"width": 200, "height": 200, "background": "transparent"})).unwrap();
         s.execute("select.rect", json!({"x": 10, "y": 20, "width": 100, "height": 50})).unwrap();
         s.execute("edit.fill", json!({"color": "#ff0000"})).unwrap();

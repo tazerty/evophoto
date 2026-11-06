@@ -2203,7 +2203,7 @@ mod tests {
 
     #[test]
     fn linked_layer_items() {
-        // One embedded file (liFD, version 7) as photocraft-io writes it.
+        // One embedded file (liFD, version 7) as evophoto-io writes it.
         let mut item = Vec::new();
         item.put(b"liFD");
         item.put_u32(7);
