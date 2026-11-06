@@ -61,6 +61,9 @@ def scan(root):
 
 
 def check(root):
+    if not os.path.isdir(root) or not any(files for _, _, files in os.walk(root)):
+        print(f"::error::dossier du site vide ou absent : {root}")
+        return 1
     faults, allowed = scan(root)
     print(f"mots sans rapport tolérés : {allowed}")
     for rel, context in faults[:40]:
