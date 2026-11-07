@@ -354,7 +354,7 @@ fn web_pane(app: &EvoPhotoApp, ui: &mut egui::Ui, size: egui::Vec2, p: Option<&V
         web_preview::paint(ui, r, &response, &tex, source_size, f);
         ui.painter().rect_stroke(r, 0.0, egui::Stroke::new(1.0, t.separator), egui::StrokeKind::Inside);
         let (l1, l2) = match (p, info) {
-            (None, _) => ("Original".to_string(), format!("{}  ·  {} × {} px", doc.name, doc.size.width, doc.size.height)),
+            (None, _) => ("Original".to_string(), format!("{}  ·  {} × {} px", crate::i18n::overlay::rename(&doc.name), doc.size.width, doc.size.height)),
             (Some(_), Some((bytes, colors, ext))) => {
                 // Photoshop's download estimate at 56.6 Kbps.
                 let secs = (bytes as f64 * 8.0 / 56_600.0).ceil();

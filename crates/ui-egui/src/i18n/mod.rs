@@ -445,8 +445,14 @@ pub fn tr_id<'a>(lang: Lang, id: &str, label: &'a str) -> &'a str {
     overlay::apply(lang.code(), lang.catalog().id(id).unwrap_or_else(|| tr(lang, label)))
 }
 
-/// Fill `{name}` placeholders. Unknown placeholders are left as written.
+/// Fill `{name}` placeholders. Unknown placeholders are left as written. Evora build (patch
+/// EVORA-LUM-114): a value filled in can name the engine (an engine message, a file's extension).
 pub fn fmt(template: &str, args: &[(&str, &str)]) -> String {
+    overlay::renamed(fill(template, args))
+}
+
+/// [`fmt`] for values that must stay as they are (a command to type).
+pub fn fill(template: &str, args: &[(&str, &str)]) -> String {
     let mut out = template.to_string();
     for (k, v) in args {
         out = out.replace(&format!("{{{k}}}"), v);

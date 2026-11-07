@@ -208,7 +208,8 @@ pub(crate) fn damage_body(ui: &mut egui::Ui, fields: &serde_json::Map<String, Va
     if let Some(warnings) = fields.get("warnings").and_then(Value::as_array) {
         egui::ScrollArea::vertical().max_height(140.0).show(ui, |ui| {
             for warning in warnings.iter().filter_map(Value::as_str) {
-                ui.label(warning);
+                // Evora build (patch EVORA-LUM-114): the importer's message, without a lookup.
+                ui.label(crate::i18n::overlay::rename(warning));
             }
         });
     }

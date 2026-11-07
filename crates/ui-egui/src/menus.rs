@@ -1149,7 +1149,8 @@ pub fn menu_items_unmasked(app: &EvoPhotoApp) -> Vec<MenuItem> {
         let active = app.session.active_index();
         let docs = app.session.documents().iter().enumerate().map(|(i, st)| MenuItem {
             id: format!("{DOCUMENT_ITEM}{i}"),
-            label: st.doc.name.clone(),
+            // Evora build (patch EVORA-LUM-114): as the document's tab shows it.
+            label: crate::i18n::overlay::rename(&st.doc.name).to_string(),
             path: window(),
             shortcut: None,
             enabled: true,
@@ -2096,7 +2097,7 @@ mod tests {
             h.run_steps(1);
         }
         h.run_steps(3);
-        assert!(h.query_by_label_contains("About EvoPhoto").is_some(), "Help opened");
+        assert!(h.query_by_label_contains("About Lumbra").is_some(), "Help opened");
         for c in "DeSelect all".chars() {
             let key = Key::from_name(&c.to_ascii_uppercase().to_string());
             if let Some(key) = key {
@@ -2109,7 +2110,7 @@ mod tests {
             }
         }
         h.run_steps(3);
-        assert!(h.query_by_label_contains("About EvoPhoto").is_some(), "typing keeps Help open");
+        assert!(h.query_by_label_contains("About Lumbra").is_some(), "typing keeps Help open");
         let query: String = h.ctx.data(|d| d.get_temp(egui::Id::new("help-menu-search"))).unwrap_or_default();
         assert_eq!(query, "DeSelect all", "every letter reached the field");
         assert!(h.state().ui.dialogs.is_empty(), "no menu command ran: {:?}", h.state().ui.dialogs);

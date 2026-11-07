@@ -41,7 +41,8 @@ impl Notice {
     /// `s` (the title or a line) in the current language, with [`Notice::args`] filled in.
     pub fn text(&self, s: &str) -> String {
         let args: Vec<(&str, &str)> = self.args.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-        crate::i18n::fmt(crate::i18n::t(s), &args)
+        // Evora build (patch EVORA-LUM-114): `t` already names the app; a value here is a command to type.
+        crate::i18n::fill(crate::i18n::t(s), &args)
     }
 }
 

@@ -856,7 +856,8 @@ pub fn open_card(app: &mut EvoPhotoApp, ui: &mut egui::Ui, job: JobId) {
 
 /// Open tabs for the tab strips: (job, title, progress).
 pub fn open_tabs(app: &EvoPhotoApp) -> Vec<(JobId, String, f32)> {
-    app.jobs.opens.iter().map(|o| (o.job, o.name.clone(), app.session.job(o.job).map_or(0.0, |j| j.progress))).collect()
+    // Evora build (patch EVORA-LUM-114): as the document's tab will show it.
+    app.jobs.opens.iter().map(|o| (o.job, crate::i18n::overlay::rename(&o.name).to_string(), app.session.job(o.job).map_or(0.0, |j| j.progress))).collect()
 }
 
 /// Draw one opening tab's progress underline inside tab rect `r`.

@@ -668,7 +668,8 @@ pub(crate) fn encode(src: &Image, plan: Plan, opts: &EncodeOptions) -> Result<Ve
     wr.u32(32, 0);
     let keep = |key| if opts.embed_metadata { text(&img, key) } else { None };
     wr.string(CREATION_TIME, keep(KEY_CREATION_TIME).unwrap_or(""));
-    wr.string(CREATOR, keep(KEY_CREATOR).unwrap_or("EvoPhoto"));
+    // Evora build (E-LUM-EXPORT-NOM, EVORA-LUM-114): exported metadata names the app.
+    wr.string(CREATOR, keep(KEY_CREATOR).unwrap_or("Lumbra"));
     wr.string(PROJECT, keep(KEY_PROJECT).unwrap_or(""));
     wr.string(COPYRIGHT, keep(KEY_COPYRIGHT).unwrap_or(""));
     wr.u32(660, UNDEF32);

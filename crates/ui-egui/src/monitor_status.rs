@@ -168,6 +168,8 @@ fn profile_summary(st: &evophoto_engine::display_color::MonitorStatus) -> String
         (Some(name), "auto") => name.as_str(),
         _ => st.profile.as_str(),
     };
+    // Evora build (patch EVORA-LUM-114): a built-in profile's description names the app.
+    let name = crate::i18n::overlay::rename(name);
     let source = tl!(st.source);
     match &st.reason {
         Some(reason) => format!("{name} ({source}: {reason})"),

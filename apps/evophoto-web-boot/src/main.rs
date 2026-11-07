@@ -246,7 +246,7 @@ mod boot {
             held.push(chunk);
         }
         let Some(payload) = super::payload(&head) else {
-            let e = JsValue::from_str("the download is not EvoPhoto's WebAssembly");
+            let e = JsValue::from_str("the download is not Lumbra's WebAssembly");
             // Stops the rest of the download, which nothing will read.
             let _ = reader.cancel_with_reason(&e);
             return Err(e);
@@ -328,12 +328,12 @@ mod boot {
                     Ok(()) => return,
                     Err(e) => e,
                 };
-                web_sys::console::error_2(&JsValue::from_str("evophoto-web-boot: could not start EvoPhoto:"), &error);
+                web_sys::console::error_2(&JsValue::from_str("evophoto-web-boot: could not start Lumbra:"), &error);
                 let Some(&wait) = RETRY_AFTER.get(attempt) else {
-                    say("EvoPhoto couldn't be downloaded. Check your connection, then try again: ", true);
+                    say("Lumbra couldn't be downloaded. Check your connection, then try again: ", true);
                     return;
                 };
-                say("Loading EvoPhoto\u{2026} (the download failed, trying again)", false);
+                say("Loading Lumbra\u{2026} (the download failed, trying again)", false);
                 sleep(wait).await;
                 attempt += 1;
             }

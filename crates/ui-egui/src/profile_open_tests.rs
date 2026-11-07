@@ -15,7 +15,7 @@ use serde_json::Value;
 
 /// The embedded-profile choice uses the current built-in profile's displayed name.
 fn use_embedded() -> String {
-    format!("Use the embedded profile ({})", evophoto_cms::Builtin::AdobeRgbCompat.description())
+    format!("Use the embedded profile ({})", crate::i18n::t(evophoto_cms::Builtin::AdobeRgbCompat.description()))
 }
 const CONVERT: &str = "Convert to the working space (sRGB IEC61966-2.1)";
 const DISCARD: &str = "Discard the embedded profile (don't color manage)";

@@ -629,7 +629,7 @@ pub fn title_bar(app: &mut EvoPhotoApp, ui: &mut egui::Ui) {
             let title = app
                 .session
                 .active()
-                .map(|d| format!("{}{}", if show_name { d.doc.name.as_str() } else { "Lumbra" }, if d.is_dirty() { "  •" } else { "" }))
+                .map(|d| format!("{}{}", if show_name { crate::i18n::overlay::rename(&d.doc.name) } else { "Lumbra" }, if d.is_dirty() { "  •" } else { "" }))
                 .unwrap_or_else(|| "Lumbra".into());
             // The menus and the far-end controls are laid out first; the title is centred in
             // whatever room is left between them (`free`, left to right: menus then controls, or
@@ -754,7 +754,7 @@ pub fn window_title(app: &EvoPhotoApp) -> String {
     if !app.session.prefs().interface.show_file_name_in_title {
         return format!("{}Lumbra", if app.session.active().is_some_and(|d| d.is_dirty()) { "*" } else { "" });
     }
-    app.session.active().map(|d| format!("{}{} \u{2014} Lumbra", if d.is_dirty() { "*" } else { "" }, d.doc.name)).unwrap_or_else(|| "Lumbra".into())
+    app.session.active().map(|d| format!("{}{} \u{2014} Lumbra", if d.is_dirty() { "*" } else { "" }, crate::i18n::overlay::rename(&d.doc.name))).unwrap_or_else(|| "Lumbra".into())
 }
 
 /// Keep the OS window title (and the taskbar / Alt-Tab entry) on the active file. Sends
@@ -1707,7 +1707,8 @@ pub fn status_bar(app: &mut EvoPhotoApp, ui: &mut egui::Ui) {
                 if !app.ui.status.is_empty() {
                     widgets::vline(ui, 16.0);
                     let is_err = app.ui.status_error || app.ui.status.starts_with("Couldn");
-                    ui.label(RichText::new(&app.ui.status).color(if is_err { t.warning } else { t.text_faint }));
+                    // Evora build (patch EVORA-LUM-114): engine messages reach it without a lookup.
+                    ui.label(RichText::new(crate::i18n::overlay::rename(&app.ui.status)).color(if is_err { t.warning } else { t.text_faint }));
                 }
                 ui.with_layout(crate::direction::trailing(), |ui| {
                     if app.session.active().is_some()
@@ -3535,7 +3536,7 @@ fn history(app: &mut EvoPhotoApp, ui: &mut egui::Ui) {
             ui.painter().image(tex, thumb, Rect::from_min_max(egui::Pos2::ZERO, pos2(1.0, 1.0)), Color32::WHITE);
         }
         ui.painter().rect_stroke(thumb, 0.0, Stroke::new(1.0, t.separator), StrokeKind::Outside);
-        ui.painter().text(pos2(thumb.right() + 8.0, rect.center().y), Align2::LEFT_CENTER, &doc.name, egui::FontId::proportional(12.0), t.text);
+        ui.painter().text(pos2(thumb.right() + 8.0, rect.center().y), Align2::LEFT_CENTER, crate::i18n::overlay::rename(&doc.name), egui::FontId::proportional(12.0), t.text);
         ui.painter().line_segment([rect.left_bottom(), rect.right_bottom()], Stroke::new(1.0, t.separator));
     }
     let mut snap_cmd = None;

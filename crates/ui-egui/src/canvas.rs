@@ -2740,7 +2740,9 @@ fn tabs(app: &mut EvoPhotoApp, ui: &mut egui::Ui) -> TabStrip {
             let resp = ui.interact(r, ui.id().with(("dtab", i)), Sense::click_and_drag());
             let saving = crate::jobs_ui::save_progress(app, st.doc.id);
             resp.widget_info(|| {
-                let label = saving.as_ref().map_or_else(|| st.doc.name.clone(), |s| format!("{} - {s}", st.doc.name));
+                // Evora build (patch EVORA-LUM-114): as the tab shows it.
+                let shown = crate::i18n::overlay::rename(&st.doc.name);
+                let label = saving.as_ref().map_or_else(|| shown.to_string(), |s| format!("{shown} - {s}"));
                 egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, sel, label)
             });
             doc_tabs.push((i, r));
@@ -2814,7 +2816,7 @@ fn tabs(app: &mut EvoPhotoApp, ui: &mut egui::Ui) -> TabStrip {
             let left = (row.right() - crate::tab_strip::CHEVRON_W).max(row.left());
             let r = Rect::from_min_size(egui::pos2(left, row.top()), egui::vec2(crate::tab_strip::CHEVRON_W, row.height()));
             let labels: Vec<&str> =
-                app.session.documents().iter().map(|st| st.doc.name.as_str()).chain(opening.iter().map(|(_, name, _)| name.as_str())).collect();
+                app.session.documents().iter().map(|st| crate::i18n::overlay::rename(&st.doc.name)).chain(opening.iter().map(|(_, name, _)| name.as_str())).collect();
             let mut picked = None;
             // Like Photoshop's, the menu lists every open document, not only the hidden ones, and checks
             // the active one (#4487).
@@ -3029,13 +3031,15 @@ fn pro_tab_title(app: &EvoPhotoApp, i: usize) -> String {
     let layer = active_layer.map(|l| format!("{}, ", l.name)).unwrap_or_default();
     // A save in progress: "name @ 100% (Layer 1, RGB/16) - Saving 45%", as Photoshop does (#3389).
     let saving = crate::jobs_ui::save_progress(app, st.doc.id).map(|s| format!(" - {s}")).unwrap_or_default();
-    format!("{} @ {}% ({layer}{model}/{}){}{saving}", st.doc.name, fmt_zoom(zoom), st.doc.depth.bits(), if st.is_dirty() { "*" } else { "" })
+    // Evora build (patch EVORA-LUM-114): the document's name without the extension that names the engine.
+    format!("{} @ {}% ({layer}{model}/{}){}{saving}", crate::i18n::overlay::rename(&st.doc.name), fmt_zoom(zoom), st.doc.depth.bits(), if st.is_dirty() { "*" } else { "" })
 }
 
 /// The Studio strip's tab name: "name *" when unsaved, "name * - Saving 45%" while it saves (#3389).
 fn studio_tab_name(app: &EvoPhotoApp, st: &evophoto_engine::DocState) -> String {
     let saving = crate::jobs_ui::save_progress(app, st.doc.id).map(|s| format!(" - {s}")).unwrap_or_default();
-    format!("{}{}{saving}", st.doc.name, if st.is_dirty() { " *" } else { "" })
+    // Evora build (patch EVORA-LUM-114): the document's name without the extension that names the engine.
+    format!("{}{}{saving}", crate::i18n::overlay::rename(&st.doc.name), if st.is_dirty() { " *" } else { "" })
 }
 
 /// Photoshop document tabs: "name @ 33.3% (RGB/8)" on a dark strip; active tab matches panels.

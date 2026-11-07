@@ -52,3 +52,45 @@ sub	hu	Adobe többsoros	Többsoros
 sub	nl	Adobe-zetmachine	Zetmachine
 sub	*	Adobe PDF	PDF
 drop	*	Adobe
+
+# Evora build (EVORA-LUM-114, decision Q-EVO-1 of 2026-11-06): the screen shows the app's name,
+# never the engine's. About window: the origin is said without a name (saying the app is based on
+# itself would be false); the licences and notices ship with the build (LICENSES/).
+exact	*	Based on EvoPhoto, open-source software (MIT OR Apache-2.0).	Based on open-source software (MIT OR Apache-2.0).
+exact	cs	Založeno na EvoPhoto, softwaru s otevřeným zdrojovým kódem (MIT OR Apache-2.0).	Založeno na softwaru s otevřeným zdrojovým kódem (MIT OR Apache-2.0).
+exact	de	Basiert auf EvoPhoto, Open-Source-Software (MIT OR Apache-2.0).	Basiert auf Open-Source-Software (MIT OR Apache-2.0).
+exact	el	Βασίζεται στο EvoPhoto, λογισμικό ανοικτού κώδικα (MIT OR Apache-2.0).	Βασίζεται σε λογισμικό ανοικτού κώδικα (MIT OR Apache-2.0).
+exact	es	Basado en EvoPhoto, software de código abierto (MIT OR Apache-2.0).	Basado en software de código abierto (MIT OR Apache-2.0).
+exact	fr	Basé sur EvoPhoto, logiciel libre (MIT OR Apache-2.0).	Basé sur un logiciel libre (MIT OR Apache-2.0).
+exact	hu	A EvoPhoto nyílt forráskódú szoftveren alapul (MIT OR Apache-2.0).	Nyílt forráskódú szoftveren alapul (MIT OR Apache-2.0).
+exact	id	Berbasis EvoPhoto, perangkat lunak open-source (MIT OR Apache-2.0).	Berbasis perangkat lunak open-source (MIT OR Apache-2.0).
+exact	it	Basato su EvoPhoto, software open-source (MIT OR Apache-2.0).	Basato su software open-source (MIT OR Apache-2.0).
+exact	ja	オープンソースソフトウェア EvoPhoto（MIT OR Apache-2.0）をベースにしています。	オープンソースソフトウェア（MIT OR Apache-2.0）をベースにしています。
+exact	ko	오픈 소스 소프트웨어 EvoPhoto(MIT OR Apache-2.0)를 기반으로 합니다.	오픈 소스 소프트웨어(MIT OR Apache-2.0)를 기반으로 합니다.
+exact	nl	Gebaseerd op EvoPhoto, opensourcesoftware (MIT OR Apache-2.0).	Gebaseerd op opensourcesoftware (MIT OR Apache-2.0).
+exact	pl	Na podstawie EvoPhoto, oprogramowania o otwartym kodzie źródłowym (MIT OR Apache-2.0).	Na podstawie oprogramowania o otwartym kodzie źródłowym (MIT OR Apache-2.0).
+exact	pt-br	Baseado no EvoPhoto, software de código aberto (MIT OR Apache-2.0).	Baseado em software de código aberto (MIT OR Apache-2.0).
+exact	ru	Основано на EvoPhoto — программе с открытым исходным кодом (MIT OR Apache-2.0).	Основано на программе с открытым исходным кодом (MIT OR Apache-2.0).
+exact	sr	Zasnovano na programu EvoPhoto, softveru otvorenog koda (MIT OR Apache-2.0).	Zasnovano na softveru otvorenog koda (MIT OR Apache-2.0).
+exact	tr	Açık kaynaklı bir yazılım olan EvoPhoto'a dayanır (MIT OR Apache-2.0).	Açık kaynaklı bir yazılıma dayanır (MIT OR Apache-2.0).
+exact	uk	Засновано на EvoPhoto — програмі з відкритим кодом (MIT OR Apache-2.0).	Засновано на програмі з відкритим кодом (MIT OR Apache-2.0).
+exact	vi	Dựa trên EvoPhoto, phần mềm mã nguồn mở (MIT OR Apache-2.0).	Dựa trên phần mềm mã nguồn mở (MIT OR Apache-2.0).
+exact	zh-hans	基于开源软件 EvoPhoto（MIT OR Apache-2.0）。	基于开源软件（MIT OR Apache-2.0）。
+exact	zh-hant	以開放原始碼軟體 EvoPhoto（MIT OR Apache-2.0）為基礎。	以開放原始碼軟體（MIT OR Apache-2.0）為基礎。
+# Everywhere else, the name itself: the English article first, as the engine's name starts with a
+# vowel and the app's with a consonant. A survey of the 21 catalogs finds no other form that depends
+# on the first letter (no d', l' or dell' before the name). The space keeps the rule off words that
+# end the same way ("can EvoPhoto ...").
+sub	*	 an EvoPhoto	 a Lumbra
+sub	*	An EvoPhoto	A Lumbra
+sub	*	EvoPhoto	Lumbra
+# The native format in the engine's messages, said in words. The files keep their extension; a file
+# name on screen loses it (overlay.rs). The spaces keep these rules off file names. No catalog
+# holds the extension: these rules only meet English messages.
+sub	*	 as .evophoto	 as a Lumbra document
+sub	*	 or .evophoto to	 or a Lumbra document to
+sub	*	 an .evophoto	 a Lumbra
+sub	*	 .evophoto bundle	 Lumbra document
+sub	*	 .evophoto	 Lumbra
+# A crate named in a message (a TIFF that holds a camera raw file).
+sub	*	 evophoto-raw	 Lumbra

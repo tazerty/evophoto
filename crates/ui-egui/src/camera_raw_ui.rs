@@ -1336,7 +1336,8 @@ fn draw(app: &mut EvoPhotoApp, ctx: &egui::Context, own_window: bool) {
             nav_ui.spinner();
         }
         if let Some(error) = &d.detail.error {
-            nav_ui.label(egui::RichText::new(tl!("Full-resolution preview unavailable")).color(t.text_faint)).on_hover_text(error);
+            // Evora build (patch EVORA-LUM-114): the decoder's message, without a lookup.
+            nav_ui.label(egui::RichText::new(tl!("Full-resolution preview unavailable")).color(t.text_faint)).on_hover_text(crate::i18n::overlay::rename(error));
         }
         // Panels.
         let right = ERect::from_min_max(pos2(body.right() - PANEL_W, body.top()), body.max);

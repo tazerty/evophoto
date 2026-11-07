@@ -498,7 +498,8 @@ pub fn show(app: &mut EvoPhotoApp, ctx: &egui::Context) {
                 DialogKind::Command => {}
                 DialogKind::LayerStyle => crate::layer_style::body(app, ui, &mut fields),
                 DialogKind::Error => {
-                    ui.label(fields.get("message").and_then(Value::as_str).unwrap_or("Error"));
+                    // Evora build (patch EVORA-LUM-114): the engine's message, without a lookup.
+                    ui.label(crate::i18n::overlay::rename(fields.get("message").and_then(Value::as_str).unwrap_or("Error")));
                 }
             }
             crate::field_tab::end(ui.ctx(), tab);
@@ -695,11 +696,12 @@ fn about_tab_body(app: &mut EvoPhotoApp, ui: &mut egui::Ui, tab: &str) {
             ui.label(tl!("Lumbra — an open-source, native image editor written in Rust."));
             ui.label(crate::i18n::fmt(tl!("Version {version}"), &[("version", &evophoto_engine::build_info::long_version())]));
             ui.add_space(12.0);
-            // Evora build (patch E1): no upstream community or project links; the origin is named
-            // in plain text and the licences ship with the build (LICENSES/).
+            // Evora build (patch E1): no upstream community or project links; the licences ship with
+            // the build (LICENSES/). Patch EVORA-LUM-114: the display overlay (`overlay.txt`) says the
+            // origin without a name, in every language, and this line no longer names a crate.
             ui.label(tl!("Based on EvoPhoto, open-source software (MIT OR Apache-2.0)."));
             ui.add_space(10.0);
-            ui.weak("egui · wgpu · evophoto-engine");
+            ui.weak("egui · wgpu");
         }
     }
 }

@@ -2244,7 +2244,8 @@ fn shortcuts_body(app: &mut EvoPhotoApp, ui: &mut egui::Ui, f: &mut Map<String, 
         colors.clear();
     }
     if !message.is_empty() {
-        ui.label(RichText::new(&message).color(if message_warning { t.warning } else { t.text_dim }));
+        // Evora build (patch EVORA-LUM-114): the engine's refusal of a set name is shown as it comes.
+        ui.label(RichText::new(crate::i18n::overlay::rename(&message)).color(if message_warning { t.warning } else { t.text_dim }));
     }
     // The conflict describes the bindings as the capture left them: any later change (Use
     // Default, Delete, ×, Reset All, another command or set) makes it stale, and it goes.
@@ -2574,7 +2575,8 @@ fn mismatch_body(ui: &mut egui::Ui, f: &mut Map<String, Value>) {
     ui.add_space(6.0);
     let mut action = f.get("action").and_then(Value::as_str).unwrap_or("preserve").to_string();
     let missing = f.get("missing").and_then(Value::as_bool).unwrap_or(false);
-    let name = |k: &str| f.get(k).and_then(Value::as_str).unwrap_or("?").to_string();
+    // Evora build (patch EVORA-LUM-114): a profile's description, as the profile menus show it.
+    let name = |k: &str| tl!(f.get(k).and_then(Value::as_str).unwrap_or("?")).to_string();
     let opts: Vec<(&str, String)> = if missing {
         vec![("preserve", tl!("Leave as is (don't color manage)").into()), ("assignWorking", tl!("Assign working space").into())]
     } else {

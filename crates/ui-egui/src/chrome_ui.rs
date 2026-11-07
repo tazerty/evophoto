@@ -135,7 +135,8 @@ fn profile_name(doc: &Document) -> String {
     if name.is_empty() {
         return crate::i18n::fmt(tl!("Unnamed {mode} profile"), &[("mode", tl!(mode))]);
     }
-    name.to_owned()
+    // Evora build (patch EVORA-LUM-114): as the profile menus show it (`widgets::dropdown`).
+    tl!(name).to_owned()
 }
 
 /// Status bar body (Pro): zoom %, the chosen info field and its ">" menu, then status messages.
@@ -211,7 +212,8 @@ fn status_message(app: &EvoPhotoApp, ui: &mut egui::Ui, t: &Tokens) {
     let (r, _) = ui.allocate_exact_size(vec2(17.0, 16.0), Sense::hover());
     ui.painter().line_segment([r.center_top(), r.center_bottom()], Stroke::new(1.0, t.separator));
     let is_err = app.ui.status_error || app.ui.status.starts_with("Couldn");
-    ui.label(RichText::new(&app.ui.status).color(if is_err { t.warning } else { t.text_faint }));
+    // Evora build (patch EVORA-LUM-114): engine messages reach the status bar without a lookup.
+    ui.label(RichText::new(crate::i18n::overlay::rename(&app.ui.status)).color(if is_err { t.warning } else { t.text_faint }));
 }
 
 /// Home button at the very start of Photoshop 2026's options bar: toggles the Home (start)
@@ -392,14 +394,14 @@ mod tests {
         let mut gray = doc();
         gray.mode = evophoto_doc::ColorMode::Grayscale;
         gray.icc_profile = Some(evophoto_engine::color_cmds::working_profile(gray.mode).to_bytes());
-        assert_eq!(profile_name(&gray), "Dot Gain 20%-compatible (gamma 1.732, EvoPhoto)");
+        assert_eq!(profile_name(&gray), "Dot Gain 20%-compatible (gamma 1.732, Lumbra)");
 
         let mut custom = (*evophoto_engine::color_cmds::working_profile(evophoto_doc::ColorMode::Cmyk)).clone();
         custom.description = "EvoPhoto Studio CMYK".into();
         let mut custom_doc = doc();
         custom_doc.mode = evophoto_doc::ColorMode::Cmyk;
         custom_doc.icc_profile = Some(custom.with_encoded_bytes().to_bytes());
-        assert_eq!(profile_name(&custom_doc), "EvoPhoto Studio CMYK");
+        assert_eq!(profile_name(&custom_doc), "Lumbra Studio CMYK");
     }
 
     #[test]
