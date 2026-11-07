@@ -976,7 +976,7 @@ impl Tokens {
 
 /// Evora build (patch LUM-06 r2): Evora's indigo, the accent of the Evora themes until the host
 /// names one (`evora:init.accent`, `evora:theme`).
-const EVORA_ACCENT: Color32 = Color32::from_rgb(79, 70, 229);
+pub const EVORA_ACCENT: Color32 = Color32::from_rgb(79, 70, 229);
 /// WCAG 2.1 thresholds, non-text (1.4.11) and text (1.4.3), with a little room so the colours
 /// still pass once rounded to 8 bits and measured again elsewhere.
 const MARK_CONTRAST: f32 = 3.05;
@@ -994,7 +994,7 @@ pub fn set_host_accent(accent: Option<Color32>) {
     HOST_ACCENT.with(|a| a.set(accent));
 }
 
-fn host_accent() -> Color32 {
+pub fn host_accent() -> Color32 {
     HOST_ACCENT.with(std::cell::Cell::get).unwrap_or(EVORA_ACCENT)
 }
 

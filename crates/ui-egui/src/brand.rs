@@ -10,12 +10,33 @@ use evophoto_codecs::{ChannelLayout, SampleType};
 /// 128 px: sharp at 20 pt on a 3× display, and the mipmaps keep it clean at 1×.
 const ICON_PNG: &[u8] = include_bytes!("../../../assets/evora/lumbra-mark-128.png");
 
+/// The green channel of the mark's indigo tile, the channel where indigo and white stand furthest apart.
+const TILE_GREEN: f32 = 70.0;
+
+/// EVORA-LUM-115: the mark's tile in the member's colour. Its pixels are indigo, white or between the two; the
+/// green channel says how far each stands from white, and that share of the member's colour replaces it.
+fn tinted(rgba: &[u8], accent: Color32) -> Vec<u8> {
+    rgba.chunks_exact(4)
+        .flat_map(|px| {
+            let share = ((255.0 - f32::from(px[1])) / (255.0 - TILE_GREEN)).clamp(0.0, 1.0);
+            let channel = |c: u8| (255.0 + (f32::from(c) - 255.0) * share).round() as u8;
+            [channel(accent.r()), channel(accent.g()), channel(accent.b()), px[3]]
+        })
+        .collect()
+}
+
 /// The icon's pixels (one transparent pixel if it couldn't be decoded, which a test rules out).
 fn decode() -> egui::ColorImage {
     let rgba = evophoto_codecs::decode(ICON_PNG).ok().map(|img| img.convert(ChannelLayout::Rgba, SampleType::U8));
     match rgba {
         Some(img) if img.data().len() == img.width() as usize * img.height() as usize * 4 => {
-            egui::ColorImage::from_rgba_unmultiplied([img.width() as usize, img.height() as usize], img.data())
+            let size = [img.width() as usize, img.height() as usize];
+            let accent = crate::theme::host_accent();
+            if accent == crate::theme::EVORA_ACCENT {
+                egui::ColorImage::from_rgba_unmultiplied(size, img.data())
+            } else {
+                egui::ColorImage::from_rgba_unmultiplied(size, &tinted(img.data(), accent))
+            }
         }
         _ => egui::ColorImage::filled([1, 1], Color32::TRANSPARENT),
     }
@@ -23,7 +44,7 @@ fn decode() -> egui::ColorImage {
 
 /// The icon texture, uploaded on first use and kept in the context.
 fn texture(ctx: &Context) -> TextureHandle {
-    let id = Id::new("evophoto-brand-mark");
+    let id = Id::new(("evophoto-brand-mark", crate::theme::host_accent()));
     if let Some(tex) = ctx.data(|d| d.get_temp::<TextureHandle>(id)) {
         return tex;
     }
